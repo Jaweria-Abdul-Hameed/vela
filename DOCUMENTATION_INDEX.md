@@ -46,6 +46,7 @@ affected specifications.
 -   `docs/product/NON_GOALS.md`
 -   `docs/product/PRODUCT_SPEC.md`
 -   `docs/product/REQUIREMENTS_TRACEABILITY.md`
+-   `docs/project/CURRENT_STATE.md`
 -   `docs/release/RELEASE_CHECKLIST.md`
 -   `docs/research/EXTERNAL_INTEGRATIONS_2026-10.md`
 -   `docs/roadmap/IMPLEMENTATION_PLAN.md`
