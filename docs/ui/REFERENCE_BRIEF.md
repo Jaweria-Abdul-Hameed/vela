@@ -20,3 +20,13 @@ page changes.
 The visual test is: if all labels were removed, the application should
 still feel calm, spatial, premium, dark, and alive---not like a gaming
 overlay or analytics SaaS dashboard.
+
+# Reference Asset Policy
+
+The user-supplied Stitch screenshot is **not versioned in this repository** and is not yet available to
+agents. Until the user adds it under `docs/ui/reference/` (and records it in
+`DOCUMENTATION_INDEX.md`), UI agents must not reconstruct the reference from memory of any real
+product, and visual-fidelity acceptance (AT-008, `UI_ACCEPTANCE_CHECKLIST.md`, the independent UI
+fidelity review) cannot be marked passed. Work that depends on the asset is recorded as `NEEDS_HUMAN`
+(kind `AMBIGUITY`) rather than guessed. The textual qualities listed above remain binding in the
+meantime.

@@ -73,3 +73,24 @@ worker progresses after delivery and watchdog clears.
 Maintain fast fake-adapter tests for the core, but include a smaller Antigravity-specific compatibility/end-to-end suite for release confidence. Passing only provider-neutral unit tests is insufficient for v1.
 
 Other production-provider suites are not required until those providers enter supported runtime scope.
+
+# Additional Mandatory Scenarios (Prompt 3 fixes)
+
+-   analyst returns invalid output: one correction retry, then affected pairs are "Unknown —
+    sequential" (FR-007),
+-   structured worker/review output fails schema validation: one correction retry, then escalate
+    (FR-029),
+-   merge conflict escalates to resolution attempt or human, never auto-resolved (ADR-011),
+-   integration validation failure discards the unpublished merge and returns to `FIXING`,
+-   checkpoint commit blocked by a Git hook returns the worker to `FIXING` (ADR-015),
+-   checkpoint with a Git index lock present waits with bounded retry (ADR-015),
+-   untrusted repository: no repository-controlled execution, Build refused (ADR-013),
+-   native posture `UNKNOWN` blocks Autonomous mode (ADR-009),
+-   operation evidence truncated or from non-control content yields `ASK` (ADR-009),
+-   locked/disconnected desktop with a pending approval pauses safely and reconciles (ADR-012),
+-   window close with and without background operation enabled; reboot with each
+    `recovery_continuation` value (ADR-012),
+-   corrupt state store, failed migration, and update during a run (`RECOVERY.md`),
+-   provisioning failure before a worker starts; exclusive resource-key serialization,
+-   cloud-synced worktree root blocked in preflight,
+-   notification delivery for FR-028 events.

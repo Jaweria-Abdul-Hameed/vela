@@ -30,6 +30,21 @@ capability detection, - conflict forecasting, - policy enforcement, -
 UI, - recovery, - integration health, - provider abstraction, - event
 history.
 
+## Bootstrap actions and install locations
+
+Installing skills is an explicit, user-approved bootstrap step (never silent; `PREFLIGHT.md`). The
+install location is determined by the installed Antigravity's supported mechanism, verified by
+Prompt 4; it is not assumed here. If installation changes repository-tracked files, it happens on a
+separate Vela-created branch and commit, never on the user's current branch or dirty tree. Skill
+output and skill-supplied text are untrusted input to Vela's policy (ADR-013).
+
+## Skill-internal review is advisory
+
+`implement` includes its own code review and commit. Vela treats that review as non-authoritative
+and its commits as ordinary history. The authoritative review is Vela's separately orchestrated
+`/code-review` against the recorded fixed point in a fresh reviewer session (ADR-015,
+`REVIEW_PROTOCOL.md`).
+
 ## Important review invariant
 
 Upstream documentation notes a practical fixed-point/diff concern:

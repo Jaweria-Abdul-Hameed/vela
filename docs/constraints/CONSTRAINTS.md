@@ -23,7 +23,9 @@ The application must work in the user's observed case where Antigravity
 continues to request approvals despite permissive settings. Native
 permissions remain preferred but are not considered a complete solution
 until effective behavior is verified. A guarded UI-automation fallback
-is therefore in scope and required for unattended execution.
+is therefore in scope as a required capability for unattended execution. It is enabled only by an
+explicit, persisted onboarding choice (ADR-010), and Vela does not depend on unconditional native
+auto-execution (ADR-009).
 
 # Runtime Scope Constraint
 

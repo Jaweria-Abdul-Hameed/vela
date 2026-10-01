@@ -1,6 +1,6 @@
 # Vela --- Autonomous AI Engineering Control Plane
 
-> **Status:** Product definition and implementation source of truth\
+> **Status:** Product definition overview; normative precedence is defined in `DOCUMENTATION_INDEX.md`\
 > **Target:** Windows-first native desktop application\
 > **Primary purpose:** Safely orchestrate long-running, multi-issue AI
 > coding work across isolated agent sessions while making the execution
@@ -176,7 +176,7 @@ questions without guessing:
 The product requirement for unattended execution includes environments
 where Antigravity still presents approval prompts despite permissive
 settings. Vela therefore includes a policy-driven Approval Broker,
-Approval Watchdog, and guarded UI-automation fallback. This does **not**
+Approval Watchdog, and guarded UI-automation fallback (the UI-automation tiers are opt-in at onboarding, ADR-010; Vela does not depend on unconditional native auto-execution, ADR-009). This does **not**
 replace or weaken the earlier safety model: Vela classifies the action
 first, then uses the best available mechanism to communicate an
 allow/ask/deny decision.

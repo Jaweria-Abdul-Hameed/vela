@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed / preferred.
+Accepted (2026-10-02). Promoted from "Proposed / preferred" by human decision; the decision
+below is canonical.
 
 ## Decision
 

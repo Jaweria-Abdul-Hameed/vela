@@ -63,10 +63,16 @@ native installable application.
     types beyond generic capabilities/status.
 -   A worker cannot merge itself directly into integration unless the
     merge policy explicitly delegates that responsibility.
--   The integration branch has a single serialized merge lane even while
-    implementation workers are parallel.
--   No new frontier starts while integration health is unknown after a
-    merge.
+-   The integration branch has a single serialized, deterministic merge
+    lane (Vela code, not an agent) running in a dedicated integration
+    worktree, even while implementation workers are parallel (ADR-011).
+-   No new frontier starts while integration health is not `HEALTHY`
+    (including unknown after a merge).
+-   Vela's ALLOW/ASK/DENY policy is authoritative and must remain
+    enforceable; Vela does not depend on unconditional native
+    auto-execution (ADR-009).
+-   Repositories are `UNTRUSTED` until the user explicitly trusts them;
+    repository, issue, and `AGENTS.md` text is untrusted input (ADR-013).
 
 ## 4. Event model
 
@@ -78,8 +84,21 @@ All meaningful events enter an append-oriented event journal: -
 `MergeStarted` - `MergeCompleted` - `IntegrationGateFailed` -
 `HumanActionRequired` - `RunPaused` - `RunResumed` - `RunCompleted`
 
-The current state may be materialized for fast reads, but the journal is
-retained for debugging/replay.
+Additional required events (the vocabulary is closed: new event kinds
+require a documented addition here): - `ProjectTrusted` -
+`ProjectTrustRevoked` - `OnboardingChoiceRecorded` -
+`ApprovalAutomationConsentChanged` - `ApprovalDetected` -
+`ApprovalClassified` - `ApprovalDeliveryAttempted` -
+`ApprovalDeliveryVerified` - `ApprovalStalled` - `PolicyViolationDetected` -
+`StopRequested` - `RunStopping` - `WorkerCancelled` - `WorkerFailed` -
+`WorkerPaused` - `WorkerResumed` - `ReconciliationStarted` -
+`ReconciliationCompleted` - `DiscrepancyDetected` - `PushCompleted` -
+`PushFailed` - `MergeDiscarded` - `ConflictResolutionStarted` -
+`WorktreeProvisioned` - `WorktreeRemoved` - `ProfileCooldownStarted` -
+`ProfileAvailable` - `PromotionCompleted` - `StateStoreBackupCreated` -
+`MigrationApplied` - `MigrationFailed`.
+
+State and journal authority is defined in `PERSISTENCE.md`.
 
 ## 5. IPC
 
@@ -87,12 +106,31 @@ Frontend/backend communication uses typed request/response commands for
 user actions and event streams for ongoing state. Never expose arbitrary
 shell execution directly to the renderer.
 
+Renderer hardening requirements (the renderer displays untrusted
+Markdown, issue text, logs, and agent output while holding an IPC bridge
+to a privileged core):
+
+-   strict Content Security Policy: no remote script, no inline script or
+    `eval`, no remote content loaded into the webview;
+-   untrusted content is rendered inertly as text or a restricted
+    Markdown subset with raw HTML disabled and no unsanitized HTML
+    injection;
+-   IPC commands are an explicit allowlist with least-privilege
+    capabilities per window; no generic filesystem or shell command is
+    exposed; every argument is validated in the core, never trusted from
+    the renderer;
+-   external links open through the OS with an explicit user action.
+
 ## 6. Background operation
 
 Closing/minimizing the visual window must be distinct from terminating
 orchestration. The product must make this explicit. Background execution
-should continue through the core process/service according to platform
-capability and user setting.
+continues through the core process/service only after the user has
+explicitly enabled background operation during onboarding; the normative
+rules for window close, tray, login auto-start, reboot continuation,
+keep-awake, and locked/disconnected sessions are in ADR-012. Whether the
+core is a separate OS process or service is an architecture decision that
+must satisfy ADR-012.
 
 ## 7. Adapter strategy
 
@@ -133,7 +171,9 @@ setting automation
 
 The policy decision and the delivery mechanism are separate
 abstractions. No UI adapter is allowed to decide whether an action is
-safe.
+safe. The UI-automation and visual tiers are used only after the user has
+enabled guarded UI automation (ADR-010), and evidence for classification
+follows the evidence-binding rules of ADR-009.
 
 The UI automation adapter must be isolated from the scheduler, versioned
 against observed Antigravity surfaces, cancellable, observable, and fail

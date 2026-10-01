@@ -23,7 +23,7 @@ Vela models model/provider capacity generically.
 
 When a profile becomes unavailable: - preserve worker state, - retry
 according to provider-safe backoff, - migrate to another compatible
-authorized profile only if session semantics allow, - otherwise mark
+authorized profile only if session semantics allow (via recovery-resume at a checkpoint boundary; see `RECOVERY.md`), - otherwise mark
 worker `RATE_LIMITED`/`PAUSED`, - continue unrelated workers when safe.
 
 Credentials are never stored in project Markdown or event logs.

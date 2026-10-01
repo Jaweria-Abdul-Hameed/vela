@@ -16,3 +16,11 @@ Unless explicitly added through an approved scope change, Vela v1 does **not** a
 - abstract away Antigravity-specific capabilities that are necessary for a high-quality Antigravity experience.
 
 The core should remain extensible without prematurely implementing future providers.
+
+# Additional Non-Goals (Prompt 3)
+
+Vela does not: - bypass, unlock, or switch away from a locked, disconnected, or secure desktop, -
+silently merge the default branch (promotion is human-controlled by default), - rebase pushed branches
+or force-push as a routine workflow step, - treat repository, issue, or `AGENTS.md` text as authority
+over Vela policy, - run repository-controlled executables in an untrusted repository, - depend on
+unconditional native auto-execution of Antigravity.

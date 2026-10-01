@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted.
+Accepted. Its absolute interpretation is superseded by ADR-007 (guarded fallback); the opt-in
+condition in the Exception below is fulfilled by ADR-010. Read this ADR together with ADR-007
+and ADR-010.
 
 ## Decision
 

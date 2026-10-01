@@ -48,3 +48,23 @@ tested against the actual installed version during development.
 External research about Claude, Codex, Gemini, or other development tools must not be interpreted as evidence that they are Vela v1 runtime targets. Current runtime research priority is Antigravity because it is the first-class production integration.
 
 Research should continue to capability-detect Antigravity rather than assuming documented behavior always matches the installed environment.
+
+# Verification Items Required by Specification Decisions (for Prompt 4)
+
+These are **not facts**; they are questions the specification now depends on. Prompt 4 must verify
+them against current primary documentation and the installed environment and must not assume answers:
+
+1.  Which native Antigravity permission modes or settings satisfy the Native Permission Posture
+    (NPP-1..3, ADR-009), and whether an unconditional mode can be detected at user or machine level.
+2.  Whether each capability in the Antigravity Required Capability Contract (`ADAPTERS.md`,
+    CAP-01..CAP-11) exists, through which interface (CLI, SDK, daemon, other), and how parallel
+    sessions map to processes and windows.
+3.  Whether installed skills and slash commands (`/implement`, `/code-review`) can be invoked
+    programmatically in a Vela-created session, and where skills are installed.
+4.  Whether Antigravity exposes structured events (commands, tests, approval requests) usable under
+    EBR-1.
+5.  What the approval surface exposes through Windows UI Automation, and whether control identity can
+    be correlated to a Vela-created session; behavior under lock, display-off, RDP, and elevation.
+6.  How rate-limit and capacity conditions are surfaced.
+7.  Whether session resume exists (CAP-10).
+8.  Tauri behavior for tray, background lifecycle, keep-awake power requests, and login auto-start.

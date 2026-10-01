@@ -13,8 +13,9 @@ unordered changes, - same generated artifact/source-of-truth file, - one
 changes an API/type/contract consumed by the other before that contract
 is merged, - one renames/moves files the other expects, - one changes
 shared build/configuration semantics the other relies upon, - both
-require mutually exclusive infrastructure/local resources, - repository
-policy marks the area serialized.
+require mutually exclusive infrastructure/local resources (declared as
+resource keys in the project profile; two tickets or test commands claiming
+the same key are serialized), - repository policy marks the area serialized.
 
 ## Evidence inputs
 
@@ -52,7 +53,7 @@ can trigger re-evaluation.
 If two workers unexpectedly begin touching overlapping high-risk
 surfaces, Vela may: - allow if changes are clearly independent and
 policy permits, - pause one worker, - let both finish but
-serialize/rebase with enhanced validation, - escalate.
+serialize/merge with enhanced validation (never rebase a pushed branch; ADR-011), - escalate.
 
 ## UI representation
 
@@ -68,3 +69,21 @@ The user may inspect the evidence behind the decision.
 Prefer tickets that cut vertically through required layers while
 remaining independently verifiable. This reduces long-lived cross-ticket
 assumptions and improves fresh-session execution.
+
+## Dependency analyst (semantic analysis)
+
+The semantic analysis in the evidence inputs is performed by a **dependency analyst task**:
+
+-   it runs once during run state `ANALYZING`, through `AgentAdapter` as a read-only analysis
+    session (no writes, no repository scripts, no commands beyond read operations), and counts
+    against Antigravity capacity like any other session;
+-   its output follows the analyst contract in `PROMPT_CONTRACTS.md` and is validated: ticket IDs
+    exist, predicted paths are well-formed, and deterministic checks (explicit blockers, lockfile,
+    schema/migration path rules, declared resource keys) are recomputed independently;
+-   deterministic rules and hard blockers always apply regardless of analyst output; analyst
+    output may only add hazards or evidence, never remove a deterministic hard blocker;
+-   the validated result, the analyst/prompt version, and its inputs are stored in the graph
+    snapshot, which is the reproducible input to scheduling; the analyst is not re-run mid-run
+    (runtime re-evaluation uses observed file changes, not new analysis);
+-   if the analyst fails or returns invalid output after one correction retry, affected pairs are
+    labelled "Unknown — sequential" and scheduled sequentially.

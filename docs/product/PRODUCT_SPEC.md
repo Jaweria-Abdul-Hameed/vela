@@ -36,7 +36,9 @@ configuration, - available execution profiles, - conflicting
 processes/locks.
 
 Preflight never silently mutates the repository beyond explicitly safe
-bootstrap actions.
+bootstrap actions, which are defined in `PREFLIGHT.md` (it never modifies the
+primary checkout's working tree, index, or branch). A newly imported repository
+is `UNTRUSTED` and is analyzed as data only until the user trusts it (ADR-013).
 
 ### 2.4 Context synthesis
 
@@ -68,8 +70,9 @@ worktree, fixed-point commit, ticket, and context pointers.
 
 The worker implements, tests, checkpoints, reviews, fixes, retests, and
 reports. Vela validates the report independently where practical,
-pushes the branch, merges through a controlled merger, then runs
-integration gates.
+pushes the branch (workers supervised by Vela do not push; ADR-015), merges
+through the deterministic serialized merge lane in the dedicated integration
+worktree (ADR-011), then runs integration gates.
 
 ### 2.9 Advance
 
@@ -79,9 +82,11 @@ frontier rather than treating issues as a static ordered list.
 ### 2.10 Finalization
 
 After all tickets: - full integration test suite, - final code review
-against integration fixed point, - fix pass if needed, - final
-validation, - push, - PR/merge behavior according to repository
-policy, - cleanup worktrees, - produce execution summary.
+against the recorded `run_base_sha` fixed point (`run_base_sha...integration_head`),
+- fix pass if needed (run states `FINAL_FIXING`), - final
+validation, - push, - promotion per ADR-014 (default: validated integration branch
+-> PR -> human-controlled merge; local-ready when no remote), - cleanup worktrees
+(per `GIT_WORKFLOW.md`), - produce execution summary.
 
 ## 3. Functional requirements
 
@@ -166,7 +171,9 @@ policy.
 ### FR-017 Merge
 
 Vela shall merge successful ticket branches into the integration branch
-using a controlled process.
+using a controlled process: the deterministic serialized merge lane in a
+dedicated integration worktree, merge-based and without routine force-push
+(ADR-011).
 
 ### FR-018 Integration gate
 
@@ -185,7 +192,9 @@ indefinitely.
 
 ### FR-021 Kill switch
 
-Vela shall provide a globally reachable Stop All control.
+Vela shall provide a globally reachable Stop All control: always reachable from
+the in-app run control, from the tray when background operation is enabled, and
+via an optional configurable global shortcut (`ORCHESTRATION_ENGINE.md` section 6).
 
 ### FR-022 Resume
 
@@ -282,7 +291,8 @@ when no clean provider event is emitted.
 When a request is already classified `ALLOW` and native permission
 mechanisms cannot deliver the decision, Vela shall support a versioned
 Antigravity UI-automation adapter to activate the appropriate approval
-control.
+control. The capability is opt-in: it is used only after the user enables it
+during onboarding or in Settings (FR-040, ADR-010).
 
 ### FR-034 Approval loop protection
 
@@ -305,7 +315,10 @@ execution is expected to work.
 ### Acceptance principle
 
 A worker waiting on an ordinary policy-allowed Antigravity approval
-prompt must not require the user to remain physically present. A request
+prompt must not require the user to remain physically present, subject to the unattended-session
+conditions of ADR-012 (an interactive desktop is required for UI-automation delivery; locked or
+disconnected sessions degrade and reconcile) and to the user having enabled guarded UI automation
+(ADR-010). A request
 that Vela cannot confidently classify must remain blocked for human
 review.
 
@@ -328,3 +341,92 @@ The following are v1 release requirements:
 Provider abstraction SHALL remain in the architecture, but v1 SHALL NOT require implementation of Claude, Codex, or other peer runtime adapters unless scope is explicitly amended.
 
 Using Claude, Gemini, Codex, or other agents to develop Vela does not create a shipped runtime-support requirement.
+
+# Requirements Added by the Prompt 3 Specification Fixes
+
+### FR-037 Antigravity capability contract
+
+Vela shall define and enforce the Antigravity Required Capability Contract (`ADAPTERS.md`,
+CAP-01..CAP-11): feature-detect each capability at runtime, report a concrete preflight `BLOCK` or
+degradation per missing capability, and never substitute another provider or UI automation for a
+missing capability.
+
+### FR-038 Policy sovereignty and native permission posture
+
+Vela's `ALLOW`/`ASK`/`DENY` policy shall remain enforceable. Vela shall not depend on or configure
+unconditional native auto-execution, shall evaluate the Native Permission Posture in preflight
+(`MEETS`/`DOES_NOT_MEET`/`UNKNOWN`), and shall block Autonomous mode unless it is `MEETS`
+(ADR-009).
+
+### FR-039 Approval evidence binding
+
+Vela shall bind an approval prompt to a normalized operation only under the Evidence-Binding Rules
+(ADR-009), default to `ASK` on weak or incomplete evidence, and treat post-execution mismatches as
+policy violations.
+
+### FR-040 Guarded UI automation consent
+
+Guarded UI automation (UIA and visual tiers) shall be disabled until the user explicitly enables it
+at onboarding or in Settings; the consent shall persist, be revocable, and be journaled (ADR-010).
+
+### FR-041 Unattended session management
+
+During an active autonomous run Vela may hold the system awake when required, supports display-off,
+does not bypass locked/disconnected/secure desktops, pauses UI-automation-dependent work safely, and
+reconciles when an interactive session returns (ADR-012).
+
+### FR-042 Background operation and continuation
+
+Background operation, tray access (reopen, status, Stop All), login auto-start, and reboot
+continuation shall be opt-in and governed by ADR-012; after reboot Vela shall reconcile before
+resuming.
+
+### FR-043 Repository trust
+
+Newly imported repositories shall be `UNTRUSTED`; Build shall require explicit user trust; repository,
+issue, and `AGENTS.md` text shall be untrusted input to Vela policy (ADR-013).
+
+### FR-044 Worktree provisioning
+
+Vela shall provision each worktree under the provisioning contract (`GIT_WORKFLOW.md`): user-confirmed
+commands only, no automatic secret copying, declared cache and resource-key handling, and retention
+and cleanup rules.
+
+### FR-045 Run completion and promotion
+
+Run completion shall follow ADR-014: default PR with human-controlled merge, local-ready outcome
+without a remote, a recorded `run_base_sha` as final-review fixed point, and no silent merge of the
+default branch.
+
+### FR-046 State-store integrity and recovery
+
+Vela shall check its state store at startup, back it up before migration, handle corruption and failed
+migration without silently guessing, and never auto-resume from a reconstructed inventory
+(`RECOVERY.md`, `PERSISTENCE.md`).
+
+### FR-047 Installation and updates
+
+Vela shall install on a clean Windows environment without development tooling, handle its web-view
+runtime dependency, ship signed installers and updates, back up its state before an upgrade, roll back
+a failed migration, and never apply an update during an active run (`RECOVERY.md`).
+
+### FR-048 Renderer hardening
+
+The renderer shall display untrusted content inertly under a strict Content Security Policy and shall
+reach the core only through an allowlisted, least-privilege, validated IPC surface
+(`SYSTEM_ARCHITECTURE.md` section 5).
+
+## V1 runtime requirement identifiers
+
+The v1 release requirements in "V1 Runtime Product Invariant" map to requirement IDs for traceability:
+
+| V1 requirement | Requirement IDs |
+|---|---|
+| Antigravity capability discovery and preflight | FR-002, FR-036, FR-037, FR-038 |
+| Antigravity worker/session lifecycle | FR-009, FR-010, FR-011, FR-037 |
+| `/implement` and `/code-review` workflow | FR-011, FR-013, FR-014 |
+| Unattended routine operation | FR-031..FR-036, FR-038..FR-042 |
+| Approval handling (Broker, fallback) | FR-031..FR-036, FR-039, FR-040 |
+| Recovery/reconciliation for Antigravity | FR-019, FR-022, FR-037, FR-046 |
+| Skill discovery/bootstrap | FR-004 |
+| Observable, testable integration | FR-023, FR-029, plus `REQUIREMENTS_TRACEABILITY.md` |

@@ -76,7 +76,7 @@ adapter capability discovery**
 
 ## Wave 7 --- hardening
 
--   **I070 Security policy engine**
+-   **I070 Policy engine hardening and extended coverage** (core is I006)
 -   **I071 Prompt-injection/untrusted-repo boundaries**
 -   **I072 Performance profiling/adaptive rendering**
 -   **I073 500-node graph performance**
@@ -118,3 +118,39 @@ When translating this seed into GitHub issues:
 - retain fake/test adapter tickets needed for architecture and deterministic testing;
 - do **not** generate Claude/Codex/other production runtime-adapter tickets for v1 unless an approved specification change adds them;
 - treat Antigravity end-to-end readiness as release-blocking.
+
+# Seed Additions and Ordering Corrections (Prompt 3)
+
+IDs remain placeholders. Real blocking edges are created during ticket generation.
+
+## Additional tickets
+
+-   **I006 Policy engine core and rule model** (Wave 0/1). Carries the rule schema, default rule set,
+    and `ALLOW`/`ASK`/`DENY` evaluation. **I016 depends on I006.** I070 is renamed "Policy engine
+    hardening and extended coverage" and no longer carries the core.
+-   **I007 Repository trust model and untrusted-repository data-only analysis** (Wave 0/1), including
+    hardened Git for untrusted repositories (ADR-013). Blocks Build and provisioning.
+-   **I008 Windows lifecycle: onboarding, tray, background operation, keep-awake, login auto-start**
+    (Wave 1; ADR-012). Includes the onboarding choices consumed by ADR-010.
+-   **I048 Antigravity AgentAdapter session lifecycle** (Wave 3): start, cancel, observe, resume
+    where supported, capability contract (CAP-01..CAP-11), correlation identities.
+-   **I049 Worktree provisioning contract** (Wave 3; `GIT_WORKFLOW.md`).
+-   **I046 Final integration review and promotion workflow** (Wave 4; ADR-014).
+-   **I047 Dependency analyst task and snapshot validation** (Wave 2; `PARALLELIZATION.md`).
+-   **I057 State-store integrity, backup, migration failure and inventory rebuild** (Wave 5;
+    `RECOVERY.md`).
+-   **I058 Notifications (FR-028)** (Wave 5).
+-   **I059 Settings, onboarding screens, command palette** (Wave 6).
+-   **I080 Native Permission Posture preflight probe** (Wave 1b; ADR-009; extends I039).
+-   **I081 Renderer hardening: CSP, inert rendering, IPC allowlist** (Wave 0/1 baseline, enforced
+    thereafter; `SYSTEM_ARCHITECTURE.md` section 5).
+-   **I082 Merge-lane conflict-resolution attempt and escalation** (Wave 4; ADR-011).
+
+## Ordering corrections
+
+-   The Approval Broker cluster (I016..I019, I028, I029, I038, I039, I080) belongs to Wave 1b, after
+    I005 (adapters, fakes), I006 (policy core), I007 (trust), and the event journal I011.
+-   I019 (UIA adapter) is gated on Phase 0 item 8 findings; I028 (visual fallback) depends on I019.
+-   I040 (merge lane) depends on I030 (worktrees), I035 (checkpoints), and the integration-worktree
+    provisioning in I049.
+-   I076 (installer/update/signing) includes the "never update during a run" requirement (FR-047).

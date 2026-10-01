@@ -64,7 +64,10 @@ reviewing: slow outer-ring motion, - fixing: nested pulse, - merging:
 edge flow toward integration, - done: settled, lower-energy luminous
 state, - blocked: visibly constrained edge/lock glyph, - failed: warm
 restrained accent, never full-screen alarm red, - needs human: focused
-attention treatment.
+attention treatment, - paused: still and quiet with a pause glyph, - rate-limited: dimmed with a
+cooldown mark, - cancelled: settled and muted. Sub-indicators (waiting approval, review stalled,
+approval stalled) are secondary marks on the node, never separate colors alone; the state mapping is
+in `DOMAIN_MODEL.md`.
 
 ## 5. Reactive dot field
 

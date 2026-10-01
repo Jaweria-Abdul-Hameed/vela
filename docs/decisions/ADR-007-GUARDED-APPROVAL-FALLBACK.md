@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted; supersedes the absolute interpretation of ADR-004.
+Accepted; supersedes the absolute interpretation of ADR-004. Refined by ADR-009 (policy
+sovereignty, native permission posture, evidence binding) and ADR-010 (opt-in consent).
 
 ## Context
 

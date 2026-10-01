@@ -64,3 +64,37 @@ affected specifications.
 -   `docs/ui/UI_ACCEPTANCE_CHECKLIST.md`
 -   `docs/ui/UI_UX_SPEC.md`
 - `docs/decisions/ADR-008-ANTIGRAVITY-FIRST-PROVIDER-EXTENSIBLE.md`
+-   `docs/decisions/ADR-009-POLICY-SOVEREIGNTY-AND-NATIVE-PERMISSION-POSTURE.md`
+-   `docs/decisions/ADR-010-GUARDED-UI-AUTOMATION-CONSENT.md`
+-   `docs/decisions/ADR-011-DETERMINISTIC-MERGE-LANE.md`
+-   `docs/decisions/ADR-012-BACKGROUND-AND-UNATTENDED-OPERATION.md`
+-   `docs/decisions/ADR-013-REPOSITORY-TRUST-MODEL.md`
+-   `docs/decisions/ADR-014-RUN-COMPLETION-AND-PROMOTION.md`
+-   `docs/decisions/ADR-015-CHECKPOINT-PUSH-AND-REVIEW-OWNERSHIP.md`
+
+## Documentation precedence
+
+When documents disagree about **intended behavior**, resolve in this order (earlier wins):
+
+1.  **Accepted ADRs.** A later ADR that explicitly supersedes or refines an earlier one controls
+    that point; the earlier ADR is preserved and carries a back-reference. Position in this index
+    or in a file ("appended later") never confers precedence. Current chain: ADR-007 supersedes the
+    absolute interpretation of ADR-004; ADR-009 and ADR-010 refine ADR-007; ADR-008 scopes
+    ADR-006 (complementary); ADR-001 and ADR-002 are Accepted.
+2.  **`AGENTS.md`**: universal agent conduct rules; provider-specific files may add ergonomics but
+    may not weaken it.
+3.  **`docs/product/PRODUCT_SPEC.md`**: functional and non-functional requirements.
+4.  **Subsystem specifications** (architecture, orchestration, agents, git, security, persistence,
+    operations, testing, config). `docs/ui/UI_UX_SPEC.md` is authoritative for visual and
+    interaction behavior within its domain.
+5.  **`README.md` and `CONTEXT.md`**: product overview and intent; they do not override the above.
+6.  **`docs/research/`**: dated external snapshots; informational, never overriding an ADR or
+    specification, and to be revalidated.
+7.  **`docs/project/CURRENT_STATE.md` and `VELA_MASTER_BUILD_PLAYBOOK.md`**: process and status;
+    they summarize and sequence work and never override a specification.
+
+Code and tests are the record of **actual** behavior (see `docs/agents/CONTEXT_SHARING.md`); a
+contradiction between code and an accepted ADR or specification is a defect or a decision request
+(`AGENTS.md` Mission), never a silent override. Contradictions between documents are surfaced and
+resolved by amending the lower-precedence document or by a new ADR, not by whichever agent reads
+last.

@@ -47,3 +47,29 @@ adapters, tracker, notifications, advanced diagnostics.
 
 Every screen/state needs loading, empty, error, keyboard,
 reduced-motion, and high-DPI behavior considered.
+
+## Onboarding (first run)
+
+Welcome, then the explicit choices of ADR-010 and ADR-012: guarded approval UI automation consent
+(default off), background operation (default off), login auto-start (default off), recovery
+continuation (`ask` or `auto_safe`, default `ask`). States: first run, revisit from Settings, consent
+text version changed. Each choice is skippable and conservative by default.
+
+## Repository trust sheet
+
+Shown when a repository is `UNTRUSTED` and the user asks to Build (ADR-013). Lists what becomes
+executable (scripts, hooks, provisioning, command profile), the confirmed command profile, and
+Trust / Not now. States: untrusted (analysis only), trust confirmation, trust revoked.
+
+## Tray menu (when background operation is enabled)
+
+Reopen window, run status, Stop All, quit (with safe-pause behavior). Reduced-motion, keyboard, and
+high-DPI considerations apply.
+
+## Approval indicator and intervention variants
+
+A compact approval indicator in the run bar (active, waiting on human, delivery degraded) and
+intervention variants for `APPROVAL_ASK`, `APPROVAL_STALLED`, `APPROVAL_UNDELIVERABLE`,
+`POLICY_DENIED`, `POLICY_VIOLATION`, `MERGE_CONFLICT`, `INTEGRATION_REGRESSION`, and interactive-
+session-unavailable pauses, plus the scoped-rule editor (scope shown before saving) and the posture
+and unattended-readiness summary in the preflight panel.

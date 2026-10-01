@@ -68,3 +68,12 @@ subtle lighting, not heavy drop shadows.
 -   Toast/Notification
 -   StopAllControl
 -   ReducedMotionFallback
+
+## Component additions
+
+-   OnboardingSheet
+-   TrustSheet
+-   TrayMenuModel
+-   ApprovalIndicator
+-   ScopedRuleEditor
+-   PostureSummary

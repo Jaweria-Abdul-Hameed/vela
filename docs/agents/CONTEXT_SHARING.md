@@ -30,3 +30,11 @@ product conclusions without relying on proprietary memory.
 # Build Agents vs Runtime Agent
 
 Repository context is intentionally portable across Claude, Gemini, Codex, Antigravity, and future development agents so any of them can help **build Vela**. This cross-model development portability is separate from shipped runtime scope: Vela v1 itself targets Antigravity first.
+
+# Interpreting the Durable Hierarchy
+
+The durable hierarchy above ranks where **truth about the world** is recorded (what the system
+actually does, what was decided, what happened). It is not the precedence order for resolving
+conflicts about **intended behavior**; that order is defined in `DOCUMENTATION_INDEX.md`. If code or
+tests contradict an accepted ADR or specification, the contradiction is a defect or a decision
+request, never a silent override in either direction.

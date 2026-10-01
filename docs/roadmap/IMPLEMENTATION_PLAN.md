@@ -6,7 +6,14 @@ Before polishing UI, prototype: 1. Antigravity/agent adapter can
 start/cancel/observe a worker reliably. 2. Git worktree lifecycle is
 reliable on Windows paths. 3. review fixed-point flow produces a real
 non-empty diff. 4. Tauri background orchestration survives renderer
-reload. 5. Three.js/R3F dot field can suspend cleanly.
+reload. 5. Three.js/R3F dot field can suspend cleanly. 6. The installed
+Antigravity satisfies (or fails, with a concrete reason) each capability in the
+Antigravity Required Capability Contract (`ADAPTERS.md`). 7. Native Permission
+Posture: which native modes meet NPP-1..3 (ADR-009). 8. Approval delivery
+feasibility on the installed version: detection, correlation to a Vela-created
+session, UIA control identification, and behavior under lock, display-off, and
+elevation (ADR-010, ADR-012). 9. Keep-awake, tray, and background lifecycle in
+Tauri (ADR-012).
 
 Throw prototypes away or explicitly graduate them; do not let
 exploratory code become accidental architecture.
@@ -21,6 +28,13 @@ UI can be minimal but must be end-to-end.
 
 DAG, blockers, safe frontier, two parallel fixture workers, serialized
 merge.
+
+## Phase 2b --- policy and approval broker
+
+Policy engine core and rule model, repository trust, Approval Broker domain model, native delivery,
+posture check, then the UIA tier and loop protection, all against the fake approval-window harness
+first and the real environment as soon as Phase 0 item 8 permits. The visual tier follows and stays
+isolated. This phase precedes any unattended-run claim and must not be deferred behind UI polish.
 
 ## Phase 3 --- recovery
 
@@ -37,12 +51,14 @@ evidence panels.
 
 ## Phase 6 --- security/performance
 
-Policy engine, untrusted input boundaries, adaptive rendering, large
-graphs.
+Policy engine hardening and extended rule coverage (the policy engine core
+arrives in Phase 2b), untrusted input boundaries, renderer hardening, adaptive
+rendering, large graphs.
 
 ## Phase 7 --- packaging
 
-Installer, update strategy, diagnostics, release checklist.
+Installer, signed update strategy (never applied during a run), web-view
+runtime handling, diagnostics, release checklist.
 
 The UI design system begins early, but heavy visual polish should not
 mask an unreliable scheduler.

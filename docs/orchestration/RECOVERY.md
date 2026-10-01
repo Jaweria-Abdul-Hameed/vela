@@ -17,6 +17,9 @@
 -   execution profile capacity exhaustion
 -   corrupted/missing worktree
 -   repository modified externally
+-   Vela state store corrupt, missing, or failing migration
+-   interactive session unavailable (locked, disconnected, secure desktop)
+-   upgrade or update attempted during an active run
 
 ## Startup reconciliation
 
@@ -58,3 +61,53 @@ cannot be correlated confidently.
 # Antigravity Recovery Requirement
 
 V1 recovery is incomplete unless it can reconcile the Antigravity execution state Vela actually uses. Generic persisted scheduler recovery and fake-adapter tests are necessary but insufficient; real Antigravity process/session divergence must have a defined reconciliation path or a safe `NEEDS_HUMAN` outcome.
+
+# Resume Semantics ("documented recovery operation")
+
+Fresh context per ticket (`AGENT_PROTOCOL.md`) is preserved by this single documented recovery
+operation, **recovery-resume**:
+
+-   it starts a **new session** on the existing worker branch and worktree at the last verified
+    checkpoint SHA, with a recovery envelope (ticket, `fixed_point_sha`, checkpoint SHA, and a
+    journal summary of completed steps). Implementation is never repeated from scratch when a
+    checkpoint exists;
+-   if the adapter provides CAP-10 (session resume) and the session identity is verified, the same
+    session may be resumed instead; otherwise a new session is used;
+-   fix-loop iterations continue in the ticket's worker session; authoritative review always runs
+    in a separate fresh reviewer session (`REVIEW_PROTOCOL.md`);
+-   migration to another execution profile is permitted only at a checkpoint boundary using
+    recovery-resume (never mid-turn), and only through supported profile semantics.
+
+# Reboot and Restart Continuation
+
+After a reboot or Vela restart, reconciliation always runs first. Continuation follows the
+persisted `recovery_continuation` setting (ADR-012): `ask` (default) leaves the run `PAUSED`
+(reason `AWAITING_RECOVERY_CONFIRMATION`) until the user resumes; `auto_safe` resumes
+automatically only after reconciliation reports no unresolved discrepancy and only for safe,
+idempotent steps. UI-automation-dependent workers additionally require an interactive session
+(ADR-012); otherwise they stay `PAUSED` with reason `INTERACTIVE_SESSION_UNAVAILABLE`.
+
+# Interactive Session Loss
+
+A locked, disconnected, or secure desktop is not bypassed. Affected workers pause; unaffected
+workers continue. On return, reconcile: re-detect the prompt, re-verify correlation and freshness,
+and re-evaluate policy before any delivery (see Approval Recovery).
+
+# State-Store Failure
+
+-   At startup Vela runs an integrity check on its SQLite store.
+-   Before applying any migration Vela creates a backup of the store; on migration failure it
+    restores the backup, refuses to start newer logic on the old store, and reports
+    `MigrationFailed`. Backups are also rotated on clean shutdown (latest three retained).
+-   On corruption or loss, Vela first attempts restore from the latest backup. If that fails, it
+    rebuilds a read-only **inventory** from Git: `vela/*` branches, Vela-managed worktrees, and
+    checkpoint/merge trailers (run and ticket identifiers). A reconstructed inventory never
+    auto-resumes a run: affected runs are `NEEDS_HUMAN`, or `FAILED` (reason
+    `STATE_STORE_UNRECOVERABLE`) if the user chooses to abandon them. Branches and worktrees are
+    preserved.
+
+# Updates During a Run
+
+An application update is never applied while a run is active. Updates are deferred until the run
+is `PAUSED` (quiescent) or terminal and require an explicit user action; the pre-update state
+backup above is mandatory.
