@@ -1,0 +1,65 @@
+# Documentation Index
+
+This index lists the complete current context pack. The approval-broker
+update preserves the original pack and adds/supplements only the
+affected specifications.
+
+-   `AGENTS.md`
+-   `CLAUDE.md`
+-   `CODEX.md`
+-   `CONTEXT.md`
+-   `GEMINI.md`
+-   `README.md`
+-   `docs/agents/AGENT_PROTOCOL.md`
+-   `docs/agents/CONTEXT_SHARING.md`
+-   `docs/agents/MATT_POCKOCK_SKILLS.md`
+-   `docs/agents/PROMPT_CONTRACTS.md`
+-   `docs/agents/REVIEW_PROTOCOL.md`
+-   `docs/architecture/ADAPTERS.md`
+-   `docs/architecture/DIRECTORY_STRUCTURE.md`
+-   `docs/architecture/DOMAIN_MODEL.md`
+-   `docs/architecture/SYSTEM_ARCHITECTURE.md`
+-   `docs/config/CONFIGURATION.md`
+-   `docs/constraints/CONSTRAINTS.md`
+-   `docs/decisions/ADR-001-DESKTOP-TAURI.md`
+-   `docs/decisions/ADR-002-SQLITE-EVENT-JOURNAL.md`
+-   `docs/decisions/ADR-003-WORKTREES.md`
+-   `docs/decisions/ADR-004-NO-PIXEL-AUTOCLICKER.md`
+-   `docs/decisions/ADR-005-REVIEW-AFTER-CHECKPOINT.md`
+-   `docs/decisions/ADR-006-PROVIDER-INDEPENDENCE.md`
+-   `docs/decisions/ADR-007-GUARDED-APPROVAL-FALLBACK.md`
+-   `docs/git/GIT_WORKFLOW.md`
+-   `docs/github/GITHUB_WORKFLOW.md`
+-   `docs/issues/ISSUE_AUTHORING.md`
+-   `docs/issues/ISSUE_GRAPH_SEED.md`
+-   `docs/operations/AUTONOMY_MODES.md`
+-   `docs/operations/ERROR_HANDLING.md`
+-   `docs/operations/HUMAN_IN_THE_LOOP.md`
+-   `docs/operations/OBSERVABILITY.md`
+-   `docs/operations/PREFLIGHT.md`
+-   `docs/orchestration/APPROVAL_BROKER.md`
+-   `docs/orchestration/CAPACITY_AND_PROFILES.md`
+-   `docs/orchestration/ORCHESTRATION_ENGINE.md`
+-   `docs/orchestration/PARALLELIZATION.md`
+-   `docs/orchestration/RECOVERY.md`
+-   `docs/persistence/PERSISTENCE.md`
+-   `docs/product/NON_GOALS.md`
+-   `docs/product/PRODUCT_SPEC.md`
+-   `docs/product/REQUIREMENTS_TRACEABILITY.md`
+-   `docs/release/RELEASE_CHECKLIST.md`
+-   `docs/research/EXTERNAL_INTEGRATIONS_2026-10.md`
+-   `docs/roadmap/IMPLEMENTATION_PLAN.md`
+-   `docs/security/SECURITY_AND_PERMISSIONS.md`
+-   `docs/testing/ACCEPTANCE_TESTS.md`
+-   `docs/testing/TEST_STRATEGY.md`
+-   `docs/ui/ACCESSIBILITY.md`
+-   `docs/ui/COPY_AND_TONE.md`
+-   `docs/ui/DESIGN_SYSTEM.md`
+-   `docs/ui/INTERACTION_SPEC.md`
+-   `docs/ui/MOTION_AND_3D.md`
+-   `docs/ui/PERFORMANCE_BUDGET.md`
+-   `docs/ui/REFERENCE_BRIEF.md`
+-   `docs/ui/SCREEN_INVENTORY.md`
+-   `docs/ui/UI_ACCEPTANCE_CHECKLIST.md`
+-   `docs/ui/UI_UX_SPEC.md`
+- `docs/decisions/ADR-008-ANTIGRAVITY-FIRST-PROVIDER-EXTENSIBLE.md`

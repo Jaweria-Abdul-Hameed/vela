@@ -1,0 +1,32 @@
+# Constraints
+
+-   Windows is first release target.
+-   Finished app must install/run natively; no user-managed localhost
+    server.
+-   Ordinary autonomous commands should not require constant approval
+    once the user has selected an appropriate autonomy policy.
+-   Command Prompt is preferred for Antigravity project terminal flows
+    where PowerShell introduces avoidable permission friction.
+-   Parallel workers require worktree isolation.
+-   Fresh context per issue.
+-   Git and test evidence are mandatory.
+-   UI must follow Stitch-inspired spatial design docs.
+-   No provider password/2FA automation.
+-   No quota-evasion design.
+-   No hidden destructive operations.
+-   External tool assumptions must be capability-detected and
+    documented.
+
+# Approval Constraint Update
+
+The application must work in the user's observed case where Antigravity
+continues to request approvals despite permissive settings. Native
+permissions remain preferred but are not considered a complete solution
+until effective behavior is verified. A guarded UI-automation fallback
+is therefore in scope and required for unattended execution.
+
+# Runtime Scope Constraint
+
+Vela v1 is constrained to an Antigravity-first production runtime strategy on Windows. Provider-extensible architecture is required; provider parity is not.
+
+Any implementation plan that materially delays Antigravity reliability to implement unrequested Claude/Codex/other runtime adapters violates this constraint.
