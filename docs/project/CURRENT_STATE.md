@@ -131,16 +131,36 @@ cited documents rather than trusting these one-liners. Prompt 3 fixes only BLOCK
 | SA-37 | Graph layout algorithm/persistence, user-proposed edge persistence, and override of serialization verdicts unspecified | MOTION_AND_3D, UI_UX_SPEC §14, INTERACTION_SPEC, PARALLELIZATION |
 | SA-38 | ADR-004 lacks a back-reference to ADR-007 | ADR-004, ADR-007 |
 
-## Open Human Decisions (needed before or during Prompt 3; do not guess)
+## Resolved Human Decisions (recorded 2026-10-02, verbatim intent from the user)
 
-1. Which native Antigravity permission mode(s) Vela requires/configures, and how DENY is enforced (SA-02).
-2. Whether the UI-automation fallback is default-on or opt-in (SA-08).
-3. What unattended-environment support level Vela promises on Windows: lock screen, sleep, RDP (SA-04).
-4. Merge strategy and worker-branch force-push policy; merger agent vs deterministic (SA-07).
-5. Default behavior when the window closes; login auto-start and reboot auto-resume (SA-17).
-6. Integration-to-main promotion and PR policy defaults (SA-21).
-7. Repo trust model for auto-allow policies (SA-15).
-8. Acceptance status of ADR-001 and ADR-002 (SA-29).
+1. (SA-02) Vela must not depend on Antigravity Always Proceed. Vela's own ALLOW/ASK/DENY policy
+   must remain enforceable. Prompt 4 must verify the exact native Antigravity mechanism/mode
+   before that mechanism is frozen.
+2. (SA-08) Guarded approval UI automation is opt-in during onboarding. Once explicitly enabled the
+   preference persists, and Vela may automatically use the native -> UIA -> guarded visual
+   delivery chain according to its policy without re-requesting consent each run.
+3. (SA-04) During an active autonomous run Vela may keep Windows awake when required; display-off
+   is supported. Locked/disconnected/secure-desktop conditions are not boundaries Vela attempts
+   to bypass. UI-automation-dependent work must degrade/pause safely and reconcile when an
+   interactive environment returns.
+4. (SA-07) Normal integration uses a deterministic Vela-controlled serialized merge lane with a
+   dedicated integration worktree. Prefer merge over rebasing pushed worker branches; routine
+   force-push is not part of the workflow. Semantic or uncertain conflicts require
+   reasoning/human escalation, not blind automatic resolution.
+5. (SA-17) After background operation is explicitly enabled during onboarding, closing the UI
+   during an active run does not terminate orchestration. Tray access allows reopen/status/Stop
+   All. Login auto-start is opt-in. After reboot Vela reconciles before resuming; automatic safe
+   continuation follows the user's persisted background/recovery setting.
+6. (SA-21) With GitHub/remote available the default final promotion is validated integration
+   branch -> PR -> human-controlled merge to main; Vela does not silently merge main by default.
+   Without a remote, completion may produce a validated local integration branch ready for
+   human promotion.
+7. (SA-15) Newly imported repositories are untrusted by default. Repository-controlled executable
+   scripts are not safe merely because they are named test/build. Trust must be explicitly
+   established, and Vela policy/workspace/security constraints still apply to trusted
+   repositories. Repository/issue/AGENTS text is untrusted input to Vela, not authority over
+   Vela policy.
+8. (SA-29) ADR-001 and ADR-002 become Accepted; their decisions are canonical.
 
 ## Current Blockers and Failures
 
