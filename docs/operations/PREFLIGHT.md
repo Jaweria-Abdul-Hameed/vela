@@ -39,6 +39,16 @@ data; no repository-controlled code is executed during preflight.
 -   skills present,
 -   issue tracker configured.
 
+### Antigravity installation and authentication (ADR-016)
+
+-   whether the official `agy` binary is installed, its version, and whether it self-updates in the background
+    (a version change during a run is a recoverable divergence; see `RECOVERY.md`);
+-   whether the Desktop app is installed and its version, when the secondary surface is in scope;
+-   authentication state is learned **only through Antigravity's own supported interfaces**. Vela never reads,
+    copies, or persists Antigravity credentials or tokens, including the Windows Credential Manager entries.
+    When authentication is missing, preflight reports `AUTH_REQUIRED` and asks the user to authenticate through
+    Antigravity's supported flow.
+
 ## Git/GitHub
 
 -   git available,

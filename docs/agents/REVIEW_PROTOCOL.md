@@ -32,9 +32,16 @@ boolean, - disposition.
     requirement, so the same finding is recognized across iterations. A finding is `RESOLVED` only
     when a later review does not re-raise it at the new head; reviewer re-confirmation is the
     evidence.
--   **Severity and blocking:** the reviewer reports severity and axis (Standards or Spec);
-    **Vela's policy engine decides `blocking`** from the exit policy below, not the reviewer's
-    prose.
+-   **Severity and blocking:** the `/code-review` skill, as verified on 2026-10-02, emits **no severity scale
+    and no machine-readable output**: it reports `## Standards` and `## Spec` sections, with Standards findings
+    split into hard violations and judgement calls. Severity and structure must therefore come from Vela's own
+    reviewer prompt contract (`PROMPT_CONTRACTS.md`, optionally with the CLI's `--json-schema`) or be classified
+    by Vela; the skill's native output is never assumed to carry severity. **Vela's policy engine decides
+    `blocking`** from the exit policy below, not the reviewer's prose.
+-   **Known external constraint:** `/code-review` computes `git diff <fixed-point>...HEAD`. After the
+    integration tip has been merged into a worker branch, that diff includes other tickets' merged changes. The
+    fixed-point rule for any review that follows such a merge is an open specification item recorded in
+    `docs/project/CURRENT_STATE.md`; until it is resolved, reviews run before the integration tip is merged.
 -   **Output contract:** the reviewer returns the structured review output defined in
     `PROMPT_CONTRACTS.md`. Unparseable output gets one correction retry, then the worker becomes
     `NEEDS_HUMAN`.

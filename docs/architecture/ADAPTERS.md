@@ -27,6 +27,13 @@ capability at runtime and never infers it from version strings alone.
 | CAP-10 | Resume or recover a session | Optional | Recovery uses a new session at the last checkpoint (`RECOVERY.md`). |
 | CAP-11 | Inspect (and where supported configure) the native permission posture | Required for Autonomous | Posture is `UNKNOWN` (ADR-009): Autonomous blocked. |
 
+Surface priority (ADR-016): the contract is evaluated against the **primary surface, the official `agy`
+CLI headless interface**. Windows UI Automation is a secondary compatibility surface that may supply only
+approval delivery (and, for Desktop-hosted prompts, correlation) where the primary surface cannot; the guarded
+visual adapter is the last resort (ADR-007). The SDK is not a v1 dependency. Verification status of each
+capability is recorded in `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`; an unverified capability is
+treated as unavailable for release claims.
+
 Rules:
 
 - A missing Required capability yields a concrete preflight `BLOCK` that names the capability. Vela

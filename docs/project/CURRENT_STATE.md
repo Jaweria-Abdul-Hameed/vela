@@ -10,141 +10,134 @@ Vela
 
 ## Current Phase
 
-PROMPT_4_COMPLETE — External assumptions verified against current primary sources (2026-10-02).
-Decision gate open before Prompt 5.
+PROMPT_4_COMPLETE — External verification and real-environment probes done as far as this environment
+allows (2026-10-02). Human decisions DR-1 and DR-3 recorded (ADR-016).
 
 ## Last Completed Phase
 
-Prompt 4 — Verify volatile external assumptions (research documents and state only; no
-specification, ADR, architecture, issue, or source changes).
+Prompt 4 — Verify volatile external assumptions (research documents, ADR-016, and limited factual
+specification updates only; no architecture, issue, or source changes).
 
 ## Next Phase
 
-**Decision gate, then Prompt 5.** The user must answer DR-1 and DR-3 below (DR-2 and DR-4 are
-specification or spike work). Then run a limited specification-update pass for the queued items in
-`docs/research/EXTERNAL_VERIFICATION_2026-10-02.md` section L, then Prompt 5 (architecture freeze).
-Do not freeze the `AntigravityAdapter` before DR-1 is decided.
+Prompt 5 — Architecture freeze, **with the gating rules below**. The user asked to stop before Prompt 5.
+Before or during Prompt 5 the user should run the probes in `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`
+section S (they need an installed, authenticated `agy`, which Vela and this agent must not handle).
 
 ## Canonical Branch and Commit
 
 - Branch: `main` (remote `origin`: `https://github.com/Jaweria-Abdul-Hameed/vela.git`)
 - Specification baseline: `bbcecf72b5efe842a48330cd080d4a2180546e97`
-- Prompt 3 specification fixes: `2d9a8fd8ccb468d6c12bfc9caad61139b7b87a4c`
-- This checkpoint is the commit that updates this file; a file cannot contain its own SHA. Take
-  current Git HEAD as canonical and verify it descends from the commits above.
+- Prompt 3 specification fixes: `2d9a8fd8ccb468d6c12bfc9caad61139b7b87a4c`; Prompt 4 first checkpoint: `0f1480a`
+- This checkpoint is the commit that updates this file; a file cannot contain its own SHA. Take current Git
+  HEAD as canonical and verify it descends from the commits above.
 
 ## Status Summary
 
 | Area | Status |
 |---|---|
-| Specification | FIXED_AFTER_AUDIT; external facts now verified; queued updates pending decisions (see below) |
-| External verification | DONE 2026-10-02; probes P1..P10 still required in the real environment |
+| Specification | FIXED_AFTER_AUDIT; DR-1/DR-3 recorded; remaining queued items listed below |
+| External verification | Documentation verified; real-environment probes: Git, keep-awake API and UIA (proxy) done; CLI probes UNVERIFIED |
+| Antigravity capability contract | Defined; **no Required capability is verified on the primary surface in the real environment** |
 | Architecture | NOT_FROZEN |
 | Issue graph | NOT_CREATED |
 | Implementation | NOT_STARTED |
-| Open human decisions | DR-1, DR-3 (and carry-over: Stitch reference image) |
+| Open human decisions | None blocking; carry-over: Stitch reference image |
 
-## Runtime Scope
+## Runtime Scope and Surface Priority (ADR-016)
 
-Vela v1 runtime is **Google Antigravity on Windows**; strategy **Antigravity-first,
-provider-extensible**. Claude, Gemini and Codex are build-time tools only.
+Vela v1 runtime is **Google Antigravity on Windows**; strategy **Antigravity-first, provider-extensible**.
 
-## External Integration Readiness (Prompt 4 conclusions; evidence in `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`)
+- **Primary surface:** the official `agy` CLI headless interface, **conditional on real-environment probes
+  confirming the Required Capability Contract**. Use supported hooks, session, and conversation mechanisms where
+  verified.
+- **Secondary:** Windows UI Automation for capabilities the primary surface cannot provide, particularly approval
+  delivery for Desktop GUI prompts (opt-in, ADR-010). **Last resort:** guarded visual adapter (ADR-007).
+- **Not a v1 dependency:** the Python SDK (official but Alpha/Research Preview, API-key/Vertex authentication
+  only, resume and cancellation undocumented; fails DR-3).
+- **Authentication (DR-3):** official binary with the user's normally authenticated Antigravity session;
+  authentication is owned by Antigravity; Vela never reads, extracts, copies, exports, persists, or reuses tokens
+  or credentials (including Windows Credential Manager entries); `AUTH_REQUIRED` asks the user to authenticate
+  through Antigravity's flow; API-key/Vertex is not required and never silently replaces the runtime. The vendor
+  standing of external orchestration of the headless CLI is **not confirmed by a vendor source**; confirming it is
+  a release prerequisite.
+- The user's persistent approval prompts were observed in the **Antigravity Desktop GUI on Windows**, including under
+  permissive/Always Proceed-style settings. This remains a requirement.
 
-**Verdict: the specification is internally consistent but NOT READY to freeze the Antigravity
-adapter**, because current reality has three programmatic/UI surfaces and the spec assumes only one.
+## External Integration Readiness (evidence: `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`)
 
-1. **Antigravity 2.0 has three surfaces**: the Desktop app (v2.19.1 on 2026-09-30; no documented
-   programmatic API), the `agy` CLI with a documented headless mode (`-p`, `stream-json`,
-   `--conversation`/`--continue`, `--json-schema`, hooks, skills; v1.2.12), and a Python SDK (Research
-   Preview, Apache-2.0, API-key or Vertex authentication, per-tool approval callbacks). The spec's UI
-   Automation fallback assumes the Desktop GUI.
-2. **Native policy mechanisms exist and are documented**: allow/deny/ask rules with Deny > Ask > Allow
-   precedence, and `PreToolUse` hooks (command handlers receiving tool name/args, conversation id, and
-   workspace paths; decisions allow, deny, ask, force_ask, deny_unless_prior_grant). These are the
-   candidate mechanisms for the Native Permission Posture (ADR-009). **They are not proven**:
-   hook `allow` does not satisfy the grant gate in headless mode (CLI issue #1053), hook `ask`
-   overrides are ignored (#1059), headless runs ignore `permissions.allow` and can hang (#548), and the
-   docs do not say whether hooks fail open or closed.
-3. **The observed-environment requirement stands**: documentation says permissive modes remove prompts;
-   open bugs and the user's own observation say prompts or soft-denials persist. Vela stays defensive and
-   capability-detected; the Approval Broker remains required.
-4. **Documentation conflicts**: Windows sandbox support (docs say no; changelog v2.15.1, 2026-09-19, says
-   file and network sandboxing on Windows are supported); skill install locations (docs versus the
-   `npx skills` installer); the headless soft-deny documentation versus the reported hangs.
-5. **Matt Pocock skills**: `implement`, `implement-spec`, `code-review` and `to-tickets` exist.
-   `implement` commits after its own `/code-review`; `code-review` requires a fixed point, uses
-   `git diff <fp>...HEAD`, verifies a non-empty diff, and emits `## Standards`/`## Spec` text with **no
-   severity and no structured output** (the reviewer-severity assumption in `REVIEW_PROTOCOL.md` is
-   unsupported). The setup skill edits `CLAUDE.md`/`AGENTS.md` and writes `docs/agents/*.md`.
-6. **Consequence of merge-based updates (ADR-011)**: `git diff <fp>...HEAD` includes sibling tickets'
-   changes once the integration tip is merged into a worker branch, so a review after a conflict-
-   resolution attempt needs an explicit fixed point.
-7. **Account policy**: Google prohibits third-party tools from using Antigravity/Gemini CLI OAuth to
-   reach backend services (maintainer statement 2026-02-27). A forum answer says running the official
-   `agy` binary as a child process with cached credentials is supported (official standing of that
-   answer unconfirmed). Vela must never read or reuse agent OAuth tokens.
-8. **Platform facts confirmed**: Git branch exclusivity, shared `refs/stash` (ADR-003 caveat holds),
-   per-worktree HEAD/index; Tauri 2.12 with tray, autostart, signed updater (app exits on Windows
-   install), NSIS/MSI installers and WebView2 modes; UI Automation cannot reach elevated or logon-screen
-   UI without UIAccess (not appropriate for Vela); `SetThreadExecutionState` keeps the system awake but
-   cannot prevent user-initiated sleep or lid close. These support ADR-012. Not documented: Tauri
-   prevent-exit with a tray, and whether display-off leads to a locked session.
-9. **Workspace trust**: the CLI requires each new workspace to be trusted (recorded in user-global
-   settings); every Vela worktree is a new workspace path. Headless behavior is undocumented.
-10. **Capacity**: quota exhaustion is human-readable text (`RESOURCE_EXHAUSTED`, "resets in ..."), and a
-    headless bug can retry silently to the timeout and exit 0 (#1018). Exit code 0 is not success.
+**Verdict: the contract and priorities are defined; no Antigravity capability is yet verified as ready.**
 
-## Decision Requests (not resolved; do not guess)
+Verified in this environment (Windows 11 Home 10.0.26200; Git 2.45.1; Node 24.19.0; WebView2 154; Desktop 2.17.0;
+IDE running; `agy` not installed):
 
-- **DR-1 (blocking Prompt 5): Antigravity surface.** Which surface(s) does `AntigravityAdapter` drive in
-  v1: (a) CLI headless with `stream-json`, hooks, and conversation resume; (b) the Desktop GUI via UI
-  Automation (the current spec assumption; no documented API); (c) the SDK (API-key/Vertex billing,
-  Research Preview); or a combination. Also record which surface showed the persistent approval prompts.
-- **DR-3: Account and credential policy.** Official binary with the user's cached account credentials
-  versus API-key/Vertex; confirmation of Google's stance for external orchestration.
-- DR-2 (specification/spike, not a user decision): prove or reject hooks and native rules as the NPP
-  mechanism through probes P1-P3.
-- DR-4 (specification): obtain review severity and structure through Vela's own prompt/`--json-schema`
-  or classify in Vela.
-- Carry-over: the Stitch reference image is still missing from `docs/ui/reference/`.
+- **Git hardening (P10) VERIFIED:** repo-local config executed external diff, textconv, filter clean/smudge,
+  fsmonitor and hooks; the hardened invocation neutralized all of them.
+- **Keep-awake API (P9) VERIFIED; effect on sleep PARTIALLY VERIFIED** (not measured). No secure-screensaver or
+  inactivity-lock policy is set on this machine; Modern Standby is in use.
+- **UI Automation on Electron/Chromium (P7) PARTIALLY VERIFIED on a proxy (the IDE):** the app was not elevated; the
+  first UIA query returns a near-empty tree (13 elements) and Chromium then populates about 600 elements and keeps
+  them, so the adapter must warm up and retry. The Desktop approval card itself was **not observed**. This probe
+  switched on Chromium accessibility in the running IDE until it restarts.
+- **CLI release integrity:** latest manifest 1.2.14 (`windows_amd64`) with SHA-512; per-user install to
+  `%LOCALAPPDATA%\agy\bin`; PATH modification unless `--skip-path`; the CLI **self-updates in the background**
+  (disable/pin undocumented); installer script unsigned. **Integrity VERIFIED without executing:** the 1.2.14 binary's SHA-512 matches the manifest and its Authenticode
+  signature is Valid (signer Google LLC). Runtime behavior and update control remain UNVERIFIED.
+- **Documentation-only, UNVERIFIED in the real environment:** headless permissions and soft-denial (P1), hook
+  `allow`/`deny`/`ask` semantics and failure mode (P2), agent-writability of hooks/settings (P3), skill invocation
+  in print mode (P4), workspace trust for a new worktree (P5), `WAITING` and cancellation (P6), parallel sessions
+  and quota (P8), Desktop approval-card accessibility tree and correlation, Tauri `prevent_exit` at runtime.
+- **Open vendor bugs contradicting documentation:** #548, #1053, #1054, #1059, #1114, #1018, #1048.
+- **UNSUPPORTED for v1:** the SDK as a dependency (above).
 
-## Queued Specification Updates (apply after DR-1/DR-3; list in verification record section L)
+**Compatibility consequence (per `ADAPTERS.md` and ADR-016):** an unverified Required capability is treated as
+unavailable for release claims. This checkpoint makes **no adapter workaround**: if a probe shows a Required
+capability unavailable, the outcome is a specification-change decision (ADR). Autonomous mode stays blocked while the
+Native Permission Posture is `UNKNOWN` (ADR-009).
 
-Surface decision into `ADAPTERS.md`, ADR-009/ADR-010 scope, `APPROVAL_BROKER.md`; NPP mechanism candidates;
-review contract (`REVIEW_PROTOCOL.md`, `PROMPT_CONTRACTS.md`); explicit fixed point after merge-based
-updates; per-worktree workspace trust and consent; account policy; Vela-only execution workspaces versus
-Antigravity-created worktrees; preflight additions (submodules, Git version, project-level skills, WebView2
-refresh); skills-setup bootstrap handling.
+## Gating Rules for Prompt 5
 
-## Probes Required in the Real Environment (Phase 0; see record section N)
+1. Freeze the `AgentAdapter` seam, the capability contract, and the surface priority; **do not freeze
+   `AntigravityAdapter` internals** that depend on unverified behavior (approval delivery path, hook semantics,
+   workspace trust, skill invocation, cancellation).
+2. Treat probes P1-P8 and the Desktop approval-card probe as Phase 0 work and release-gating.
+3. Resolve the open design question (record section R): how approvals reach Vela for headless primary-surface
+   sessions (rules, `PreToolUse` hooks, or a Desktop-hosted session) versus the UI-automation surface that only
+   acts on Desktop-hosted prompts. This is not decided.
+4. Keep the Approval Broker as specified (ADR-007, 009, 010).
 
-P1 headless permissions and hooks; P2 hook decision semantics and failure mode; P3 agent-writability of
-hooks/settings; P4 skill invocation in print mode and in a worktree; P5 workspace trust for a new worktree;
-P6 `WAITING` and cancellation; P7 Desktop approval-card UIA tree (if Desktop is chosen); P8 parallel `agy`
-processes and quota; P9 Tauri prevent-exit and keep-awake under display-off/lock; P10 hardened Git set.
+## Remaining Queued Specification Items (record section L; not applied)
+
+Fixed-point rule for reviews after an integration merge (`git diff <fp>...HEAD` is polluted once the integration
+tip is merged; `REVIEW_PROTOCOL.md` carries a marker); per-worktree workspace trust and its consent; Vela-only
+execution workspaces versus Antigravity-created worktrees; preflight additions (submodules, Git version,
+project-level skills, WebView2 refresh for a long-lived process, Desktop version drift); skills-setup bootstrap
+handling. Applied in this phase: ADR-016, FR-049, AT-025, `ADAPTERS.md` surface note, `PREFLIGHT.md`
+authentication/installation checks, `CAPACITY_AND_PROFILES.md` authentication ownership, `SECURITY_AND_PERMISSIONS.md`
+credential rule, `REVIEW_PROTOCOL.md`/`PROMPT_CONTRACTS.md` corrections (the skill emits no severity), `RECOVERY.md`
+background-update divergence.
 
 ## Accepted ADRs
 
-ADR-001..ADR-015 (all Accepted). No ADR was changed by Prompt 4; DR-1 may require a superseding or refining
-ADR.
+ADR-001..ADR-016 (all Accepted). ADR-016 refines ADR-008 and records DR-1/DR-3.
 
 ## External Research Last Verified
 
-2026-10-02 (`docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`). Vendor documentation changes quickly
-(desktop v2.19.1 and CLI v1.2.12 were current); revalidate before architecture freeze and again before release.
+2026-10-02 (`EXTERNAL_VERIFICATION_2026-10-02.md`). Vendor documentation and the CLI (manifest 1.2.14; changelog
+shows 1.2.12; Desktop 2.19.1 latest, 2.17.0 installed) change quickly; revalidate before architecture freeze,
+before implementation of the adapter, and before release.
 
 ## Known Compatibility Constraint
 
-In the user's observed Antigravity 2.0 Windows environment, approval prompts persist despite permissive
-native settings. The Approval Broker is required (ADR-007); Vela does not depend on unconditional native
-auto-execution (ADR-009); guarded UI automation is opt-in (ADR-010). No password, 2FA or CAPTCHA
-automation; no quota circumvention; no reuse of agent OAuth tokens.
+Approval prompts persist in the user's Antigravity Desktop GUI on Windows despite permissive settings. The Approval
+Broker is required (ADR-007); Vela does not depend on unconditional native auto-execution (ADR-009); guarded UI
+automation is opt-in (ADR-010). No password, 2FA or CAPTCHA automation; no quota circumvention; no handling of
+Antigravity credentials.
 
 ## Remaining Items from Earlier Phases
 
-Untouched MINOR findings SA-30, SA-31 (schema), SA-33..SA-37; judgment calls listed in the Prompt 3
-checkpoint (`git log`, commit `2d9a8fd`) remain revisitable; performance reference hardware unrecorded.
+Stitch reference image still missing (`docs/ui/reference/`); untouched MINOR findings SA-30, SA-31 (schema),
+SA-33..SA-37; Prompt 3 judgment calls remain revisitable; performance reference hardware unrecorded.
 
 ## Recovery / Reconciliation Status
 
@@ -152,12 +145,12 @@ Not applicable; no runtime exists.
 
 ## Next Agent Instructions
 
-1. Read `AGENTS.md`, this file, `DOCUMENTATION_INDEX.md` (precedence section), ADR-007 and ADR-009..015,
-   and `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`. Verify Git status and that HEAD descends from the
-   commits above.
-2. Do not re-run Prompt 4. Do not start Prompt 5 until DR-1 is answered; ask the user.
-3. After DR-1/DR-3, apply the queued specification updates (limited pass, ADRs for decisions with
-   alternatives), then update this file, commit, push, and proceed to Prompt 5.
-4. Treat any vendor claim as time-stamped; capability-detect at runtime; keep the observed-environment
-   requirement.
-5. No source code and no GitHub issues until Prompt 6.
+1. Read `AGENTS.md`, this file, `DOCUMENTATION_INDEX.md` (precedence section), ADR-007, ADR-009..016, and
+   `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md` (especially sections O-S). Verify Git status and that HEAD
+   descends from the commits above.
+2. Do not re-run Prompt 4. Ask the user whether the section S probes have been run; incorporate their results into the
+   research record before relying on any CLI behavior.
+3. Run Prompt 5 under the gating rules above. Do not invent adapter behavior for unverified capabilities and do not
+   substitute another provider or the SDK.
+4. No source code and no GitHub issues until Prompt 6.
+5. Before reporting Prompt 5 complete, update this file, commit and push.

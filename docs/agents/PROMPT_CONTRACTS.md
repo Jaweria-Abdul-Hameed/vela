@@ -73,3 +73,10 @@ prohibited actions. It never receives previous conversation state as authority.
 
 The dependency analyst (`PARALLELIZATION.md`) runs read-only during run state `ANALYZING`. Its output
 is validated and deterministic hard blockers always apply.
+
+# Note on the Reviewer Contract (2026-10-02)
+
+The reviewer output contract above is **Vela's wrapper contract**, not the native output of the
+`/code-review` skill, which emits no severity and no structured fields. Vela obtains the fields by
+instructing the reviewer session (optionally enforcing a schema with the CLI's `--json-schema`) or by
+classifying the skill's two-section output itself.

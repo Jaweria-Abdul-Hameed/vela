@@ -72,6 +72,7 @@ affected specifications.
 -   `docs/decisions/ADR-013-REPOSITORY-TRUST-MODEL.md`
 -   `docs/decisions/ADR-014-RUN-COMPLETION-AND-PROMOTION.md`
 -   `docs/decisions/ADR-015-CHECKPOINT-PUSH-AND-REVIEW-OWNERSHIP.md`
+-   `docs/decisions/ADR-016-ANTIGRAVITY-SURFACE-PRIORITY-AND-AUTHENTICATION-OWNERSHIP.md`
 
 ## Documentation precedence
 
@@ -80,7 +81,8 @@ When documents disagree about **intended behavior**, resolve in this order (earl
 1.  **Accepted ADRs.** A later ADR that explicitly supersedes or refines an earlier one controls
     that point; the earlier ADR is preserved and carries a back-reference. Position in this index
     or in a file ("appended later") never confers precedence. Current chain: ADR-007 supersedes the
-    absolute interpretation of ADR-004; ADR-009 and ADR-010 refine ADR-007; ADR-008 scopes
+    absolute interpretation of ADR-004; ADR-009 and ADR-010 refine ADR-007; ADR-016 refines ADR-008 (surface priority and
+    authentication ownership); ADR-008 scopes
     ADR-006 (complementary); ADR-001 and ADR-002 are Accepted.
 2.  **`AGENTS.md`**: universal agent conduct rules; provider-specific files may add ergonomics but
     may not weaken it.

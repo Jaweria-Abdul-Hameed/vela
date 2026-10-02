@@ -430,3 +430,11 @@ The v1 release requirements in "V1 Runtime Product Invariant" map to requirement
 | Recovery/reconciliation for Antigravity | FR-019, FR-022, FR-037, FR-046 |
 | Skill discovery/bootstrap | FR-004 |
 | Observable, testable integration | FR-023, FR-029, plus `REQUIREMENTS_TRACEABILITY.md` |
+
+### FR-049 Antigravity authentication ownership
+
+Vela shall use the official Antigravity binary with the user's normally authenticated Antigravity
+account/session where the supported product permits it. Authentication shall remain owned by Antigravity: Vela
+shall not read, extract, copy, export, persist, or reuse authentication tokens or credentials. A missing
+authentication state shall raise `AUTH_REQUIRED` and ask the user to authenticate through Antigravity's
+supported flow. API-key/Vertex billing shall not silently replace the normal runtime (ADR-016).

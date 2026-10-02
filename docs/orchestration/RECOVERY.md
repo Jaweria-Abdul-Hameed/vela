@@ -20,6 +20,8 @@
 -   Vela state store corrupt, missing, or failing migration
 -   interactive session unavailable (locked, disconnected, secure desktop)
 -   upgrade or update attempted during an active run
+-   Antigravity binary or app updated in the background during a run (the official CLI self-updates; a version or
+    capability change is a divergence: re-run capability detection and reconcile before resuming)
 
 ## Startup reconciliation
 

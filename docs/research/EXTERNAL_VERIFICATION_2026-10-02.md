@@ -16,6 +16,11 @@ Environment" section remains binding.
 -   The user's observed environment (approval prompts persist despite permissive settings) is
     evidence and is **not** erased by anything below.
 
+> **Later in this file:** the sections headed "Update after Human Decisions DR-1 and DR-3 and Real-Environment
+> Probes" (sections O to S) record what was actually probed on this machine and supersede the "UNDOCUMENTED" or
+> "RUNTIME" labels for rows D3 (Desktop is Electron/Chromium, UIA tree populates lazily), I6 (hardened Git set
+> verified), J3 (`prevent_exit` documented), and C1 (SDK is Alpha with Windows wheels).
+
 ## Classification legend
 
 `VERIFIED` matches current primary sources. `CHANGED` current reality differs from the specification
@@ -190,7 +195,8 @@ policy-gated runs. Vela must treat it as RUNTIME and probe, exactly as the speci
 Prompt 4 changes research documents and state only. These need decisions or a specification pass before
 Prompt 5 freezes the adapter:
 
-1.  **Antigravity surface decision (blocking for Prompt 5).** The specification's UI-automation design
+1.  **[RESOLVED by human decision DR-1, recorded in ADR-016; capability claims still gated by probes.]
+    Antigravity surface decision.** The specification's UI-automation design
     assumes the Desktop GUI, which has no documented programmatic interface. The CLI headless mode and
     the SDK are documented programmatic surfaces. Which surface(s) `AntigravityAdapter` targets, and
     which surface the user's observed persistent prompts occurred in, must be decided.
@@ -208,7 +214,8 @@ Prompt 5 freezes the adapter:
 5.  **Workspace trust per worktree (F4).** New Vela worktrees are new workspaces for the CLI. How trust
     is established without prompting, and whether that edits user-global settings, needs a decision under
     the consent principles of ADR-010 and ADR-013.
-6.  **Account and credential policy (B9).** Use of the official binary with the user's cached credentials
+6.  **[RESOLVED by human decision DR-3, recorded in ADR-016 and FR-049; the official standing of external
+    orchestration remains unconfirmed by a vendor source.] Account and credential policy (B9).** Use of the official binary with the user's cached credentials
     versus API-key/Vertex billing needs a user decision; Vela must never read or reuse agent OAuth tokens.
 7.  **Worktree overlap (D2).** Antigravity can create worktrees itself; Vela's worktree contract must
     state that Vela-created worktrees are the only execution workspaces.
@@ -245,3 +252,99 @@ meaning and cancellation behavior; P7 Desktop approval-card UIA tree and process
 Desktop surface is chosen); P8 parallel `agy` processes and quota behavior; P9 Tauri prevent-exit with tray,
 and `SetThreadExecutionState` under display-off and a lock policy; P10 Git hardened-invocation set against the
 pinned Git version.
+
+# Update after Human Decisions DR-1 and DR-3 and Real-Environment Probes (2026-10-02)
+
+The product decisions in ADR-016 (primary surface: official `agy` CLI headless, conditional on probes; UI
+Automation secondary for approval delivery; guarded visual last resort; SDK not a v1 dependency;
+authentication owned by Antigravity) are **decisions, not evidence**. This section records what could be
+probed in the real environment and keeps documentation claims separate from observed facts. It updates rows
+D3, I6, J3, and C1 above.
+
+Labels used here: `VERIFIED` observed in this environment (or confirmed by primary documentation **and**
+observation); `PARTIALLY VERIFIED` observed in part or on a proxy; `UNVERIFIED` not observed and not
+documented well enough to rely on; `UNSUPPORTED` evidence shows it does not satisfy the requirement.
+
+## O. Environment under test
+
+Windows 11 Home 10.0.26200; Git 2.45.1.windows.1; Node 24.19.0; WebView2 Runtime 154.0.4258.48; no Rust
+toolchain; **Antigravity Desktop 2.17.0** installed (Electron/Chromium: bundled Electron licence file,
+`language_server.exe`; latest published is 2.19.1) and an **Antigravity IDE** running (window class
+`Chrome_WidgetWin_1`, not elevated). The `agy` CLI is **not installed** (no `agy` on PATH, no
+`~/.gemini/antigravity-cli`, no CLI `settings.json`, no global `hooks.json`). No credential or conversation
+files were opened. Installing and authenticating `agy` changes the machine and requires the user's
+interactive sign-in, which Vela must never handle (ADR-016), so those probes were not run.
+
+## P. Probe results
+
+| Probe | Result | Label |
+|---|---|---|
+| P10 Git hardened invocation (Git 2.45.1) | Repo-local configuration executed code through `diff.external`, `diff.<driver>.textconv`, `filter.<driver>.clean/smudge`, `core.fsmonitor`, and hooks (`pre-commit`, `post-checkout`, `reference-transaction`). The invocation `-c core.fsmonitor=false -c core.hooksPath=NUL -c core.pager=cat -c diff.external= -c filter.<driver>.clean= -c filter.<driver>.smudge= -c diff.<driver>.textconv=` with `--no-pager --no-ext-diff --no-textconv` and commit `--no-verify` neutralized all of them. `core.pager` did not fire because output was not a terminal (not conclusive); `post-merge` was not exercised. A normal clone does not deliver a repository-local `.git/config`, so the exposure applies when a `.git` directory itself comes from an untrusted source. | VERIFIED (set above) |
+| P9 keep-awake call | `SetThreadExecutionState` with `ES_CONTINUOUS` and `ES_SYSTEM_REQUIRED` succeeded and the clear call returned the prior state `0x80000001`. Actual prevention of idle sleep was not measured (`powercfg /requests` needs administrator rights). This machine uses Modern Standby (S0 low power idle); display-off is 300 s on AC and 180 s on battery; no secure screensaver or inactivity-lock policy is set (read-only registry). Whether "require sign-in" locks the session after display-off was not queried. | API VERIFIED; effect PARTIALLY VERIFIED |
+| P7 UI Automation on an Electron/Chromium Antigravity window | Target was the **IDE, a proxy** (the Desktop app was not running and no approval prompt was showing). The process was not elevated. The first UIA query returned only 13 elements; once a UIA client had queried, Chromium populated the tree to about 600 elements (text, buttons, list items, tabs, tree items, 6 documents) and kept it populated for later clients. An adapter must therefore tolerate and retry an initially near-empty tree. No approval-keyword buttons existed to test `Invoke`. The Desktop approval card, its control identity, and session correlation inside the tree were not observed. (Side effect: this switched on Chromium accessibility in the running IDE until it restarts.) | PARTIALLY VERIFIED |
+| P1 headless permission behavior | Needs installed and authenticated `agy`. | UNVERIFIED |
+| P2 hook decision semantics and failure mode | Needs `agy`. Vendor documentation is silent on fail-open versus fail-closed and on `allow` versus prompts; open issues #1053 and #1059 report that `allow` and `permissionOverrides` do not work. | UNVERIFIED |
+| P3 agent-writability of hooks and settings | Needs `agy`. | UNVERIFIED |
+| P4 skill invocation in print mode and in a worktree | Needs `agy`; only a secondary source claims print-mode skill expansion. | UNVERIFIED |
+| P5 workspace trust for a new worktree | Needs `agy`; only the codelab describes trust. | UNVERIFIED |
+| P6 `WAITING` status and cancellation | Needs `agy`. | UNVERIFIED |
+| P8 parallel `agy` processes and quota | Needs `agy`; quota is account-level. | UNVERIFIED |
+| Desktop approval card (UIA tree, control identity, process/window/session correlation) | Needs the Desktop app with an agent action that requests approval, in the user's session. | UNVERIFIED |
+| Tauri prevent-exit with tray | Documentation confirms `ExitRequestApi::prevent_exit` ("Prevents the app from exiting", ignored with `AppHandle::restart`); the emission condition is not documented; no Rust toolchain to run it. | Documentation VERIFIED; runtime UNVERIFIED |
+| Official CLI release integrity | Latest manifest 1.2.14 (`windows_amd64`), served from Google storage with a SHA-512; the installer verifies it, installs per-user to `%LOCALAPPDATA%\agy\bin`, modifies PATH unless `--skip-path`, and states that the CLI self-updates in the background (disable or pin is not documented). The installer script itself is unsigned. **Integrity check performed:** the 1.2.14 `windows_amd64` binary (about 200 MB) was downloaded to a scratch directory and **not executed**; its SHA-512 **matches the manifest** and its Authenticode signature is **Valid**, signer `CN=Google LLC` (Mountain View). Version resource fields are empty (a Go binary), so the version comes from the manifest. | Release integrity VERIFIED; install, update behavior, and runtime UNVERIFIED |
+| SDK as a v1 dependency | PyPI 0.1.20 (2026-09-27), "Development Status 3 - Alpha", Windows wheels exist, Python 3.10 or newer; official docs call it a Research Preview; authentication is API key or Vertex only; resume and cancellation are undocumented. Does not fit DR-3 or DR-1. | UNSUPPORTED for v1 |
+
+## Q. Capability contract status on the primary surface (`ADAPTERS.md`, CAP-01..CAP-11)
+
+| ID | Documentation | Real environment | Consequence if it stays unverified |
+|---|---|---|---|
+| CAP-01 discover installation and version | `agy` binary, manifest version 1.2.14 | PARTIALLY VERIFIED (Desktop 2.17.0 and IDE found; CLI not installed) | No claim of CLI readiness; preflight `BLOCK` if absent. |
+| CAP-02 fresh isolated session in a worktree | cwd-bound `agy -p`, workspace-scoped conversations | UNVERIFIED | `BLOCK`; Antigravity end-to-end acceptance cannot pass. |
+| CAP-03 deliver task and invoke skills | `-p`; skills as slash commands (print-mode expansion only secondary) | UNVERIFIED | `BLOCK`. |
+| CAP-04 observe lifecycle | `stream-json` `init`/`step_update`/`result`; no approval event; `WAITING` undefined | UNVERIFIED | `BLOCK` without completion or error signal; approvals default to `ASK`. |
+| CAP-05 cancel | statuses exist; no documented command | UNVERIFIED | Autonomous blocked; Supervised needs acknowledgement. |
+| CAP-06 query status | events and transcript only | UNVERIFIED | Derived from CAP-04 or `BLOCK`. |
+| CAP-07 concurrency limit | undocumented | UNVERIFIED | Vela runs one session at a time and reports it. |
+| CAP-08 correlation identity | hook input (`conversationId`, `workspacePaths`), `init.conversation_id`/`cwd` | UNVERIFIED (CLI); window/process identity PARTIALLY VERIFIED (UIA proxy) | UI-automation delivery unavailable; approvals become interventions. |
+| CAP-09 capacity signals | human-readable `RESOURCE_EXHAUSTED` text; open bug #1018 | UNVERIFIED | Pause on unclassified failure. |
+| CAP-10 resume | `--conversation`, `--continue`; persisted across reboot | UNVERIFIED | Recovery uses a new session at the last checkpoint. |
+| CAP-11 native permission posture | rules and `PreToolUse` hooks; semantics undocumented; bugs #548, #1053, #1059 | UNVERIFIED | Posture `UNKNOWN`: Autonomous blocked (ADR-009). |
+
+Compatibility consequence (per `ADAPTERS.md` and ADR-016 section 5): no Required capability is verified on the
+primary surface in the real environment. This record therefore declares **no capability ready**, supports
+**no adapter workaround**, and makes the Phase 0 probes P1-P8 and the Desktop approval-card probe release-gating.
+If a probe shows a Required capability unavailable, the outcome is a specification-change decision (ADR), not
+a substitution.
+
+## R. Open design question exposed by verification
+
+For a **headless** session there is no GUI approval card: documented behavior is a soft-denial of tools that
+need approval. The UI-automation tiers act only on a Desktop-hosted prompt. How approvals reach Vela for
+Vela-created primary-surface sessions (native rules, `PreToolUse` hooks, or a Desktop-hosted session) must be
+settled by probes P1, P2, and the Desktop approval-card probe, then by Prompt 5. The `/remote-control`
+mechanism (Desktop UI controlling a CLI session through a tunnel, same Google account) exists but is only
+documented for an interactive session.
+
+## S. Procedure for the probes only the user can run (non-destructive)
+
+Run in a throwaway Git repository outside OneDrive (for example `C:\vela-probe`), after installing `agy` with
+the official installer and signing in through its browser flow yourself. Record results in this document.
+
+1.  `agy --version` and `agy --help`; note the version and whether a background updater process remains after exit.
+2.  **P1:** `agy -p "Run the shell command: git status" --output-format stream-json --print-timeout 2m`, with
+    no allow rules; record behavior (soft-deny, hang, prompt), exit code, and `result.status`. Repeat after
+    adding an allow rule for that command in the CLI settings.
+3.  **P2:** add a workspace `.agents/hooks.json` with a `PreToolUse` command hook that appends its stdin JSON to a
+    file and returns `allow`, then `deny`, then `ask`; repeat with a hook that exits non-zero and one that
+    exceeds its timeout. Record whether the tool ran in each case, headless and interactive.
+4.  **P3:** ask the agent to edit `.agents/hooks.json` and the workspace settings; record whether a prompt,
+    soft-denial, or silent write occurs.
+5.  **P4:** create `.agents/skills/probe/SKILL.md` (a one-line instruction) and run `agy -p "/probe hello"`.
+6.  **P5:** `git worktree add ..\vela-probe-wt1`, run `agy -p "echo ok"` there for the first time; record any trust
+    prompt or hang.
+7.  **P6:** start a long command, terminate the process, and resume with `--conversation <id>`; record statuses
+    (`WAITING`, `INTERRUPTED`) and what causes `WAITING`.
+8.  **P8:** run two headless sessions in two worktrees at once; record behavior and quota effects.
+9.  **Desktop approval card (Desktop 2.17.0 or newer):** trigger a command that prompts in the Desktop app and,
+    with a read-only UIA inspection, record the card's control types, names, and whether it exposes an `Invoke`
+    pattern. Do not click anything for the probe.

@@ -181,3 +181,12 @@ the run is quiescent, with a state backup first.
 | AT-022 | FR-019, FR-046 |
 | AT-023 | FR-028 |
 | AT-024 | FR-047 |
+| AT-025 | FR-049 |
+
+## AT-025 Authentication ownership
+
+With Antigravity unauthenticated, preflight and a run report `AUTH_REQUIRED` and ask the user to authenticate
+through Antigravity's supported flow; Vela does not automate sign-in and never opens, reads, or copies
+Antigravity credential-store entries or authentication material (verified by file and credential-store access
+auditing in the test harness). An API key present in the environment does not silently change the runtime.
+(Requirement: FR-049.)

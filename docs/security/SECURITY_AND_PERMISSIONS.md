@@ -35,6 +35,8 @@ posture is `UNKNOWN`, which blocks Autonomous mode.
 
 ## Secret handling
 
+-   Vela never reads, extracts, copies, exports, persists, or reuses Antigravity authentication tokens or
+    credentials, including the OS credential store entries Antigravity creates (ADR-016),
 -   no secrets in Markdown,
 -   no raw tokens in SQLite logs,
 -   redact command output,
