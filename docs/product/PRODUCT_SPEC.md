@@ -438,3 +438,11 @@ account/session where the supported product permits it. Authentication shall rem
 shall not read, extract, copy, export, persist, or reuse authentication tokens or credentials. A missing
 authentication state shall raise `AUTH_REQUIRED` and ask the user to authenticate through Antigravity's
 supported flow. API-key/Vertex billing shall not silently replace the normal runtime (ADR-016).
+
+### FR-050 Worker conversations visible in Antigravity Desktop
+
+Every worker, reviewer, and analyst session shall run in a fresh Antigravity conversation whose identifier Vela records against its
+ticket/worker/review cycle, and each conversation shall be discoverable and openable in Antigravity Desktop so the user can inspect
+the real conversation. Vela shall prefer a verified CLI-created conversation that Desktop can show over automating the Desktop GUI.
+The mechanism is unverified and is gated by spike S-DESKTOP-VISIBILITY; until it is verified the requirement is not satisfied and
+Vela shall say so rather than imply visibility (ADR-020, CAP-12).

@@ -50,3 +50,8 @@ gap.
     rebuild a read-only inventory from Git, and never auto-resume from reconstructed state.
 -   The store holds no secrets, so backups and diagnostic exports do not need secret handling
     beyond the redaction rules in `OBSERVABILITY.md`.
+
+## Conversation identifiers (ADR-020)
+
+`workers.conversation_id`, `review_cycles.reviewer_conversation_id`, and the analyst conversation id are persisted and journaled; they are
+used by recovery-resume and shown in the inspector. They are identifiers only; no Antigravity credential or transcript content is stored.

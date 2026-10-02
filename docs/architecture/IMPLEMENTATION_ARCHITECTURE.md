@@ -10,6 +10,11 @@ environment, **[P]** partially verified, **[U]** unverified and gated by a Phase
 tagged **[U]** may be built behind its seam but may not be claimed ready, and its dependents may not pass release gates,
 until its spike passes. A single successful UIA delivery is **[V]** for that case only; it is never generalized.
 
+> **Post-freeze addendum (ADR-020):** every worker, reviewer, and analyst conversation must be visible and openable in Antigravity
+> Desktop (FR-050, CAP-12). This is **unverified** (spike S-DESKTOP-VISIBILITY) and it makes the **isolated per-worker profile in ADR-018
+> section 2 provisional**, because CLI conversations live in the CLI's own store and an isolated `USERPROFILE` would relocate them. The
+> freeze otherwise stands; no mechanism for Desktop visibility is chosen here.
+
 ## 1. Technology inventory (the complete list)
 
 | Area | Choice | Why this and nothing more |
@@ -245,6 +250,7 @@ bootstrapper or offline installer are release options; the updater uses signed m
 | S-UIA-RELIABILITY | Repeated and varied deliveries: other versions, minimized/obscured windows, concurrent cards, the refusal path | UIA claims beyond one delivery |
 | S-VISUAL | Is the visual tier ever needed on the primary path? | `vela-uia::visual` |
 | S-PROC-JOB | Does a Job Object with kill-on-close terminate the whole `agy` tree (including PowerShell children) with no orphans? | `vela-process` cancellation |
+| **S-DESKTOP-VISIBILITY** | Do conversations created by headless `agy` (real profile and isolated profile) appear in Antigravity Desktop, under which project, and can they be opened? What verified way opens a given conversation? (ADR-020, FR-050, CAP-12, AT-026) | **the isolated-profile design (ADR-018 section 2)**, FR-050, the inspector's "Open in Antigravity" action |
 | S-CAP-REMAINING | `WAITING` status, concurrency ceiling, background self-update control, interactive TUI | CAP-04/05/07 |
 
 ## 15. Verified / partial / unverified register for architecture elements
@@ -254,7 +260,8 @@ bootstrapper or offline installer are release options; the updater uses signed m
 | `agy -p` per-turn driving, `--conversation` resume, stream-json parsing | **[V]** |
 | Soft-denial detection (stderr + empty result) | **[V]** |
 | Generated user-level allow rules (exact, regex, path-scoped write) | **[V]** |
-| Per-worker isolated profile via `USERPROFILE`/`HOME` with working authentication | **[V]** |
+| Per-worker isolated profile via `USERPROFILE`/`HOME` with working authentication | **[V]** works; **provisional** because it may hide conversations from Desktop (ADR-020) |
+| CLI-created conversation visible/openable in Antigravity Desktop (required capability CAP-12) | **[U]** S-DESKTOP-VISIBILITY. Observed: CLI conversations are stored in `~/.gemini/antigravity-cli/`, separate from the Desktop store `~/.gemini/antigravity/conversations/` |
 | Workspace `PreToolUse` hook: input fields, `deny`, fail-closed | **[V]** |
 | Hook `allow` as a grant | **[V: does not grant]** (design avoids it) |
 | Allow rule + hook `allow` combination | **[U]** S-NATIVE-POSTURE |

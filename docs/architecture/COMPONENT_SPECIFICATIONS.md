@@ -71,6 +71,8 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
     `USERPROFILE`/`HOME` **[V]**; allow rules generated from the confirmed profile **[V]**; fail-closed deny hook **[V]**
     (combination with allow **[U]**); ASK via spool + one-time rule + resume **[U]**; capability detection of version, flags
     (`agy --help`), and posture before use **[V]**; reviewer in a separate profile.
+-   **CONVERSATION VISIBILITY (ADR-020, FR-050, CAP-12):** records each conversation id (workers, reviewers, analyst) and must make it
+    discoverable/openable in Desktop; **unverified**. The isolated profile above is provisional until S-DESKTOP-VISIBILITY closes.
 -   **FAILURE MODES:** `agy` missing or not authenticated (`CAPABILITY_MISSING`/`AUTH_REQUIRED`); soft-denial (blocked tool
     surfaced, never treated as success); hook failure (tool blocked, worker informed); quota text (`CAPACITY`); background
     self-update changes version (divergence); timeout (explicit, never the default 0s); malformed events (turn failed with evidence).
@@ -250,7 +252,7 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 
 ---
 
-# Requirements Coverage (FR-001..FR-049)
+# Requirements Coverage (FR-001..FR-050)
 
 | FR | Implemented by | Verified by |
 |---|---|---|
@@ -303,6 +305,7 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 | 047 installation and updates | packaging, C19 | AT-024; clean-machine checklist |
 | 048 renderer hardening | C18, `tauri.conf.json` | CSP, capabilities, injection tests |
 | 049 authentication ownership | C05, C12 | AT-025 |
+| 050 worker conversations visible in Antigravity Desktop | C05, C11, C20 | AT-026; spike S-DESKTOP-VISIBILITY (**unverified**) |
 
 Non-functional coverage: reliability (C11, C13), safety (C03, C04, ADR-009/013), performance (C21, budgets), observability (C11, C17), portability
 (Windows-gated crates, pure core), provider independence (ports, ADR-006/008), testability (ports, C22), accessibility (C20, ADR-019), security

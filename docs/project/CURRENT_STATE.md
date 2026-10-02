@@ -61,11 +61,11 @@ structure, and the Prompt 4 queued specification corrections that Prompt 5 autho
 - **UI (ADR-019):** DOM for all text and controls; one WebGL canvas for dots, ambient field, and graph (instanced); layout computed in Rust and stored in the
   graph snapshot; always-mounted accessible tree; Full/Balanced/Efficiency modes; WebGL-failure fallback to CSS/SVG plus the list view.
 - **Every component** has inputs, outputs, state owned, dependencies, failure modes, and test strategy in `COMPONENT_SPECIFICATIONS.md`, which also maps
-  **all 49 functional requirements** to components and tests.
+  **all 50 functional requirements (FR-050 added post-freeze)** to components and tests.
 
 ## Decisions and ADRs
 
-ADR-001..ADR-019 are all Accepted. Resolved human decisions: the eight Prompt 2 decisions (ADR-009..014 and ADR-001/002 acceptance), DR-1 and DR-3
+ADR-001..ADR-020 are all Accepted (ADR-020 added post-freeze: conversation visibility in Desktop; it makes the isolated-profile design in ADR-018 provisional). Resolved human decisions: the eight Prompt 2 decisions (ADR-009..014 and ADR-001/002 acceptance), DR-1 and DR-3
 (ADR-016). Architecture decisions: ADR-017 (stack, process model, contracts), ADR-018 (Antigravity adapter and policy enforcement), ADR-019 (UI rendering).
 Documentation precedence is in `DOCUMENTATION_INDEX.md`.
 
@@ -83,13 +83,34 @@ proceeded, and a before/after hash of `~/.gemini/config` showed no persistent pe
 **PARTIALLY VERIFIED:** policy files placed inside an allowed worktree are agent-writable; two parallel headless sessions; UIA reliability beyond that single
 delivery (other versions, minimized windows, concurrent cards, other prompt variants, the refusal path); keep-awake effect on sleep; UIA on the IDE as a proxy.
 
-**UNVERIFIED (each has a Phase 0 spike in `IMPLEMENTATION_ARCHITECTURE.md` section 14):** allow rule combined with hook `allow` (S-NATIVE-POSTURE); ASK resume
+**UNVERIFIED (each has a Phase 0 spike in `IMPLEMENTATION_ARCHITECTURE.md` section 14):** **CLI-created conversation visible/openable in Antigravity Desktop
+(S-DESKTOP-VISIBILITY, required)**; allow rule combined with hook `allow` (S-NATIVE-POSTURE); ASK resume
 after a refusal (S-ASK-RESUME); global-path hooks in an isolated profile and agent-write protection (S-HOOK-GLOBAL); `--json-schema` reviewer output
 (S-SCHEMA-OUTPUT); interactive trust (S-INTERACTIVE-TRUST); `prevent_exit` with tray (S-TRAY); `windows` crate UIA bindings (S-UIA-BINDINGS); UIA reliability
 (S-UIA-RELIABILITY); visual tier (S-VISUAL); Job Object kill (S-PROC-JOB); `WAITING` status, concurrency ceiling, background self-update control, interactive TUI
 (S-CAP-REMAINING); Matt Pocock skills running inside Antigravity; Google's stance on external orchestration of the headless CLI (release prerequisite, ADR-016).
 
 **UNSUPPORTED for v1:** the Antigravity SDK as a dependency (Alpha, API-key/Vertex authentication, resume/cancel undocumented).
+
+## REQUIRED CAPABILITY ADDED AFTER THE FREEZE (do not lose): conversation visibility in Antigravity Desktop (ADR-020, FR-050, CAP-12, AT-026)
+
+**Product requirement (user clarification, 2026-10-02):** every Vela issue/worker (and reviewer and analyst session) runs in a **fresh
+Antigravity conversation**, and that conversation must be **discoverable and openable in the Antigravity 2.0 Desktop GUI** so the user can inspect
+the real conversation, not only Vela's rendering. Vela still orchestrates through the supported headless `agy` surface; it does **not** need to
+automate the Desktop GUI to create conversations. Prefer a CLI-created conversation that Desktop can show; if that relationship is unverified,
+it is a required capability and spike, not an assumption.
+
+- **Status: UNVERIFIED** (spike **S-DESKTOP-VISIBILITY**, seed ticket I100). No mechanism is chosen.
+- **Conflict with the freeze, found and recorded:** CLI conversations are stored in `~/.gemini/antigravity-cli/` (`brain`, `conversations`,
+  `annotations`, `presence`), separate from the Desktop store `~/.gemini/antigravity/conversations/`; none of the probe conversation ids from CLI runs are in
+  the Desktop store. ADR-018 section 2 (isolated per-worker `USERPROFILE`) would relocate conversations away from the user's profile, so **that design is
+  provisional** and stands only if the spike shows visibility, or a verified mechanism restores it. Alternatives (real profile, a Desktop-read config location,
+  another store) are not chosen; any that touches the user's global Antigravity settings needs a new decision and explicit consent.
+- **Observed but not enough:** the CLI created a `CLI Project` entry the user saw in Desktop; whether it lists CLI conversations and whether they open is unobserved.
+  The spike needs a user-assisted observation in the Desktop app for conversations from (i) the real profile and (ii) an isolated profile.
+- **Obligations:** record each conversation id on workers, reviewer cycles, and the analyst (`PERSISTENCE.md`); show it with an "Open in Antigravity" action
+  (`SCREEN_INVENTORY.md`) limited to what is verified; AT-026 fails if any conversation cannot be shown, rather than passing on Vela's own rendering.
+- **For Prompt 6:** the profile-isolation/adapter tickets depend on I100; FR-050/AT-026 tickets cannot be marked done on an unverified mechanism.
 
 ## Unresolved Compatibility Constraints
 
@@ -121,8 +142,8 @@ on by a UIA probe until it restarts. None of these are part of the Vela reposito
 - Generate **concrete Antigravity production tickets and fake/test-adapter tickets only**; no Claude/Codex/other runtime-adapter tickets (ADR-008).
 - Every **[U]** element in the register becomes a **timeboxed spike ticket** with a recorded-result acceptance criterion; no dependent ticket may be marked
   ready/done on an unverified element until that spike closes with evidence. Spikes precede dependents in the DAG.
-- Honor the crate dependency rules and the seed additions in `docs/issues/ISSUE_GRAPH_SEED.md` ("Architecture-Driven Seed Additions"); cite requirement IDs
-  FR-001..FR-049 and acceptance tests AT-001..AT-025; reference the relevant ADRs and component ids (C01..C22).
+- Honor the crate dependency rules and the seed additions in `docs/issues/ISSUE_GRAPH_SEED.md` ("Architecture-Driven Seed Additions" and I100); cite
+  requirement IDs FR-001..FR-050 and acceptance tests AT-001..AT-026; reference the relevant ADRs and component ids (C01..C22).
 - Tracer-bullet vertical slices; real blockers only; conservative parallelism (shared contracts, the migration ladder, `Cargo.toml`/`package.json`,
   `tauri.conf.json`, and generated bindings are serialization hazards).
 
