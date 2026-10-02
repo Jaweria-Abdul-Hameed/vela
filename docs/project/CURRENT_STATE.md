@@ -119,7 +119,10 @@ status text, exactly one matching control each). The card cleared, the agent rep
 shows the correlated request (`git status --short`, `Cwd c:\vela-probe\wt1`) with the agent resuming at the Submit
 second. A before/after hash of `~/.gemini/config` showed **no persistent permission created** (zero file differences).
 **VERIFIED** for one single-use allow; broader reliability (variants, versions, concurrent cards, the refusal
-path) is PARTIALLY VERIFIED. The earlier "UIA delivery UNVERIFIED" items above are superseded.
+path) is PARTIALLY VERIFIED. The earlier "UIA delivery UNVERIFIED" items above are superseded. Antigravity's
+"worked for 19 minutes" is the agent's wait on the unattended card (request `11:44:17Z`, resumed `12:03:18Z`, the
+Submit second), not execution time; an unanswered Desktop prompt blocks indefinitely, which supports the Approval
+Watchdog requirement.
 
 **Impact:** nothing blocks Prompt 5. The CLI headless path has a verified candidate native posture (generated allow
 rules plus a fail-closed deny hook) that needs no UI automation; UIA is only for Desktop-hosted prompts. Queued

@@ -432,6 +432,13 @@ coordinate or pixel clicking, no keystrokes).
     and sidecar caches) before and after showed **zero differences**; the new `wt1` project registry file contains
     only its name and folder URI (no permission keys); no CLI `settings.json`, no global `hooks.json`, and no
     workspace policy files were created.
+4a. **Observed blocked time (user observation, confirmed by timestamps):** Antigravity displayed "worked for 19
+    minutes". The transcript shows the request created at `11:44:17Z` (tool step at `11:44:20Z`) and the agent's next
+    step at `12:03:18Z`, i.e. **19 min 1 s of the agent waiting on the unattended card**, ending in the same second as the
+    `Invoke()` call; the user was only observing and did not interact. The 19 minutes is therefore approval wait time, not
+    command execution time. An unattended Desktop prompt blocks the agent indefinitely with no visible timeout, which
+    supports the Approval Watchdog and `APPROVAL_STALLED` requirements (`APPROVAL_BROKER.md` sections 8-9). The
+    "card disappeared within six seconds" in item 3 is the probe's own re-read delay, not a card duration.
 5.  **Limits:** one successful delivery of a single-use allow does not establish reliability across prompt variants,
     versions, window states, or multiple concurrent cards; the request text was a harmless command; the check that the
     command ran relies on the transcript and the agent report; a denial path (option 5) was not exercised.
