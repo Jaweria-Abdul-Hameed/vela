@@ -11,21 +11,25 @@ issue graph. **v1 runtime: Google Antigravity on Windows. Strategy: Antigravity-
 
 ## Current Phase
 
-PROMPT_5_COMPLETE — **Architecture frozen** (2026-10-02).
+PROMPT_6_GRAPH_GENERATED — **Architecture frozen** (2026-10-02); **issue graph generated, audited once, and approved as the draft; GitHub
+publication intentionally deferred** pending the independent Prompt 7 audit.
 
 ## Last Completed Phase
 
-Prompt 5 — Architecture freeze (documentation only: three ADRs, two architecture documents, a rewritten directory
-structure, and the Prompt 4 queued specification corrections that Prompt 5 authorizes). No source code, no GitHub issues.
+Prompt 6 — Issue-graph generation (planning artifacts only): 130 full ticket bodies, the 238-edge transitively reduced DAG, traceability, critical path,
+and initial frontier are persisted under `docs/issues/graph/`. **No GitHub issues were created.** No source code. (Prompt 5 froze the architecture;
+ADR-020 and its scope clarification were added after the freeze.)
 
 ## Next Phase
 
-**Prompt 6 — Generate the complete GitHub issue graph** (see "Instructions for the next model"). Do not begin it in this session.
+**Prompt 7 — Independent issue/DAG audit** (preferably a different model or at least a fresh context), then Prompt 8 (scheduler dry-run). GitHub publication
+happens only after Prompt 7's corrections and the user's explicit confirmation. Do not begin Prompt 7 in this session.
 
 ## Canonical Branch and Commit
 
 - Branch: `main`; remote `origin`: `https://github.com/Jaweria-Abdul-Hameed/vela.git`.
-- Prior checkpoints: baseline `bbcecf7`; Prompt 3 `2d9a8fd`; Prompt 4 `1bbc38b`; Section S probes `27d2408`, `cd50b5a`, `f5dac49`.
+- Prior checkpoints: baseline `bbcecf7`; Prompt 3 `2d9a8fd`; Prompt 4 `1bbc38b`; Section S probes `27d2408`, `cd50b5a`, `f5dac49`; Prompt 5 `8b46b25`;
+  ADR-020 `3cc25f7`, scope clarification `4e9f657`.
 - **This checkpoint is the commit that updates this file** (a file cannot contain its own SHA). Take current Git `HEAD` as canonical
   (`git log -1`) and verify it descends from the commits above and that `main` equals `origin/main`.
 
@@ -36,9 +40,9 @@ structure, and the Prompt 4 queued specification corrections that Prompt 5 autho
 | Specification | READY (audit findings resolved; Prompt 4/5 corrections applied; items below remain open but non-blocking) |
 | External verification | Documentation verified; Section S probes done; several capabilities remain unverified (see register) |
 | Architecture | **FROZEN** (`docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`, `COMPONENT_SPECIFICATIONS.md`, ADR-017/018/019) |
-| Issue graph | NOT_CREATED |
+| Issue graph | **DRAFTED_NOT_PUBLISHED**: 130 tickets, 238 published edges, in `docs/issues/graph/` (symbolic keys; no GitHub issues exist) |
 | Implementation | NOT_STARTED |
-| Ready for ticket generation | **YES**, with the gating rules below |
+| Next gate | Independent Prompt 7 audit, then user-confirmed publication |
 
 ## Frozen Architecture (summary; the documents are authoritative)
 
@@ -139,31 +143,45 @@ it is a required capability and spike, not an assumption.
 "CLI Project" and "wt1"; `C:\vela-probe` (throwaway repo, worktrees, isolated profile, logs) exists outside OneDrive; the IDE's Chromium accessibility was switched
 on by a UIA probe until it restarts. None of these are part of the Vela repository.
 
-## Gating Rules for Ticket Generation (Prompt 6)
+## Issue Graph (Prompt 6 draft; GitHub publication deferred)
 
-- Generate **concrete Antigravity production tickets and fake/test-adapter tickets only**; no Claude/Codex/other runtime-adapter tickets (ADR-008).
-- Every **[U]** element in the register becomes a **timeboxed spike ticket** with a recorded-result acceptance criterion; no dependent ticket may be marked
-  ready/done on an unverified element until that spike closes with evidence. Spikes precede dependents in the DAG.
-- Honor the crate dependency rules and the seed additions in `docs/issues/ISSUE_GRAPH_SEED.md` ("Architecture-Driven Seed Additions" and I100); cite
-  requirement IDs FR-001..FR-050 and acceptance tests AT-001..AT-026; reference the relevant ADRs and component ids (C01..C22).
-- Tracer-bullet vertical slices; real blockers only; conservative parallelism (shared contracts, the migration ladder, `Cargo.toml`/`package.json`,
-  `tauri.conf.json`, and generated bindings are serialization hazards).
+The complete proposed implementation graph is persisted in `docs/issues/graph/` and approved by the user as the Prompt 6 draft (2026-10-02):
 
-## Instructions for the Next Model (beginning Prompt 6)
+- `docs/issues/graph/ISSUE_GRAPH.md`: counts, validation, the 238-edge DAG table, critical path, initial frontier, waves, spike gates, FR/AT traceability, and the publication plan.
+- `docs/issues/graph/ISSUE_GRAPH.json`: machine-readable graph (labels, requirements, reduced and unreduced blockers, depth, levels).
+- `docs/issues/graph/tickets/<KEY>.md`: 130 full ticket bodies (all 19 required items).
+- **130 tickets**; 283 direct edges authored; **238 published edges** after transitive reduction; no cycles; no unknown, self, or duplicate blockers; every
+  FR-001..FR-050 and AT-001..AT-026 has at least one ticket.
+- **Critical path (17 tickets):** F01 → F02 → F04 → F05 → F08 → S01 → S03 → S04 → S08 → S09 → S10 → S11 → S12 → S14 → Z03 → Z05 → Z06.
+- **Initial ready frontier (14):** F01, SP01, SP02, SP03, SP04, SP06, SP07, SP08, SP09, SP10, SP11, H01, H02, H03 (spikes SP04/SP08/SP09/SP11 and H01-H03 need user help).
+- **Added by the dependency audit:** O01 (Orchestrator skeleton), TK1 (fake `agy` executable), R08 (Stop All safe points for merge and push). The audit also
+  swapped 47 preference edges for 47 real blockers and relaxed U16; no existing ticket's earliest start got later.
+- **Spike gating:** every unverified [U] element has a spike ticket that blocks its consumers (mechanically checked). Everything downstream of SP08
+  (conversation visibility, ADR-020): A05, A06, A07, A12, A15, A16, K10, X04, Z04, Z05, Z06.
+- **GitHub publication is intentionally NOT done.** `gh` is authenticated with admin access to `Jaweria-Abdul-Hameed/vela`, which has no issues. Publication
+  follows the plan in `ISSUE_GRAPH.md` only after the Prompt 7 audit's corrections and the user's explicit confirmation.
+- The `to-tickets` skill is user-invoked only; its documented process (vertical slices, blocking edges, user approval, publish in dependency order with native
+  links and `ready-for-agent`) was followed manually and not invoked. `/setup-matt-pocock-skills` has not been run.
 
-1. Run the **universal handoff prompt** in `VELA_MASTER_BUILD_PLAYBOOK.md` section 2 first. Read, in order: `AGENTS.md`, this file, `CONTEXT.md`, `README.md`,
+## Instructions for the Next Model (beginning Prompt 7)
+
+1. Run the **universal handoff prompt** in `VELA_MASTER_BUILD_PLAYBOOK.md` section 2. Read, in order: `AGENTS.md`, this file, `CONTEXT.md`, `README.md`,
    `DOCUMENTATION_INDEX.md` (precedence), `docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`, `docs/architecture/COMPONENT_SPECIFICATIONS.md`, ADR-007 and
-   ADR-009..019, `docs/product/PRODUCT_SPEC.md`, `docs/issues/ISSUE_AUTHORING.md`, `docs/issues/ISSUE_GRAPH_SEED.md`, `docs/roadmap/IMPLEMENTATION_PLAN.md`,
-   `docs/testing/ACCEPTANCE_TESTS.md`, and `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md` (sections T-V). Verify `git status`, that `HEAD` descends from the
-   commits above, and that `main` equals `origin/main`.
-2. Do **not** redo Prompts 1-5 and do not reopen accepted ADRs without discovering an actual contradiction; surface contradictions as decision requests.
-3. Run **Prompt 6** from the playbook. First inspect installed Matt Pocock skills (`to-tickets`, `setup-matt-pocock-skills`); the verified facts are in
-   `docs/agents/MATT_POCKOCK_SKILLS.md`. Note that `/setup-matt-pocock-skills` edits `CLAUDE.md` or `AGENTS.md` and writes `docs/agents/*.md`: do that only on a
-   separate branch/commit under the preflight bootstrap rule, and tell the user.
-4. Creating GitHub issues is an external, hard-to-undo action: confirm `gh auth status`, the target repository (`Jaweria-Abdul-Hameed/vela`), and ask the user
-   before bulk creation; if `gh` is unavailable, draft the issues as local Markdown under a clearly named directory and stop for instructions.
-5. After issue creation, build the real dependency DAG from the created issue ids and record the issue-graph status here. Then stop (Prompt 7 is an independent
-   audit, preferably by a different model).
-6. Real-environment note: `agy` is installed on the user's machine; any probe or spike must use a throwaway repository outside OneDrive, must not read or copy
+   ADR-009..020, `docs/product/PRODUCT_SPEC.md`, `docs/issues/ISSUE_AUTHORING.md`, `docs/issues/ISSUE_GRAPH_SEED.md`, then `docs/issues/graph/ISSUE_GRAPH.md`,
+   `ISSUE_GRAPH.json`, and every ticket in `docs/issues/graph/tickets/`. Verify `git status`, that `HEAD` descends from the commits above, and that `main`
+   equals `origin/main`.
+2. Do **not** redo Prompts 1-6. Run **Prompt 7** from the playbook as an **independent audit** (a different model than the one that drafted the graph is
+   preferred). Construct the dependency DAG yourself from the ticket files and compare it with the declared graph; test every direct edge as a true
+   implementation blocker versus an ordering preference; look for missing blockers, duplicated or oversized tickets, horizontal-layer tickets, weak
+   acceptance or test requirements, missing ADR references, parallel groups with shared write surfaces, spike-gating gaps, and approval/recovery/security/
+   packaging gaps.
+3. **Do not publish to GitHub in Prompt 7.** Correct the draft files in `docs/issues/graph/` (ticket bodies, `ISSUE_GRAPH.json`, `ISSUE_GRAPH.md`), recompute the
+   validation numbers, and record the audit result and any decisions for the user here. Publication is a separate, user-confirmed step (see the plan in
+   `ISSUE_GRAPH.md`); when it happens, map keys to real issue numbers, create native blocked-by links, rebuild the DAG from real ids, and update this file.
+4. Honor the standing constraints: concrete Antigravity production tickets plus fake/test adapters only (ADR-008); unverified [U] elements stay gated by their
+   spikes; the conversation-visibility requirement (ADR-020, FR-050) stays an explicit required capability; never claim Antigravity capabilities beyond the
+   verification record.
+5. Real-environment note: `agy` is installed on the user's machine; any probe or spike must use a throwaway repository outside OneDrive, must not read or copy
    Antigravity credentials, and must not modify the user's global Antigravity settings (use the isolated-profile technique).
-7. Before reporting Prompt 6 complete, update this file, commit and push, and verify `main` equals `origin/main` with a clean working tree.
+6. Before reporting Prompt 7 complete, update this file, commit and push, and verify `main` equals `origin/main` with a clean working tree. Then Prompt 8
+   (scheduler dry-run) follows.

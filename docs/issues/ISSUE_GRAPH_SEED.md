@@ -178,3 +178,9 @@ Ordering: spikes precede the tickets that depend on their result; no ticket may 
     verified way exists to open a given conversation; and what that implies for the profile-isolation design. **Blocks** the adapter profile/isolation
     tickets and any ticket claiming FR-050. Record the conversation id on workers, reviewer cycles, and substantive analyst sessions (ADR-020 decision 1a scope; not incidental probes), and add the inspector's "Open in
     Antigravity" action only as far as the verified mechanism allows.
+
+# Superseded by the Prompt 6 Issue Graph
+
+The placeholder IDs in this seed are superseded by the generated graph in `docs/issues/graph/` (`ISSUE_GRAPH.md`, `ISSUE_GRAPH.json`, and 130 ticket
+files with symbolic keys such as F02, S10, A06). The seed remains as historical planning input; the graph is the working plan. GitHub publication is
+deferred pending the independent Prompt 7 audit.

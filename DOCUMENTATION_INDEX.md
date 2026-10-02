@@ -35,6 +35,9 @@ affected specifications.
 -   `docs/github/GITHUB_WORKFLOW.md`
 -   `docs/issues/ISSUE_AUTHORING.md`
 -   `docs/issues/ISSUE_GRAPH_SEED.md`
+-   `docs/issues/graph/ISSUE_GRAPH.md`
+-   `docs/issues/graph/ISSUE_GRAPH.json`
+-   `docs/issues/graph/tickets/` (130 ticket bodies, one file per symbolic key, `<KEY>.md`; listed in `ISSUE_GRAPH.md`)
 -   `docs/operations/AUTONOMY_MODES.md`
 -   `docs/operations/ERROR_HANDLING.md`
 -   `docs/operations/HUMAN_IN_THE_LOOP.md`
