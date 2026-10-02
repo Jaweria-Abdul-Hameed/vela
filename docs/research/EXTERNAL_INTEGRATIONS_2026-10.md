@@ -68,3 +68,20 @@ them against current primary documentation and the installed environment and mus
 6.  How rate-limit and capacity conditions are surfaced.
 7.  Whether session resume exists (CAP-10).
 8.  Tauri behavior for tray, background lifecycle, keep-awake power requests, and login auto-start.
+
+# Verification Status (2026-10-02)
+
+The assumptions and the eight verification items above were verified in Prompt 4. The full, dated
+evidence and classification (VERIFIED, CHANGED, UNDOCUMENTED, UNSUPPORTED, RUNTIME) are in
+`EXTERNAL_VERIFICATION_2026-10-02.md`, which supersedes this snapshot wherever they differ. In short:
+
+-   **Confirmed:** the three Windows auto-execution modes, the OS difference in permission engines, the
+    Matt Pocock skills (`implement`, `code-review`, `implement-spec`, plus `to-tickets`), fixed-point
+    review semantics, and the shared-stash caveat of Git worktrees.
+-   **Changed:** Antigravity 2.0 now has three surfaces, a Desktop app, an `agy` CLI with a headless
+    mode, and a Python SDK; native allow/deny/ask rules and `PreToolUse` hooks exist; Windows sandboxing
+    shipped in desktop v2.15.1 although some pages still say otherwise; `/code-review` emits no severity
+    or structured output.
+- **Not erased:** the observed-environment requirement below stands. Documentation claims a permissive
+  mode exists; open bugs in the official CLI tracker (for example #548, #1053) and the user's own
+  observation show prompts and soft-denials persist. Vela stays defensive and capability-detected.

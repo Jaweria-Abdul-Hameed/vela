@@ -49,6 +49,7 @@ affected specifications.
 -   `docs/project/CURRENT_STATE.md`
 -   `docs/release/RELEASE_CHECKLIST.md`
 -   `docs/research/EXTERNAL_INTEGRATIONS_2026-10.md`
+-   `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`
 -   `docs/roadmap/IMPLEMENTATION_PLAN.md`
 -   `docs/security/SECURITY_AND_PERMISSIONS.md`
 -   `docs/testing/ACCEPTANCE_TESTS.md`

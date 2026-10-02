@@ -60,3 +60,29 @@ and periodically validate assumptions with contract/integration tests.
 # Antigravity v1 Integration
 
 For v1, skill discovery/bootstrap and the documented `/implement` / `/code-review` workflow must be validated in the Antigravity execution environment Vela actually controls. Support in some other development agent does not substitute for Antigravity compatibility.
+
+# Verified Facts (2026-10-02; see `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`)
+
+-   **Present on the default branch:** `implement`, `implement-spec`, `code-review`, `to-tickets`,
+    `to-spec`, `setup-matt-pocock-skills`, `tdd`, `pr`, `triage`, among others. Pin the installed version
+    by commit SHA; the repository has no documented release tags.
+-   **`implement`** implements a spec or set of tickets (not specifically an issue URL), uses TDD at
+    agreed seams, runs the full suite once, invokes `/code-review`, and **commits afterwards** to the
+    current branch. It does not say how it chooses the review fixed point.
+-   **`code-review`** requires a fixed point, checks that it resolves and that the diff is non-empty, uses
+    `git diff <fixed-point>...HEAD`, and runs parallel Standards and Spec sub-agents. Output is two
+    headed sections plus a one-line summary. **It emits no severity scale and no machine-readable
+    output**, so the reviewer-severity assumption in `REVIEW_PROTOCOL.md` and `PROMPT_CONTRACTS.md` is
+    not met by the skill alone; Vela must obtain or compute structure itself.
+-   **`implement-spec`** matches the description above (task graph, frontier, worktrees, integration
+    branch, merger subagents, final review) and is framed for Claude Code subagents. Vela does not use it
+    at runtime.
+-   **Setup** (`/setup-matt-pocock-skills`) edits `CLAUDE.md` (else `AGENTS.md`) and writes
+    `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and optionally `docs/agents/triage-labels.md`;
+    its default domain layout assumes `GLOSSARY.md` and `docs/adr/`, which differ from this repository's
+    `docs/decisions/`.
+-   **Installation** options: `npx skills@latest add mattpocock/skills` (the installer supports an
+    Antigravity target), a Claude Code plugin, or the setup skill. Antigravity discovers `SKILL.md` skills
+    in `<workspace>/.agents/skills/`; global locations differ between documentation and the installer, so
+    prefer project-level installation and detect at runtime. Skill behavior inside Antigravity is
+    unproven until a real-environment probe passes.
