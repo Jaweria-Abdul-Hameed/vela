@@ -11,10 +11,12 @@ there correctness/security/integration risks that required gates reveal?
 
 ## Fixed point
 
-Never guess. Each worker stores the base integration SHA as `fixed_point_sha`. It stays constant
-for every iteration of the ticket, so each review sees the cumulative diff
-`fixed_point_sha..review_head_sha`. Review uses an explicit resolvable fixed point and a non-empty
-committed diff. Vela owns the checkpoint invariant (ADR-015).
+Never guess. Each worker stores the base integration SHA as `fixed_point_sha`. It is constant across
+fix iterations, so each review sees the cumulative diff `fixed_point_sha...review_head_sha` (the skill uses a
+three-dot diff). **When Vela merges the integration tip into the worker branch, `fixed_point_sha` advances to that
+integration tip**, so the diff continues to show only the ticket's own changes (and any conflict resolution) and not
+other tickets' merged work. Review uses an explicit resolvable fixed point and a non-empty committed diff. Vela owns
+the checkpoint invariant (ADR-015). Final review uses `run_base_sha` (ADR-014).
 
 ## Reviewer independence
 
@@ -38,10 +40,9 @@ boolean, - disposition.
     reviewer prompt contract (`PROMPT_CONTRACTS.md`, optionally with the CLI's `--json-schema`) or be classified
     by Vela; the skill's native output is never assumed to carry severity. **Vela's policy engine decides
     `blocking`** from the exit policy below, not the reviewer's prose.
--   **Known external constraint:** `/code-review` computes `git diff <fixed-point>...HEAD`. After the
-    integration tip has been merged into a worker branch, that diff includes other tickets' merged changes. The
-    fixed-point rule for any review that follows such a merge is an open specification item recorded in
-    `docs/project/CURRENT_STATE.md`; until it is resolved, reviews run before the integration tip is merged.
+-   **External constraint (resolved by the fixed-point rule above):** `/code-review` computes
+    `git diff <fixed-point>...HEAD`; advancing the fixed point to the merged integration tip prevents other tickets'
+    changes from polluting the review.
 -   **Output contract:** the reviewer returns the structured review output defined in
     `PROMPT_CONTRACTS.md`. Unparseable output gets one correction retry, then the worker becomes
     `NEEDS_HUMAN`.

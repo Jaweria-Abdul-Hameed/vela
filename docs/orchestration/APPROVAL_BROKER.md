@@ -244,3 +244,28 @@ Before a visual click Vela re-verifies window identity, layout fingerprint, and
 prompt freshness immediately prior to the click, acquires a global visual-
 delivery mutex (one visual delivery at a time across workers), and aborts if
 user input is detected within a short guard interval before the click.
+
+## 19. Verified UI Automation and headless-path rules (Prompt 4/5)
+
+These rules come from the Section S probes (`EXTERNAL_VERIFICATION_2026-10-02.md` sections T-V) and `ADR-018`. They do not
+generalize the single verified delivery.
+
+-   **Headless primary path (`agy -p`):** there is no GUI card. Evidence for classification is the `PreToolUse` hook input
+    (`toolCall.args.CommandLine`, `Cwd`, `conversationId`), which satisfies EBR-1(a) **[V]**. ASK-class operations are blocked by the
+    hook with a reason carrying the request id; a human "allow once" adds an exact, expiring allow rule to that worker's profile and
+    resumes the conversation **[U, spike S-ASK-RESUME]**. A soft-denial is never success: exit code 0 and `result.status SUCCESS`
+    are not evidence of execution.
+-   **Desktop card (secondary path, opt-in, ADR-010):**
+    -   warm up the UIA tree and retry while it populates (a fresh window returns about a dozen elements before the content tree appears);
+    -   require a visible, normal (not minimized) window of a Vela-correlated session;
+    -   match controls by role and accessible label, never by automation id (ids contain a session-unique part);
+    -   assemble the command text from its fragments and treat any gap as incomplete evidence (EBR-3);
+    -   correlate title, command, working directory, and status text before acting, with exactly one matching control for each action;
+    -   **select only the single-use allow or the refusal option; never select the options that persist an allow** (for this conversation,
+        this project, or globally);
+    -   act through `SelectionItemPattern` and `InvokePattern`, never coordinates; verify that the card clears and the agent proceeds; read
+        the permission configuration before and after in tests to assert no persistent permission appeared.
+-   **Verification status:** one correlated single-use allow was delivered and verified on Desktop 2.17.0 **[V for that case]**; reliability
+    across versions, minimized or obscured windows, concurrent cards, other prompt variants, and the refusal path is **[P/U]**.
+-   **Blocked time:** an unanswered Desktop prompt blocked an agent for 19 minutes with no visible timeout; the Watchdog must therefore raise
+    suspected approval blocks and `APPROVAL_STALLED` rather than waiting indefinitely.

@@ -1,6 +1,10 @@
 # System Architecture
 
-## 1. Recommended stack
+## 1. Stack (frozen; see `IMPLEMENTATION_ARCHITECTURE.md` and ADR-017)
+
+The list below is the original recommendation. The **frozen** stack, crate boundaries, process model, and rejected
+alternatives are in `IMPLEMENTATION_ARCHITECTURE.md` and ADR-017/018/019, which take precedence where they differ
+(notably: no Python sidecar, `ts-rs` contracts, `rusqlite`, the `git` binary, and the `gh` CLI).
 
 **Desktop shell:** Tauri\
 **UI:** React + TypeScript\

@@ -154,3 +154,21 @@ IDs remain placeholders. Real blocking edges are created during ticket generatio
 -   I040 (merge lane) depends on I030 (worktrees), I035 (checkpoints), and the integration-worktree
     provisioning in I049.
 -   I076 (installer/update/signing) includes the "never update during a run" requirement (FR-047).
+
+# Architecture-Driven Seed Additions (Prompt 5)
+
+Placeholder IDs; real blocking edges are created during ticket generation (Prompt 6). Each follows from `IMPLEMENTATION_ARCHITECTURE.md`.
+
+-   **I090 Workspace bootstrap:** Cargo workspace, npm workspaces, toolchain pins, formatting/lint/typecheck, CI dependency-direction check.
+-   **I091 `vela-domain` ports and types with `ts-rs` export and the command-registry contract test.**
+-   **I092 `vela-persistence`: writer thread, migrations ladder, journal, backup, integrity check.**
+-   **I093 `vela-process`: process runner, redaction layer, Job Object tree kill (spike S-PROC-JOB), keep-awake thread, session probe.**
+-   **I094 `vela-git`: hardened invocation, worktree manager, fixture hostile-config repo.**
+-   **I095 `vela-hook` binary and rule-table format.**
+-   **I096 `vela-testkit`: fixture repos, scripted agent, fake `agy` with recorded transcripts, fault points.**
+-   **I097 `tools/fake-approval-window` reproducing the verified card roles.**
+-   **I098 Phase 0 spikes S-NATIVE-POSTURE, S-ASK-RESUME, S-HOOK-GLOBAL, S-SCHEMA-OUTPUT, S-INTERACTIVE-TRUST, S-TRAY, S-UIA-BINDINGS, S-UIA-RELIABILITY, S-VISUAL, S-PROC-JOB, S-CAP-REMAINING (each its own timeboxed ticket with a recorded result).**
+-   **I099 `tests/antigravity-compat` real-environment suite gated by `VELA_REAL_ANTIGRAVITY=1`.**
+-   **Packaging ticket:** signed NSIS, WebView2 bootstrapper, updater deferral during runs (extends I076).
+
+Ordering: spikes precede the tickets that depend on their result; no ticket may mark an **[U]** element ready before its spike ticket is closed with evidence.

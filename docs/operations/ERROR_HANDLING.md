@@ -38,3 +38,12 @@ surface an intervention when bounded recovery fails.
 
 Each maps to the typed classes above (`POLICY_BLOCK`, `USER_ACTION_REQUIRED`, `INTERNAL_BUG`,
 `EXTERNAL_TEMPORARY`, and so on) and answers the five error questions.
+
+# Antigravity Result Interpretation (verified 2026-10-02)
+
+-   Exit code `0` and `result.status` `SUCCESS` are **not proof** that a tool ran or a task succeeded: a headless soft-denial of a tool exits `0`
+    with an empty `SUCCESS` result and a stderr line; a tool step can report `DONE` after a denial; a quota error can exit `0` after retrying to the timeout.
+-   Vela decides outcomes from the event stream, step errors (for example "denied by pre-tool hook", "permission check failed"), stderr, and Git/worktree
+    state, and always passes an explicit `--print-timeout` (the default is `0s`, meaning wait for the turn).
+-   Exit code `1` is shared by authentication failures and other general errors; `AUTH_REQUIRED` is determined from the error text and the capability
+    probe, not the code alone.

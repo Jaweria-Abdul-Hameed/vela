@@ -27,6 +27,13 @@ application data directory, never inside the repository and never inside a cloud
 Before start: - fetch if policy permits, - verify base SHA, - verify
 clean worktree, - create branch/worktree, - record path and SHA.
 
+### Execution workspaces
+
+Vela-created worktrees (and the integration worktree) are the **only execution workspaces** for Vela-supervised sessions;
+Vela passes no worktree-creation options to Antigravity. Antigravity can create worktrees of its own (for example for
+subagents, stored in its conversation directories); those are not Vela worktrees, are never merged by the lane, and are
+ignored or reported by reconciliation.
+
 ### Provisioning contract
 
 A fresh worktree contains only tracked files. Provisioning (requires a `TRUSTED` repository,

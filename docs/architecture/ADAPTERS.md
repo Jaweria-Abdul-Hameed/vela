@@ -34,6 +34,11 @@ visual adapter is the last resort (ADR-007). The SDK is not a v1 dependency. Ver
 capability is recorded in `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`; an unverified capability is
 treated as unavailable for release claims.
 
+The concrete `AntigravityAdapter` design, with each element tagged verified, partial, or unverified, is ADR-018 and
+`COMPONENT_SPECIFICATIONS.md` C05/C06. CAP-11 (native permission posture) is realized by generated allow rules plus a
+fail-closed deny hook in an isolated per-worker profile; the posture probe (spike S-NATIVE-POSTURE) must pass before
+`MEETS` is reported.
+
 Rules:
 
 - A missing Required capability yields a concrete preflight `BLOCK` that names the capability. Vela

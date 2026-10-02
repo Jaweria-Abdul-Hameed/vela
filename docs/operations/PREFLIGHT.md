@@ -137,3 +137,15 @@ If Antigravity required capabilities are unavailable, preflight must report the 
 | Worktree root under cloud sync | blocked | repository under cloud sync |
 | Path length exceeds limit | | after truncation still exceeds |
 | Unattended-session conditions (ADR-012) | | any condition that will interrupt unattended operation |
+
+# Additional Preflight Checks (Prompt 5)
+
+-   **Submodules:** Git documents that multiple checkouts of a superproject are not recommended and submodule support is incomplete; a repository
+    with submodules is `WARN` (a ticket touching a submodule is serialized) and parallel worktrees over a superproject require explicit user
+    acknowledgement.
+-   **Git version:** record the version; hardened invocation is validated against it (`COMPONENT_SPECIFICATIONS.md` C07).
+-   **Skills location:** report whether skills are installed at project level (`.agents/skills`) or only globally; prefer project level; detect at runtime.
+-   **Antigravity versions:** report the `agy` and Desktop versions; a background update between preflight and run is a divergence (`RECOVERY.md`).
+-   **WebView2 Runtime:** report its version; a long-running background process prompts a UI restart when a newer runtime is available.
+-   **Native permission posture probe:** runs the S-NATIVE-POSTURE scenarios against the installed `agy` (deny blocks, unlisted denied, allow runs, hook
+    failure blocks); only a pass yields `MEETS` (`ADR-009`, `ADR-018`).

@@ -6,7 +6,10 @@
 -   Ordinary autonomous commands should not require constant approval
     once the user has selected an appropriate autonomy policy.
 -   Command Prompt is preferred for Antigravity project terminal flows
-    where PowerShell introduces avoidable permission friction.
+    where PowerShell introduces avoidable permission friction. (Verified 2026-10-02: the Antigravity CLI agent's
+    `run_command` executes through `powershell.exe`, and no setting to change that was found. Vela's policy normalizer
+    therefore supports both PowerShell and `cmd` syntax, within a deliberately small grammar, and treats anything else as
+    `ASK`; this preference is advisory for Antigravity terminal settings, not a requirement on Vela's own `ProcessRunner`.)
 -   Parallel workers require worktree isolation.
 -   Fresh context per issue.
 -   Git and test evidence are mandatory.

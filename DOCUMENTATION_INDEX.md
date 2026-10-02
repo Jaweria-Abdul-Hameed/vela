@@ -10,6 +10,7 @@ affected specifications.
 -   `CONTEXT.md`
 -   `GEMINI.md`
 -   `README.md`
+-   `VELA_MASTER_BUILD_PLAYBOOK.md`
 -   `docs/agents/AGENT_PROTOCOL.md`
 -   `docs/agents/CONTEXT_SHARING.md`
 -   `docs/agents/MATT_POCKOCK_SKILLS.md`
@@ -17,7 +18,9 @@ affected specifications.
 -   `docs/agents/REVIEW_PROTOCOL.md`
 -   `docs/architecture/ADAPTERS.md`
 -   `docs/architecture/DIRECTORY_STRUCTURE.md`
+-   `docs/architecture/COMPONENT_SPECIFICATIONS.md`
 -   `docs/architecture/DOMAIN_MODEL.md`
+-   `docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`
 -   `docs/architecture/SYSTEM_ARCHITECTURE.md`
 -   `docs/config/CONFIGURATION.md`
 -   `docs/constraints/CONSTRAINTS.md`
@@ -73,6 +76,9 @@ affected specifications.
 -   `docs/decisions/ADR-014-RUN-COMPLETION-AND-PROMOTION.md`
 -   `docs/decisions/ADR-015-CHECKPOINT-PUSH-AND-REVIEW-OWNERSHIP.md`
 -   `docs/decisions/ADR-016-ANTIGRAVITY-SURFACE-PRIORITY-AND-AUTHENTICATION-OWNERSHIP.md`
+-   `docs/decisions/ADR-017-IMPLEMENTATION-STACK-AND-PROCESS-MODEL.md`
+-   `docs/decisions/ADR-018-ANTIGRAVITY-ADAPTER-AND-POLICY-ENFORCEMENT.md`
+-   `docs/decisions/ADR-019-UI-RENDERING-ARCHITECTURE.md`
 
 ## Documentation precedence
 
@@ -82,7 +88,8 @@ When documents disagree about **intended behavior**, resolve in this order (earl
     that point; the earlier ADR is preserved and carries a back-reference. Position in this index
     or in a file ("appended later") never confers precedence. Current chain: ADR-007 supersedes the
     absolute interpretation of ADR-004; ADR-009 and ADR-010 refine ADR-007; ADR-016 refines ADR-008 (surface priority and
-    authentication ownership); ADR-008 scopes
+    authentication ownership); ADR-017, ADR-018, and ADR-019 realize ADR-001/002, ADR-007/009/010/016, and the UI
+    specifications respectively without changing them; ADR-008 scopes
     ADR-006 (complementary); ADR-001 and ADR-002 are Accepted.
 2.  **`AGENTS.md`**: universal agent conduct rules; provider-specific files may add ergonomics but
     may not weaken it.

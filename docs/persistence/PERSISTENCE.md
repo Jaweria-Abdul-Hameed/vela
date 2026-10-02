@@ -24,7 +24,8 @@ state_store_backups
 
 ## Authority between state and journal
 
--   The Vela core is the single writer of the store; the UI reads through the core.
+-   The Vela core is the single writer of the store (a dedicated writer thread, `ADR-017`); the UI reads through the core; journal
+    events are published to subscribers only after the transaction commits, so the UI is never ahead of durable state.
 -   Every state transition is applied as **one transaction** that updates the materialized state
     and appends its journal event(s) together. Journal events carry a monotonically increasing
     sequence number; each materialized row records the `last_event_seq` that produced it.

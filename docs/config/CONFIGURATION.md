@@ -26,6 +26,9 @@ Persisted user-global settings, each changeable later in Settings:
 
 ## Project settings
 
+Project settings, trust, command profiles, and policy rules are stored in Vela's own store, **never in the repository**, so
+repository, issue, or `AGENTS.md` text cannot alter them (ADR-013, `IMPLEMENTATION_ARCHITECTURE.md` section 9).
+
 -   trust state (`UNTRUSTED` default; ADR-013),
 -   user-confirmed command profile (exact commands and working directories),
 -   provisioning commands, explicit file-copy allowlist, shared-cache declarations, resource keys

@@ -18,6 +18,11 @@ Tauri (ADR-012).
 Throw prototypes away or explicitly graduate them; do not let
 exploratory code become accidental architecture.
 
+Phase 0 also executes the architecture spikes listed in `IMPLEMENTATION_ARCHITECTURE.md` section 14 (S-NATIVE-POSTURE,
+S-ASK-RESUME, S-HOOK-GLOBAL, S-SCHEMA-OUTPUT, S-INTERACTIVE-TRUST, S-TRAY, S-UIA-BINDINGS, S-UIA-RELIABILITY, S-VISUAL, S-PROC-JOB,
+S-CAP-REMAINING). Results are recorded in `docs/research/`; an element tagged unverified stays gated until its spike closes with
+evidence.
+
 ## Phase 1 --- walking skeleton
 
 One local Markdown ticket, one fake/real worker, one worktree, one test

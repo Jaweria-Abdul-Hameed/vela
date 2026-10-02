@@ -132,8 +132,9 @@ other documents say "transition to `NEEDS_HUMAN` or `REVIEW_STALLED`", the resul
 
 Review requires a durable diff visible from a fixed point. Vela records:
 
-- `fixed_point_sha`: the worker's base integration SHA, constant across all iterations of the
-  ticket, so every review sees the cumulative diff `fixed_point_sha..review_head_sha`;
+- `fixed_point_sha`: the worker's base integration SHA, constant across fix iterations and **advanced to the
+  integration tip whenever Vela merges that tip into the worker branch**, so every review sees only the ticket's own
+  cumulative diff `fixed_point_sha...review_head_sha` (`REVIEW_PROTOCOL.md`);
 - `review_head_sha`: the checkpoint commit reviewed in this iteration.
 
 Ownership of the checkpoint invariant is defined by ADR-015: Vela verifies a clean worktree and a
