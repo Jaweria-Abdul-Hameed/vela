@@ -26,7 +26,7 @@ capability at runtime and never infers it from version strings alone.
 | CAP-09 | Report rate-limit/capacity conditions | Required for FR-024 | Capacity handling degrades to pause-on-unclassified-failure; reported in preflight. |
 | CAP-10 | Resume or recover a session | Optional | Recovery uses a new session at the last checkpoint (`RECOVERY.md`). |
 | CAP-11 | Inspect (and where supported configure) the native permission posture | Required for Autonomous | Posture is `UNKNOWN` (ADR-009): Autonomous blocked. |
-| CAP-12 | A fresh conversation per worker/reviewer/analyst whose conversation is discoverable and openable in Antigravity Desktop (ADR-020) | Required (product requirement; mechanism **unverified**, spike S-DESKTOP-VISIBILITY) | Release-gating: the requirement cannot be claimed satisfied; Vela still records and shows the conversation id and states that it cannot open it directly. |
+| CAP-12 | A fresh conversation per in-scope substantive agent session (worker, reviewer, substantive analyst; not incidental probes, ADR-020 decision 1a) that is discoverable and openable in Antigravity Desktop | Required (product requirement; mechanism **unverified**, spike S-DESKTOP-VISIBILITY) | Release-gating: the requirement cannot be claimed satisfied; Vela still records and shows the conversation id and states that it cannot open it directly. |
 
 Surface priority (ADR-016): the contract is evaluated against the **primary surface, the official `agy`
 CLI headless interface**. Windows UI Automation is a secondary compatibility surface that may supply only

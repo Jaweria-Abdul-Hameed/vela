@@ -10,7 +10,9 @@ environment, **[P]** partially verified, **[U]** unverified and gated by a Phase
 tagged **[U]** may be built behind its seam but may not be claimed ready, and its dependents may not pass release gates,
 until its spike passes. A single successful UIA delivery is **[V]** for that case only; it is never generalized.
 
-> **Post-freeze addendum (ADR-020):** every worker, reviewer, and analyst conversation must be visible and openable in Antigravity
+> **Post-freeze addendum (ADR-020):** every substantive, auditable agent conversation (worker implementation/fix sessions including
+> conflict resolution, authoritative reviewer sessions, and substantive analyst sessions; **not** deterministic Vela computation or
+> incidental/diagnostic probes, ADR-020 decision 1a) must be visible and openable in Antigravity
 > Desktop (FR-050, CAP-12). This is **unverified** (spike S-DESKTOP-VISIBILITY) and it makes the **isolated per-worker profile in ADR-018
 > section 2 provisional**, because CLI conversations live in the CLI's own store and an isolated `USERPROFILE` would relocate them. The
 > freeze otherwise stands; no mechanism for Desktop visibility is chosen here.

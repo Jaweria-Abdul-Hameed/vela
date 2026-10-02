@@ -76,6 +76,6 @@ and unattended-readiness summary in the preflight panel.
 
 ## Conversation link (ADR-020)
 
-The ticket inspector and timeline show each worker's, reviewer's, and analyst's Antigravity conversation id with an "Open in Antigravity"
+The ticket inspector and timeline show the Antigravity conversation id of each in-scope session (worker, authoritative reviewer, substantive analyst; ADR-020 decision 1a) with an "Open in Antigravity"
 action. Until S-DESKTOP-VISIBILITY verifies a mechanism, the action shows the id and the verified way to locate the conversation and states
 plainly when it cannot open it directly. States: available, not openable directly, conversation missing.

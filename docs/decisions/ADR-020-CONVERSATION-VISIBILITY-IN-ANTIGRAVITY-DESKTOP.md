@@ -8,7 +8,8 @@ constraints**, not an implementation mechanism: no mechanism that has not been v
 
 ## Context
 
-Product clarification from the user (2026-10-02): every Vela issue/worker must run in a **fresh Antigravity conversation**, and
+Product clarification from the user (2026-10-02): every Vela issue/worker must run in a **fresh Antigravity conversation** (scope: see
+decision 1a, substantive auditable agent conversations only), and
 that conversation must be **discoverable and openable in the Antigravity 2.0 Desktop GUI** so the user can inspect the real
 conversation, not only a Vela rendering of it. Vela should still orchestrate through the supported programmatic `agy` surface
 where possible; this does not require Vela to automate the Desktop GUI to create conversations.
@@ -29,9 +30,18 @@ Evidence in this environment (read-only filesystem checks and the probes):
 
 ## Decision
 
-1.  **Requirement.** Vela shall create a fresh Antigravity conversation for every worker, reviewer, and analyst session (already required
-    by ADR-015 and `AGENT_PROTOCOL.md`), shall record each conversation's identifier against its ticket/worker/review cycle, and
-    shall make each conversation **discoverable and openable in Antigravity Desktop** (FR-050, capability CAP-12, acceptance test AT-026).
+1.  **Requirement.** Vela shall create a fresh Antigravity conversation for each in-scope session (below; fresh context is already required
+    by ADR-015 and `AGENT_PROTOCOL.md` and is unchanged), shall record each conversation's identifier against its ticket/worker/review cycle,
+    and shall make each such conversation **discoverable and openable in Antigravity Desktop** (FR-050, capability CAP-12, acceptance test AT-026).
+1a. **Scope clarification (user, 2026-10-02).** The visibility requirement applies to **substantive Antigravity agent conversations that form
+    part of the auditable execution of a ticket or run**: worker implementation and fix sessions (including conflict-resolution attempts, which are
+    worker-class sessions), authoritative reviewer sessions, and substantive analyst agent sessions whose output enters the audit trail (for example
+    issue-specific analysis, or the dependency analysis recorded in the graph snapshot). It does **not** require every incidental internal Vela
+    computation or deterministic operation to create or expose an Antigravity Desktop conversation. Out of scope: deterministic Vela logic (graph
+    algorithms, layout, policy evaluation, rule-table generation, reconciliation, Git operations, validation commands) and incidental or diagnostic
+    agent invocations (capability and posture probes, version checks, smoke tests, preflight probes). If such an invocation happens to create a CLI
+    conversation, Vela may record its id for diagnostics; nothing requires it to be visible in Desktop. Fresh-context requirements elsewhere are
+    unchanged.
 2.  **Preference order.** (a) A CLI-created conversation that appears in, and can be opened from, Antigravity Desktop, if verified; (b) another
     verified mechanism; (c) Desktop GUI automation to create conversations only if a later decision approves it (not assumed here).
 3.  **Nothing is invented.** The mechanism by which a CLI-created conversation becomes visible or openable in Desktop is **unverified**.

@@ -71,8 +71,8 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
     `USERPROFILE`/`HOME` **[V]**; allow rules generated from the confirmed profile **[V]**; fail-closed deny hook **[V]**
     (combination with allow **[U]**); ASK via spool + one-time rule + resume **[U]**; capability detection of version, flags
     (`agy --help`), and posture before use **[V]**; reviewer in a separate profile.
--   **CONVERSATION VISIBILITY (ADR-020, FR-050, CAP-12):** records each conversation id (workers, reviewers, analyst) and must make it
-    discoverable/openable in Desktop; **unverified**. The isolated profile above is provisional until S-DESKTOP-VISIBILITY closes.
+-   **CONVERSATION VISIBILITY (ADR-020, FR-050, CAP-12):** records the conversation id of each in-scope session (workers, authoritative reviewers, substantive analyst
+    sessions; not incidental probes or deterministic computation, ADR-020 decision 1a) and must make it discoverable/openable in Desktop; **unverified**. The isolated profile above is provisional until S-DESKTOP-VISIBILITY closes.
 -   **FAILURE MODES:** `agy` missing or not authenticated (`CAPABILITY_MISSING`/`AUTH_REQUIRED`); soft-denial (blocked tool
     surfaced, never treated as success); hook failure (tool blocked, worker informed); quota text (`CAPACITY`); background
     self-update changes version (divergence); timeout (explicit, never the default 0s); malformed events (turn failed with evidence).

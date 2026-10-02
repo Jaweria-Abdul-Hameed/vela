@@ -441,8 +441,12 @@ supported flow. API-key/Vertex billing shall not silently replace the normal run
 
 ### FR-050 Worker conversations visible in Antigravity Desktop
 
-Every worker, reviewer, and analyst session shall run in a fresh Antigravity conversation whose identifier Vela records against its
+Every substantive agent session that forms part of the auditable execution of a ticket or run (worker implementation and fix sessions, including
+conflict-resolution attempts; authoritative reviewer sessions; and substantive analyst agent sessions whose output enters the audit trail) shall
+run in a fresh Antigravity conversation whose identifier Vela records against its
 ticket/worker/review cycle, and each conversation shall be discoverable and openable in Antigravity Desktop so the user can inspect
 the real conversation. Vela shall prefer a verified CLI-created conversation that Desktop can show over automating the Desktop GUI.
 The mechanism is unverified and is gated by spike S-DESKTOP-VISIBILITY; until it is verified the requirement is not satisfied and
-Vela shall say so rather than imply visibility (ADR-020, CAP-12).
+Vela shall say so rather than imply visibility (ADR-020, CAP-12). This requirement does not apply to deterministic Vela computation or to
+incidental or diagnostic agent invocations (capability and posture probes, version checks, smoke tests); fresh-context requirements elsewhere are
+unchanged (ADR-020 decision 1a).

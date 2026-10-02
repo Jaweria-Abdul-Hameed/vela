@@ -32,7 +32,7 @@ result plus a stderr "auto-denied" line, and a tool step can be `DONE` after a d
 
 ### 2. Isolated per-worker profile outside the worktree (**provisional: conditional on ADR-020**)
 
-> ADR-020 (post-freeze) requires every worker conversation to be visible/openable in Antigravity Desktop. CLI conversations are stored
+> ADR-020 (post-freeze) requires every in-scope substantive agent conversation (ADR-020 decision 1a: worker, reviewer, and substantive analyst sessions, not incidental probes) to be visible/openable in Antigravity Desktop. CLI conversations are stored
 > in the CLI's own store, and an isolated `USERPROFILE` would place them outside the user's profile. This section stands only if spike
 > **S-DESKTOP-VISIBILITY** shows isolated-profile conversations are visible/openable in Desktop; otherwise it must be revisited.
 

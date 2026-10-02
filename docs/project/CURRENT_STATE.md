@@ -94,8 +94,10 @@ after a refusal (S-ASK-RESUME); global-path hooks in an isolated profile and age
 
 ## REQUIRED CAPABILITY ADDED AFTER THE FREEZE (do not lose): conversation visibility in Antigravity Desktop (ADR-020, FR-050, CAP-12, AT-026)
 
-**Product requirement (user clarification, 2026-10-02):** every Vela issue/worker (and reviewer and analyst session) runs in a **fresh
-Antigravity conversation**, and that conversation must be **discoverable and openable in the Antigravity 2.0 Desktop GUI** so the user can inspect
+**Product requirement (user clarification, 2026-10-02, scope refined same day):** every Vela issue/worker, authoritative reviewer session, and
+substantive analyst session whose output enters the audit trail runs in a **fresh Antigravity conversation**. **Scope limit:** it does not apply to
+deterministic Vela computation or incidental/diagnostic agent invocations (capability/posture probes, version checks, smoke tests); ADR-020 decision 1a.
+Each in-scope conversation and that conversation must be **discoverable and openable in the Antigravity 2.0 Desktop GUI** so the user can inspect
 the real conversation, not only Vela's rendering. Vela still orchestrates through the supported headless `agy` surface; it does **not** need to
 automate the Desktop GUI to create conversations. Prefer a CLI-created conversation that Desktop can show; if that relationship is unverified,
 it is a required capability and spike, not an assumption.

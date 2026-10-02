@@ -176,5 +176,5 @@ Ordering: spikes precede the tickets that depend on their result; no ticket may 
 -   **I100 Spike S-DESKTOP-VISIBILITY (ADR-020, FR-050, CAP-12, AT-026):** determine, with evidence, whether CLI-created (headless) conversations
     from (i) the real profile and (ii) an isolated profile appear in Antigravity Desktop, under which project, and whether they can be opened; what
     verified way exists to open a given conversation; and what that implies for the profile-isolation design. **Blocks** the adapter profile/isolation
-    tickets and any ticket claiming FR-050. Record the conversation id on workers, reviewer cycles, and the analyst, and add the inspector's "Open in
+    tickets and any ticket claiming FR-050. Record the conversation id on workers, reviewer cycles, and substantive analyst sessions (ADR-020 decision 1a scope; not incidental probes), and add the inspector's "Open in
     Antigravity" action only as far as the verified mechanism allows.

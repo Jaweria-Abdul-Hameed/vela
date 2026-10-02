@@ -194,7 +194,8 @@ auditing in the test harness). An API key present in the environment does not si
 
 ## AT-026 Conversation visibility in Antigravity Desktop
 
-For a run with at least two tickets, each worker's (and each reviewer's) conversation is fresh, its identifier is recorded and shown in
+For a run with at least two tickets, each in-scope conversation (each worker's, each authoritative reviewer's, and any substantive analyst's; not
+incidental probes or deterministic computation, ADR-020 decision 1a) is fresh, its identifier is recorded and shown in
 the inspector, and the user can find and open that conversation in Antigravity Desktop 2.x. The test records, for conversations created
 through the primary headless surface, whether they appear in Desktop, under which project, and whether they open; if any cannot be
 shown, the test fails the requirement rather than passing on Vela's own rendering. (Requirement: FR-050; capability CAP-12.)
