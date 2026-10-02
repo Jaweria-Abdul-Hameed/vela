@@ -112,6 +112,15 @@ UIA delivery (invoke and verify progress), `WAITING` status, global-path hooks i
 mode, self-update control, Desktop permission presets (the user reports only Plan Review Policy exists in 2.17.0
 and prompts persist under Always Proceed).
 
+**UIA delivery (executed with user consent, verification record section V):** on the pending Desktop card, Vela's
+probe selected only option 1 ("Yes, allow this time") with `SelectionItemPattern` and invoked `Submit` with
+`InvokePattern` (no coordinates), after a fail-closed correlation check (title, command fragments, working directory,
+status text, exactly one matching control each). The card cleared, the agent reported the result, and the transcript
+shows the correlated request (`git status --short`, `Cwd c:\vela-probe\wt1`) with the agent resuming at the Submit
+second. A before/after hash of `~/.gemini/config` showed **no persistent permission created** (zero file differences).
+**VERIFIED** for one single-use allow; broader reliability (variants, versions, concurrent cards, the refusal
+path) is PARTIALLY VERIFIED. The earlier "UIA delivery UNVERIFIED" items above are superseded.
+
 **Impact:** nothing blocks Prompt 5. The CLI headless path has a verified candidate native posture (generated allow
 rules plus a fail-closed deny hook) that needs no UI automation; UIA is only for Desktop-hosted prompts. Queued
 specification changes (not applied): ADR-009 mechanism text; EBR-1 via hook input; error handling (exit 0 and

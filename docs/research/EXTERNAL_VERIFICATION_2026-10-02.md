@@ -372,7 +372,7 @@ first headless run). Why the Desktop app opened by itself during the probes is *
 | P5 workspace trust, new worktrees | Brand-new worktrees (and the repo itself) ran headless with no trust prompt and no hang, for tool-free and tool-using prompts. Interactive and Desktop trust behavior not tested. | VERIFIED (headless) |
 | P6 kill and resume | A long command was killed mid-run (process tree terminated; exit code 1; no orphans). `run_command` executes through a child **`powershell.exe`**. Resuming with `--conversation <id>` kept the same conversation id and context (`turns=2`). The `WAITING` status was never observed in headless runs. | VERIFIED (kill, resume); `WAITING` UNVERIFIED |
 | P8 parallel sessions | Two headless sessions in two new worktrees ran concurrently and both succeeded (about 16 s wall time for 3 s of model time, so startup overhead is large). No quota error, no leftover processes. The concurrency ceiling and quota effects at scale are unknown. | PARTIALLY VERIFIED |
-| Desktop approval card (P7 on the real Desktop 2.17.0) | The Desktop window is `Chrome_WidgetWin_1` (Electron), not elevated. UIA returned 13-14 elements until the window was a normal visible foreground window (a minimized window reports an empty rectangle), then about 200 after a few seconds. The card is **inside the window** (a DOM card, not a separate window). It exposes: title "Allow checking git status?", the working directory (`...\vela-probe\wt1`), the command split into text fragments (`git`, ` status `, `--short`), the status text "Waiting for user input", an "Edit permission target" edit box, five radio options with `InvokePattern` and `SelectionItemPattern` (`ask-opt-:<session-id>:-1` "Yes, allow this time"; `-2` always allow in this conversation; `-3` always allow in this project; `-4` always allow (no scope); `-__write_in__` "No (tell the agent what to do instead)"), a write-in edit box, and `Skip` and `Submit` buttons. Option 1 is selected by default. Clicking or invoking was **not** tested. The user reports that the only policy setting visible in Desktop 2.17.0 is Plan Review Policy, set to Always Proceed, and that the card appears anyway. | VERIFIED (structure, read-only); delivery UNVERIFIED |
+| Desktop approval card (P7 on the real Desktop 2.17.0; delivery tested later, see section V) | The Desktop window is `Chrome_WidgetWin_1` (Electron), not elevated. UIA returned 13-14 elements until the window was a normal visible foreground window (a minimized window reports an empty rectangle), then about 200 after a few seconds. The card is **inside the window** (a DOM card, not a separate window). It exposes: title "Allow checking git status?", the working directory (`...\vela-probe\wt1`), the command split into text fragments (`git`, ` status `, `--short`), the status text "Waiting for user input", an "Edit permission target" edit box, five radio options with `InvokePattern` and `SelectionItemPattern` (`ask-opt-:<session-id>:-1` "Yes, allow this time"; `-2` always allow in this conversation; `-3` always allow in this project; `-4` always allow (no scope); `-__write_in__` "No (tell the agent what to do instead)"), a write-in edit box, and `Skip` and `Submit` buttons. Option 1 is selected by default. Clicking or invoking was **not** tested. The user reports that the only policy setting visible in Desktop 2.17.0 is Plan Review Policy, set to Always Proceed, and that the card appears anyway. | VERIFIED (structure, read-only); delivery UNVERIFIED |
 
 ## U. Does anything change the specification or block Prompt 5?
 
@@ -408,6 +408,37 @@ and queued, not applied, because this phase authorizes research-record and state
     Desktop-hosted sessions are reached when Vela creates sessions through the CLI is not needed, because CLI sessions
     do not raise Desktop cards.
 
-Still unverified: UIA **delivery** (invoking an option and Submit) and verification of progress afterwards; `WAITING`
+## V. UIA delivery test on the pending Desktop card (executed 2026-10-02 17:03 +05:00, with user consent)
+
+Target: the card for the harmless request `git status --short` in `C:\vela-probe\wt1` (Antigravity Desktop 2.17.0,
+process 61044, not elevated, visible foreground window). Method: Windows UI Automation patterns only (no
+coordinate or pixel clicking, no keystrokes).
+
+1.  **Correlation before acting (all required, fail-closed):** exactly one control named "1 Yes, allow this time" and
+    exactly one "Submit" button in the verified window; card title "Allow checking git status?"; command fragments
+    `git`, ` status `, `--short`; working directory `…\vela-probe\wt1`; status text "Waiting for user input";
+    exactly five options, with option 1 the selected one and no other selected.
+2.  **Actions:** `SelectionItemPattern.Select()` on option 1 (read back `IsSelected = True`, others unselected), then
+    `InvokePattern.Invoke()` on `Submit` (17:03:18.158 +05:00). Options 2-4 (persistent "always allow") and the "No"
+    option were never selected.
+3.  **Result:** the card and the "Waiting for user input" status disappeared within six seconds; the Desktop
+    conversation showed the agent's report "The working tree is clean (no output returned from git status --short)".
+    **Independent evidence:** the conversation transcript (`.../brain/<id>/.system_generated/logs/transcript.jsonl`)
+    records the request as step 1 `run_command` with `CommandLine "git status --short"` and
+    `Cwd "c:\vela-probe\wt1"`, and the agent's next step (step 3) is created at `12:03:18Z`, the second Submit was
+    invoked. The transcript does not record an exit code, so execution is inferred from the agent's report and the
+    resumption timing.
+4.  **No persistent permission created:** a SHA-256 snapshot of every file under `~/.gemini/config` (except plugin
+    and sidecar caches) before and after showed **zero differences**; the new `wt1` project registry file contains
+    only its name and folder URI (no permission keys); no CLI `settings.json`, no global `hooks.json`, and no
+    workspace policy files were created.
+5.  **Limits:** one successful delivery of a single-use allow does not establish reliability across prompt variants,
+    versions, window states, or multiple concurrent cards; the request text was a harmless command; the check that the
+    command ran relies on the transcript and the agent report; a denial path (option 5) was not exercised.
+
+Label: **UIA approval delivery to a Desktop card: VERIFIED for one correlated single-use allow on Desktop 2.17.0**
+(structure, selection, invocation, progress, and no persistent side effect); broader reliability PARTIALLY VERIFIED.
+
+Still unverified: `WAITING`
 status; hooks and settings loaded from an isolated global location; interactive (TUI) behavior; background self-update
 control; Desktop project permission presets; the vendor's stance on external orchestration.
