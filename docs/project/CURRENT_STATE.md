@@ -38,7 +38,7 @@ section S (they need an installed, authenticated `agy`, which Vela and this agen
 |---|---|
 | Specification | FIXED_AFTER_AUDIT; DR-1/DR-3 recorded; remaining queued items listed below |
 | External verification | Documentation verified; real-environment probes: Git, keep-awake API and UIA (proxy) done; CLI probes UNVERIFIED |
-| Antigravity capability contract | Defined; **no Required capability is verified on the primary surface in the real environment** |
+| Antigravity capability contract | Defined; headless CLI probes now VERIFIED for CAP-01..03, 08, 10 and the native posture candidate; CAP-04 (approval events, `WAITING`), 05, 07, 09 and UIA delivery still not fully verified |
 | Architecture | NOT_FROZEN |
 | Issue graph | NOT_CREATED |
 | Implementation | NOT_STARTED |
@@ -94,6 +94,31 @@ IDE running; `agy` not installed):
 unavailable for release claims. This checkpoint makes **no adapter workaround**: if a probe shows a Required
 capability unavailable, the outcome is a specification-change decision (ADR). Autonomous mode stays blocked while the
 Native Permission Posture is `UNKNOWN` (ADR-009).
+
+## Section S Probe Results (executed after Prompt 4; evidence in the verification record, sections T and U)
+
+Installed `agy` 1.2.14 (user ran the installer path through me), probed in the throwaway repo `C:\vela-probe`
+(outside OneDrive; the Vela repository was untouched). **VERIFIED:** headless soft-denial of commands (exit 0,
+`status SUCCESS`, stderr only); user-level `permissions.allow` rules (exact, regex, path-scoped `write_file`) work and
+unlisted/outside targets are denied; settings can be isolated per run via `USERPROFILE`/`HOME` with authentication
+still working; `PreToolUse` hooks load from workspace `.agents/hooks.json`, `deny` is a hard block (even under
+skip-permissions), crash/garbage/timeout/empty responses are **fail-closed**, and hook `allow` **cannot grant**
+(bug #1053 reproduced); skills resolve in print mode; new worktrees run headless without a trust prompt; kill leaves no
+orphans and `--conversation` resume preserves context; the agent's shell is `powershell.exe`; the Desktop 2.17.0
+approval card is readable through UI Automation after warm-up (inside the window; five options with `Invoke`
+patterns including persistent "always allow" options; Skip and Submit; "Waiting for user input"). **PARTIALLY
+VERIFIED:** policy files inside an allowed worktree would be agent-writable; two parallel sessions. **UNVERIFIED:**
+UIA delivery (invoke and verify progress), `WAITING` status, global-path hooks in an isolated profile, interactive
+mode, self-update control, Desktop permission presets (the user reports only Plan Review Policy exists in 2.17.0
+and prompts persist under Always Proceed).
+
+**Impact:** nothing blocks Prompt 5. The CLI headless path has a verified candidate native posture (generated allow
+rules plus a fail-closed deny hook) that needs no UI automation; UIA is only for Desktop-hosted prompts. Queued
+specification changes (not applied): ADR-009 mechanism text; EBR-1 via hook input; error handling (exit 0 and
+`SUCCESS` are not proof of execution; set explicit `--print-timeout`); UIA adapter rules (warm-up, role/label
+matching, never select persistent "always allow" options); PowerShell normalization versus the "Command Prompt
+preferred" statements (SA-36); documentation conflicts. The `CLI Project` registry entry was created by the CLI;
+why the Desktop opened during the probes is unexplained.
 
 ## Gating Rules for Prompt 5
 

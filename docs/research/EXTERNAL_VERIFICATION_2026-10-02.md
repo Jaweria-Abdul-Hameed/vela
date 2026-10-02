@@ -348,3 +348,66 @@ the official installer and signing in through its browser flow yourself. Record 
 9.  **Desktop approval card (Desktop 2.17.0 or newer):** trigger a command that prompts in the Desktop app and,
     with a read-only UIA inspection, record the card's control types, names, and whether it exposes an `Invoke`
     pattern. Do not click anything for the probe.
+
+# Section S Probe Results (executed 2026-10-02, after the user installed and used Antigravity)
+
+Environment: `agy` 1.2.14 installed per-user by the official installer (PATH updated; the installer's
+setup step logs to stderr and is not an error); Antigravity Desktop 2.17.0; Windows 11 Home 10.0.26200. All
+headless probes ran in a throwaway repository `C:\vela-probe` (outside OneDrive; the Vela repository was not
+touched). The CLI authenticated by itself from the existing Antigravity sign-in (the OS credential store); no
+credential or token material was read, and a few thousand tokens of the user's quota were used. The CLI created
+the registry entry `CLI Project` (`~/.gemini/config/projects/default-cli-project.json`, written at the time of the
+first headless run). Why the Desktop app opened by itself during the probes is **unexplained**.
+
+## T. Results
+
+| Probe | Evidence | Label |
+|---|---|---|
+| S1 version and flags | `agy --version` = 1.2.14. Flags include `--print`, `--output-format text\|json\|stream-json`, `--input-format`, `--json-schema`, `--conversation`, `--continue`, `--dangerously-skip-permissions`, `--sandbox`, `--add-dir`, `--project`, `--mode accept-edits\|plan`, `--disable-slash-commands`, `--remote-control`, `--print-timeout` (**default 0s, not 5m as documented**). Subcommands: `update`, `remote-control` (daemon "not registered" after install), `models`, `mcp`, `plugin`. No `agy` background process remained after headless runs. | VERIFIED (CHANGED vs docs for the timeout default) |
+| P1 headless permissions, no rules | Command tool is **soft-denied**: exit code 0, `result.status` `SUCCESS`, empty response, denial text only on stderr ("a tool required the 'command' permission that headless mode cannot prompt for"). The tool step still reports state `DONE`. No hang. `init.permission_mode` = `request-review`. | VERIFIED |
+| P1b user-level allow rules | With `permissions.allow` in the user-level CLI `settings.json`: exact `command(git log --oneline -1)` ran with real output; `command(regex:git (status\|log\|diff)( .*)?)` allowed `git diff` and denied `git branch`; `write_file(C:\vela-probe\wt2)` allowed a write inside and denied a write outside. Bug #548 (rules ignored in headless) did **not** reproduce on 1.2.14. A repo-level `.gemini/config.json` allow rule was **not honored**. Settings could be isolated by pointing `USERPROFILE` and `HOME` at another directory for the child process; authentication kept working (credential store), so Vela can give each run its own settings without editing the user's files. Documentation said workspace writes are auto-allowed in headless mode; observed, even ordinary workspace writes were denied without a rule. | VERIFIED (docs CHANGED) |
+| P2 hooks | Workspace `.agents/hooks.json` is loaded in headless mode. `PreToolUse` input carried `toolCall.args.CommandLine`, `Cwd`, `conversationId`, `stepIdx`, `modelName`, `artifactDirectoryPath`. `deny` = hard block, **even under `--dangerously-skip-permissions`**. An empty `{}` response is treated as deny. A crashing hook (exit 1), non-JSON output, and a hook that exceeded its 8 s timeout each stopped the tool from running (**fail-closed**). `allow` **cannot grant permission**: without a matching permission rule the command is still denied (bug #1053 reproduced on 1.2.14, Windows); `ask` is denied because headless cannot prompt. Under skip-permissions an `allow` hook let the command run. | VERIFIED |
+| P3 agent edits to policy files | In headless mode without a write rule the agent could not write `.agents/hooks.json` or any ordinary workspace file (`write_file` denied); `.gemini/config.json` was not changed. A path-scoped `write_file` allow rule covering a worktree allowed writes inside it, so policy files placed **inside** an allowed worktree would be writable (not tested on `hooks.json` directly). The agent can read `hooks.json`. | PARTIALLY VERIFIED |
+| P4 skills in print mode | `.agents/skills/probe/SKILL.md` was resolved by `-p "/probe hello"` and the reply was `SKILL-PROBE-OK`; with `--disable-slash-commands` the model still found the skill by itself. Behavior of the Matt Pocock skills themselves was not tested. | VERIFIED (mechanism) |
+| P5 workspace trust, new worktrees | Brand-new worktrees (and the repo itself) ran headless with no trust prompt and no hang, for tool-free and tool-using prompts. Interactive and Desktop trust behavior not tested. | VERIFIED (headless) |
+| P6 kill and resume | A long command was killed mid-run (process tree terminated; exit code 1; no orphans). `run_command` executes through a child **`powershell.exe`**. Resuming with `--conversation <id>` kept the same conversation id and context (`turns=2`). The `WAITING` status was never observed in headless runs. | VERIFIED (kill, resume); `WAITING` UNVERIFIED |
+| P8 parallel sessions | Two headless sessions in two new worktrees ran concurrently and both succeeded (about 16 s wall time for 3 s of model time, so startup overhead is large). No quota error, no leftover processes. The concurrency ceiling and quota effects at scale are unknown. | PARTIALLY VERIFIED |
+| Desktop approval card (P7 on the real Desktop 2.17.0) | The Desktop window is `Chrome_WidgetWin_1` (Electron), not elevated. UIA returned 13-14 elements until the window was a normal visible foreground window (a minimized window reports an empty rectangle), then about 200 after a few seconds. The card is **inside the window** (a DOM card, not a separate window). It exposes: title "Allow checking git status?", the working directory (`...\vela-probe\wt1`), the command split into text fragments (`git`, ` status `, `--short`), the status text "Waiting for user input", an "Edit permission target" edit box, five radio options with `InvokePattern` and `SelectionItemPattern` (`ask-opt-:<session-id>:-1` "Yes, allow this time"; `-2` always allow in this conversation; `-3` always allow in this project; `-4` always allow (no scope); `-__write_in__` "No (tell the agent what to do instead)"), a write-in edit box, and `Skip` and `Submit` buttons. Option 1 is selected by default. Clicking or invoking was **not** tested. The user reports that the only policy setting visible in Desktop 2.17.0 is Plan Review Policy, set to Always Proceed, and that the card appears anyway. | VERIFIED (structure, read-only); delivery UNVERIFIED |
+
+## U. Does anything change the specification or block Prompt 5?
+
+**No result blocks Prompt 5.** Several results change what the specification should say; they are recorded here
+and queued, not applied, because this phase authorizes research-record and state updates only.
+
+1.  **Native permission posture (ADR-009) now has a verified candidate for the primary surface.** Headless
+    `permissions.allow` rules (exact, regex, path-scoped) work, and a `PreToolUse` command hook gives a
+    pre-execution, fail-closed `deny` layer. A hook cannot grant `allow`, so ALLOW must come from allow rules
+    that Vela generates from the confirmed command profile and worktree path (ADR-013), placed in an isolated
+    per-run profile outside the worktree; everything else is blocked and visible (hook input, step errors,
+    stderr). Whether this satisfies NPP-1..3 in full is a Prompt 5 design question; Autonomous mode remains blocked
+    until the posture check actually runs against it.
+2.  **EBR-1(a) is available for the CLI** through hook input (command line and working directory before execution).
+    For the Desktop card the evidence is the UIA subtree only, with the command text split across fragments that an
+    adapter must reassemble and treat as incomplete if anything is truncated (EBR-3).
+3.  **Error handling:** exit code 0 and `result.status = SUCCESS` do not mean a tool ran or that a task succeeded;
+    a tool step can be `DONE` after a soft denial. Vela must inspect stderr and step errors. (Affects
+    `ERROR_HANDLING.md`, `ORCHESTRATION_ENGINE.md`.)
+3a. **Quota and timeouts:** `--print-timeout` defaults to 0s (wait for the turn); Vela must set explicit timeouts.
+4.  **UIA adapter requirements (queued for `APPROVAL_BROKER.md`):** warm-up and retry while the tree populates; the
+    window must be a visible, normal window; option identifiers contain a session-unique part, so match by role and
+    label, not by id; the card offers **persistent "always allow" options (2-4)**. Vela must only ever select the
+    single-use allow (1) or the refusal; selecting 2-4 would create persistent permissions and conflicts with the
+    rule that Vela never infers permanent allow rules.
+5.  **Shell:** the agent's commands run through PowerShell, which conflicts with the "Command Prompt preferred"
+    statements (`CONSTRAINTS.md`, `GEMINI.md`; finding SA-36). Policy normalization must handle PowerShell syntax.
+6.  **Documentation conflicts to record in the research snapshot:** `--print-timeout` default; workspace writes in
+    headless; repo-level settings not honored; Desktop 2.17.0 exposes only Plan Review Policy (user report) while the
+    permissions page describes allow/deny/ask rules for Desktop.
+7.  **DR-1 is consistent with the evidence:** the CLI headless path can enforce policy without UI automation; UIA applies
+    to Desktop-hosted prompts. The design question in section R is narrowed, not closed: how approvals for
+    Desktop-hosted sessions are reached when Vela creates sessions through the CLI is not needed, because CLI sessions
+    do not raise Desktop cards.
+
+Still unverified: UIA **delivery** (invoking an option and Submit) and verification of progress afterwards; `WAITING`
+status; hooks and settings loaded from an isolated global location; interactive (TUI) behavior; background self-update
+control; Desktop project permission presets; the vendor's stance on external orchestration.
