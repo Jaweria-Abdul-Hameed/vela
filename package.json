@@ -31,7 +31,7 @@
     "build:rust": "cargo build --workspace --locked --all-targets",
     "check:structure": "node scripts/check-crate-deps.mjs && node scripts/check-module-skeleton.mjs",
     "verify:ts": "npm run fmt:check:ts && npm run lint:ts && npm run typecheck && npm run test:ts",
-    "verify:rust": "npm run fmt:check:rust && npm run lint:rust && npm run build:rust && npm run test:rust && npm run check:structure",
+    "verify:rust": "npm run fmt:check:rust && npm run check:structure && npm run lint:rust && npm run build:rust && npm run test:rust",
     "verify": "npm run verify:ts && npm run verify:rust"
   },
   "devDependencies": {

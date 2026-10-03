@@ -174,6 +174,11 @@ describe('forbidden edges', () => {
       /\[rule 5\].*hook-table/,
     ],
     [
+      'a vela-process dev-dependency on vela-testkit (duplicate crate copies)',
+      { 'vela-process': [dep('vela-domain'), dep('vela-testkit', { kind: 'dev' })] },
+      /dev.* vela-process must not use vela-testkit/,
+    ],
+    [
       'a vela-uia consumer outside cfg(windows)',
       { 'vela-desktop': [dep('vela-uia'), dep('tauri')] },
       /rule 6.*vela-desktop must depend on vela-uia only under cfg.windows/,

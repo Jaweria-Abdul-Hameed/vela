@@ -25,6 +25,8 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+      - name: Install the pinned Rust toolchain (the checker tests run cargo metadata)
+        run: rustup toolchain install
       - name: Install from the committed lockfile
         run: npm ci
       - name: Verify

@@ -73,4 +73,46 @@ The skill ran as a forked session (it carries no implementer conversation state 
 | 8 | `@types/node` 26 vs Node 24 | Fixed: `@types/node` 24.19.1 |
 | 9 | CI `cancel-in-progress` on every ref; push and PR double runs | Partly fixed: cancellation off for `main`. Double runs on PR branches accepted (a work branch needs push CI, and the cost is bounded) |
 
-Local gates after the fixes: checker tests 47 pass, 0 skipped (with `CI=1`); typecheck, ESLint, Prettier, Vitest PASS; `check-crate-deps` and `check-module-skeleton` PASS on the real workspace. Rust gates for the fix commit: see the next section.
+Local gates after the fixes: checker tests 47 pass, 0 skipped (with `CI=1`); typecheck, ESLint, Prettier, Vitest PASS; both structure checks PASS on the real workspace. CI for this fix commit: see "CI runs" below.
+
+## CI runs
+
+| Run | Commit | Result |
+|---|---|---|
+| 37143358949 | `71bf92a` (first implementation checkpoint) | success (Rust and TypeScript jobs) |
+| 37144098726 | `890a31a` (review iteration 1 fixes) | success; checker tests 47 pass, 0 skipped |
+| 37144479005 | `94c1563` (review iteration 2 fixes) | success (both jobs) |
+
+Each run executed, on `windows-latest`: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo build --workspace --locked --all-targets`, `cargo test --workspace --locked`, `check-crate-deps`, `check-module-skeleton`; and `npm ci` plus `npm run verify:ts`. These are CI results; none of the Rust gates has run successfully on the development host (Smart App Control).
+
+## Review iteration 2 (`/code-review`, head `890a31a`)
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | `cargo tree -p vela-hook` does not see workspace feature unification | Documentation corrected: the check is the hook package's own resolved tree, not the unified workspace build. Not a code defect: unification is inherent to Cargo and the manifest shape check still pins the edge |
+| 2 | tree check missed build dependencies and non-host targets | Fixed: `-e normal,build --target all` |
+| 3 | block-comment opener inside a line comment swallowed `mod` lines | Fixed: single-pass comment stripping, with test |
+| 4 | nested modules and stacked or same-line `cfg(test)` attributes miscounted | Fixed: only top-level declarations count; attributes handled; tests added |
+| 5 | no CI record for the fix commit | Fixed: the CI runs table above |
+| 6 | rule 6 not checked for `vela-uia` consumers | Fixed: any dependency on `vela-uia` must be `cfg(windows)`-gated, with test |
+| 7 | `serde_json` in the hook allowlist and `wiring/settings` are specification deviations raised without a decision request | **Open, needs the user.** Both are recorded as interpretations 2 and 3 in `TOOLCHAIN_AND_DEPENDENCIES.md`. They are not code defects; the user is asked to accept them or direct a different resolution |
+| 8 | CLI test temp workspaces not removed | Fixed: `after` cleanup; verified no leftovers |
+
+Local gates after the fixes: 50 checker tests pass, 0 skipped (`CI=1`); typecheck, ESLint, Prettier, Vitest PASS; both structure checks PASS on the real workspace.
+
+## Review iteration 3 (`/code-review`, head `94c1563`; the configured limit of 3 is now reached)
+
+No crash-level or high-severity findings. 8 findings:
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | rule 5 unified-build concern (hook linked with `full` in a workspace build) | Carried forward, not an F01 code defect. **Follow-up for the packaging ticket (Z01):** build and sign `vela-hook` with `cargo build -p vela-hook` (features resolved for the hook alone), never from the unified workspace build |
+| 2 | specification deviations (`serde_json` in the hook allowlist, `wiring/settings`, `tao`) encoded before a decision request | **Open, needs the user** (same as iteration 2 item 7). `tao` is also an inference: `wry` needs a window library |
+| 3 | `vela-testkit` allowed as a dev-dependency of `vela-process` (duplicate crate copies) | Fixed: forbidden for every crate testkit depends on, with test |
+| 4 | TypeScript CI job did not install the pinned Rust toolchain | Fixed: explicit `rustup toolchain install` step |
+| 5 | Prettier would format generated ts-rs output | Fixed: `.prettierignore` excludes `**/generated/` and the lockfile |
+| 6 | comment stripper unaware of string literals and nested block comments | Not fixed: minor; limitation of a dependency-free line scanner, spurious failure only for unusual `mod.rs` content |
+| 7 | rule 6 uses a `cfg(windows)` substring test | Not fixed: minor; a narrower `cfg(all(windows, ...))` gate would be flagged and would need a deliberate policy change |
+| 8 | structure checks ran last in `verify:rust` | Fixed: they now run right after the format check |
+
+**Status: REVIEW_STALLED by the letter of the protocol.** The review loop limit (3) is reached and the iteration 3 fixes (items 3, 4, 5, 8) have not been re-reviewed. Severity fell each iteration (no high findings in iterations 2 and 3). The user decides whether to accept this, authorize one more iteration, or resolve items 1, 2 and 6/7 differently. Nothing was merged to `main`.

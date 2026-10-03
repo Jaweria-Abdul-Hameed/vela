@@ -1,0 +1,3 @@
+# Generated contracts (ts-rs output) are never reformatted by hand or by Prettier.
+**/generated/
+package-lock.json

@@ -102,6 +102,14 @@ export function checkDependencyDirection(metadata) {
       if (kind === 'dev') {
         // Dev-dependencies may add test support (vela-testkit) but never an edge the production policy forbids,
         // except that vela-testkit itself is allowed for any crate except vela-domain (handled above).
+        // vela-testkit depends on the crates in its own allow list; using it as a dev-dependency of one of them
+        // would build two copies of that crate in `cargo test` (cargo permits the cycle, the types then mismatch).
+        if (dep.name === TESTKIT && ALLOWED_VELA_DEPS[TESTKIT]?.includes(pkg.name)) {
+          violations.push(
+            `[dev] ${pkg.name} must not use ${TESTKIT} as a dev-dependency (testkit depends on it)`,
+          );
+          continue;
+        }
         if (dep.name === TESTKIT || allowed.has(dep.name)) continue;
         violations.push(`[dev] ${pkg.name} must not use ${dep.name} as a dev-dependency`);
         continue;
