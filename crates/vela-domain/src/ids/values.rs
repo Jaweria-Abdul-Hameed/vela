@@ -74,9 +74,10 @@ pub struct GateResult {
 }
 
 impl GateResult {
-    /// True only for a gate that ran and passed. `Blocked` and `NotApplicable` are never a pass.
+    /// True only for a gate that ran and passed. `Blocked` and `NotApplicable` are never a pass, and a recorded exit
+    /// code other than 0 contradicts a pass, so such a record is not one.
     pub fn is_pass(&self) -> bool {
-        self.status == GateStatus::Pass
+        self.status == GateStatus::Pass && matches!(self.exit_code, None | Some(0))
     }
 }
 
@@ -129,6 +130,11 @@ mod tests {
         assert!(!gate(GateStatus::Fail).is_pass());
         assert!(!gate(GateStatus::Blocked).is_pass());
         assert!(!gate(GateStatus::NotApplicable).is_pass());
+        let mut contradictory = gate(GateStatus::Pass);
+        contradictory.exit_code = Some(1);
+        assert!(!contradictory.is_pass());
+        contradictory.exit_code = Some(0);
+        assert!(contradictory.is_pass());
     }
 
     #[cfg(feature = "full")]

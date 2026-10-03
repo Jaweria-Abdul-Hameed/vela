@@ -147,6 +147,31 @@ impl ErrorCode {
         Self::GraphInvalid,
     ];
 
+    /// The specification name (also the wire form).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ApprovalSurfaceNotFound => "APPROVAL_SURFACE_NOT_FOUND",
+            Self::ApprovalTargetAmbiguous => "APPROVAL_TARGET_AMBIGUOUS",
+            Self::ApprovalPolicyUnknown => "APPROVAL_POLICY_UNKNOWN",
+            Self::ApprovalDeliveryFailed => "APPROVAL_DELIVERY_FAILED",
+            Self::ApprovalStalled => "APPROVAL_STALLED",
+            Self::ApprovalWindowMismatch => "APPROVAL_WINDOW_MISMATCH",
+            Self::ApprovalSurfaceUnavailable => "APPROVAL_SURFACE_UNAVAILABLE",
+            Self::ApprovalUndeliverable => "APPROVAL_UNDELIVERABLE",
+            Self::PolicyDenied => "POLICY_DENIED",
+            Self::PolicyViolation => "POLICY_VIOLATION",
+            Self::TrustRequired => "TRUST_REQUIRED",
+            Self::CapabilityMissing => "CAPABILITY_MISSING",
+            Self::PostureNotMet => "POSTURE_NOT_MET",
+            Self::StateStoreCorrupt => "STATE_STORE_CORRUPT",
+            Self::StateStoreUnrecoverable => "STATE_STORE_UNRECOVERABLE",
+            Self::MigrationFailed => "MIGRATION_FAILED",
+            Self::ProviderPolicyBlock => "PROVIDER_POLICY_BLOCK",
+            Self::AuthRequired => "AUTH_REQUIRED",
+            Self::GraphInvalid => "GRAPH_INVALID",
+        }
+    }
+
     /// The class this code belongs to.
     pub fn class(self) -> ErrorClass {
         match self {
@@ -298,7 +323,13 @@ impl VelaError {
 impl fmt::Display for VelaError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.code {
-            Some(code) => write!(f, "{code:?} ({:?}): {}", self.class, self.what_failed),
+            Some(code) => write!(
+                f,
+                "{} ({:?}): {}",
+                code.as_str(),
+                self.class,
+                self.what_failed
+            ),
             None => write!(f, "{:?}: {}", self.class, self.what_failed),
         }
     }
@@ -404,12 +435,18 @@ mod tests {
         assert_eq!(err.side_effects, SideEffects::default());
         assert_eq!(err.retry, RetryDisposition::Never);
         assert_eq!(err.user_action, "trust the project");
-        assert!(err.to_string().contains("TrustRequired"));
+        assert!(err.to_string().contains("TRUST_REQUIRED"));
     }
 
     #[cfg(feature = "full")]
     #[test]
     fn wire_names_are_the_specification_names() {
+        for code in ErrorCode::ALL {
+            assert_eq!(
+                serde_json::to_string(&code).unwrap(),
+                format!("\"{}\"", code.as_str())
+            );
+        }
         let wire = |code: ErrorCode| serde_json::to_string(&code).unwrap();
         assert_eq!(
             wire(ErrorCode::ProviderPolicyBlock),

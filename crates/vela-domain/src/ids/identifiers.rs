@@ -46,10 +46,17 @@ fn validate_token(value: &str) -> Result<(), IdError> {
     if value.len() > MAX_ID_LEN {
         return Err(IdError::TooLong { max: MAX_ID_LEN });
     }
-    match value.chars().find(|c| !c.is_ascii_graphic()) {
-        Some(found) => Err(IdError::InvalidCharacter { found }),
-        None => Ok(()),
+    // Identifiers become directory and branch-name components, so path separators, drive colons and `..` are rejected.
+    if let Some(found) = value
+        .chars()
+        .find(|c| !c.is_ascii_graphic() || matches!(c, '/' | '\\' | ':'))
+    {
+        return Err(IdError::InvalidCharacter { found });
     }
+    if value.contains("..") {
+        return Err(IdError::Malformed("an identifier cannot contain `..`"));
+    }
+    Ok(())
 }
 
 macro_rules! validated_string {
@@ -224,6 +231,9 @@ mod tests {
             WorkerId::new("a b"),
             Err(IdError::InvalidCharacter { found: ' ' })
         );
+        for unsafe_id in ["a/b", "a\\b", "C:", "..", "a..b"] {
+            assert!(RunId::new(unsafe_id).is_err(), "{unsafe_id:?}");
+        }
         assert_eq!(
             TicketId::new("x".repeat(129)),
             Err(IdError::TooLong { max: 128 })
