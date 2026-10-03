@@ -179,17 +179,12 @@ impl ErrorCode {
         }
     }
 
-    /// Whether Vela retries. Approval surface problems are never retried by clicking again (`ERROR_HANDLING.md`), and a
-    /// provider policy block is never retried, whatever its class says.
+    /// Whether Vela retries. Every approval error is never retried (`ERROR_HANDLING.md`: never respond to approval errors
+    /// by clicking repeatedly; a surface that is unavailable is reconciled on return, not retried), and a provider policy
+    /// block is never retried whatever its class says. No other code is retried either, so `Bounded` is currently
+    /// reachable only through [`VelaError::of_class`] with `EXTERNAL_TEMPORARY`.
     pub fn retry(self) -> RetryDisposition {
-        match self {
-            Self::ApprovalSurfaceNotFound
-            | Self::ApprovalTargetAmbiguous
-            | Self::ApprovalWindowMismatch
-            | Self::ProviderPolicyBlock => RetryDisposition::Never,
-            _ if self.class().is_retryable() => RetryDisposition::Bounded,
-            _ => RetryDisposition::Never,
-        }
+        RetryDisposition::Never
     }
 }
 
@@ -263,6 +258,19 @@ impl VelaError {
     /// An internal-bug error, for states that should be unreachable.
     pub fn internal(what_failed: impl Into<String>) -> Self {
         Self::of_class(ErrorClass::InternalBug, what_failed)
+    }
+
+    /// Whether Vela may retry, derived from the invariants rather than from the stored fields: a provider policy block,
+    /// a provider-originated error, any error with a code that never retries, and every class except
+    /// `EXTERNAL_TEMPORARY` are never retried, even if a deserialized or hand-built value says otherwise. Retry loops
+    /// must use this, not the `retry` field.
+    pub fn may_retry(&self) -> bool {
+        self.retry == RetryDisposition::Bounded
+            && self.class.is_retryable()
+            && self.origin == ErrorOrigin::Vela
+            && self
+                .code
+                .is_none_or(|code| code.retry() == RetryDisposition::Bounded)
     }
 
     /// Records what state is preserved (answer 2).
@@ -364,14 +372,25 @@ mod tests {
             VelaError::of_class(ErrorClass::InternalBug, "x").retry,
             RetryDisposition::Never
         );
-        assert_eq!(
-            ErrorCode::ApprovalDeliveryFailed.retry(),
-            RetryDisposition::Bounded
-        );
-        assert_eq!(
-            ErrorCode::ApprovalTargetAmbiguous.retry(),
-            RetryDisposition::Never
-        );
+        for code in ErrorCode::ALL {
+            assert_eq!(code.retry(), RetryDisposition::Never, "{code:?}");
+            assert!(!VelaError::from_code(code, "x").may_retry(), "{code:?}");
+        }
+        assert!(VelaError::of_class(ErrorClass::ExternalTemporary, "x").may_retry());
+        assert!(!VelaError::of_class(ErrorClass::InternalBug, "x").may_retry());
+    }
+
+    #[test]
+    fn may_retry_ignores_inconsistent_stored_fields() {
+        // A hand-built or deserialized value that claims a provider policy block may be retried is still never retried.
+        let mut forged = VelaError::from_code(ErrorCode::ProviderPolicyBlock, "blocked");
+        forged.class = ErrorClass::ExternalTemporary;
+        forged.origin = ErrorOrigin::Vela;
+        forged.retry = RetryDisposition::Bounded;
+        assert!(!forged.may_retry());
+        let mut provider = VelaError::of_class(ErrorClass::ExternalTemporary, "x");
+        provider.origin = ErrorOrigin::Provider;
+        assert!(!provider.may_retry());
     }
 
     #[test]
