@@ -99,7 +99,8 @@ require a documented addition here): - `ProjectTrusted` -
 `ReconciliationCompleted` - `DiscrepancyDetected` - `PushCompleted` -
 `PushFailed` - `MergeDiscarded` - `ConflictResolutionStarted` -
 `WorktreeProvisioned` - `WorktreeRemoved` - `ProfileCooldownStarted` -
-`ProfileAvailable` - `PromotionCompleted` - `StateStoreBackupCreated` -
+`ProfileAvailable` - `ProviderPolicyBlockRecorded` -
+`ProviderPolicyBlockCleared` - `PromotionCompleted` - `StateStoreBackupCreated` -
 `MigrationApplied` - `MigrationFailed`.
 
 State and journal authority is defined in `PERSISTENCE.md`.

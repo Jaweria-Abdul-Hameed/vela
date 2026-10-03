@@ -35,6 +35,9 @@ surface an intervention when bounded recovery fails.
 -   `POSTURE_NOT_MET`: the Native Permission Posture check is `DOES_NOT_MEET` or `UNKNOWN`
     (ADR-009).
 -   `STATE_STORE_CORRUPT`, `STATE_STORE_UNRECOVERABLE`, `MIGRATION_FAILED`: see `RECOVERY.md`.
+-   `PROVIDER_POLICY_BLOCK`: the provider indicates the account or service is blocked, suspended, disabled, or denied for
+    terms or policy reasons (`CAPACITY_AND_PROFILES.md`). Class `POLICY_BLOCK`, origin provider. Never retried, never worked
+    around, never cleared automatically; the answer to "Will Vela retry?" is always no.
 
 Each maps to the typed classes above (`POLICY_BLOCK`, `USER_ACTION_REQUIRED`, `INTERNAL_BUG`,
 `EXTERNAL_TEMPORARY`, and so on) and answers the five error questions.

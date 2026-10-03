@@ -28,7 +28,7 @@ Terminal: COMPLETED, FAILED, CANCELLED
 | `STARTING` | `RUNNING` | Integration branch and integration worktree created; `run_base_sha` recorded. |
 | `STARTING` | `NEEDS_HUMAN` / `FAILED` | Creation failed and cannot be retried safely. |
 | `RUNNING` | `PAUSED` | Manual pause; recovery completed awaiting Resume; all remaining work blocked by capacity or by loss of an interactive session. |
-| `RUNNING` | `NEEDS_HUMAN` | Run-level human need: integration health `UNKNOWN`/`UNHEALTHY`, policy violation, external divergence, or an unresolved run-level intervention. |
+| `RUNNING` | `NEEDS_HUMAN` | Run-level human need: integration health `UNKNOWN`/`UNHEALTHY`, policy violation, external divergence, a provider policy block that leaves no ticket able to progress (kind `PROVIDER_POLICY_BLOCK`), or an unresolved run-level intervention. |
 | `PAUSED` / `NEEDS_HUMAN` | `RUNNING` | Resume or recorded decision, after successful reconciliation. The run returns to the state recorded in `resume_state` (including `FINAL_*` states). |
 | `RUNNING` | `FINAL_REVIEW` | Every in-scope ticket is `DONE` (or explicitly excluded by the user) and integration health is `HEALTHY`. |
 | `FINAL_REVIEW` | `FINAL_FIXING` | Final review findings fail the exit policy. |
@@ -120,13 +120,15 @@ the worker retains its `resume_state`.
 | `MERGE_CONFLICT` | Conflict not resolvable under ADR-011 section 5. |
 | `INTEGRATION_REGRESSION` | Integration validation failures exceed the fix cap. |
 | `AUTH_REQUIRED` | Credentials or provider authentication needed. |
+| `PROVIDER_POLICY_BLOCK` | The provider indicates the account or service is blocked, suspended, disabled, or denied for terms or policy reasons (`CAPACITY_AND_PROFILES.md`). Valid at worker and run level. Never auto-resumed; leaves only through an explicit user decision after a user-initiated access re-check. |
 | `EXTERNAL_DIVERGENCE` | Refs, worktree, or issues changed outside Vela. |
 | `OTHER` | Any other defined human-gated condition. |
 
 `REVIEW_STALLED` and `APPROVAL_STALLED` keep their historical names as intervention kinds. Where
 other documents say "transition to `NEEDS_HUMAN` or `REVIEW_STALLED`", the result is
 `NEEDS_HUMAN` with kind `REVIEW_STALLED`. `RATE_LIMITED` is a worker `PAUSED` with reason
-`CAPACITY`.
+`CAPACITY`. A provider policy block is not capacity: it is never `RATE_LIMITED`, never backs off, and never
+auto-resumes.
 
 ## 4. Review loop
 

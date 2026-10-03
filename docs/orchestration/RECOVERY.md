@@ -15,6 +15,9 @@
 -   test process orphan
 -   review session interruption
 -   execution profile capacity exhaustion
+-   provider policy block persisted across a restart (restored as recorded; never retried or cleared automatically; no agent
+    work starts on the blocked profile; only an explicit user decision after a user-initiated access re-check clears it,
+    `CAPACITY_AND_PROFILES.md`)
 -   corrupted/missing worktree
 -   repository modified externally
 -   Vela state store corrupt, missing, or failing migration

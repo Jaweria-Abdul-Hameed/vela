@@ -37,7 +37,9 @@ affected specifications.
 -   `docs/issues/ISSUE_GRAPH_SEED.md`
 -   `docs/issues/graph/ISSUE_GRAPH.md`
 -   `docs/issues/graph/ISSUE_GRAPH.json`
--   `docs/issues/graph/tickets/` (130 ticket bodies, one file per symbolic key, `<KEY>.md`; listed in `ISSUE_GRAPH.md`)
+-   `docs/issues/graph/SHARED_SURFACE_PROTOCOL.md` (normative: shared files, reserved migration blocks, resource keys)
+-   `docs/issues/graph/AUDIT_PROMPT7.md` (the Prompt 7 audit record)
+-   `docs/issues/graph/tickets/` (135 ticket bodies, one file per symbolic key, `<KEY>.md`; listed in `ISSUE_GRAPH.md`)
 -   `docs/operations/AUTONOMY_MODES.md`
 -   `docs/operations/ERROR_HANDLING.md`
 -   `docs/operations/HUMAN_IN_THE_LOOP.md`
@@ -56,6 +58,9 @@ affected specifications.
 -   `docs/release/RELEASE_CHECKLIST.md`
 -   `docs/research/EXTERNAL_INTEGRATIONS_2026-10.md`
 -   `docs/research/EXTERNAL_VERIFICATION_2026-10-02.md`
+-   `docs/research/H01_google_position.md` (H01 evidence record: PARTIALLY-DOCUMENTED, open, release gate only)
+-   `docs/research/H04_signing_research_2026-10-03.md` (production release signing research; production choices deferred)
+-   `docs/research/H05_clean_machine_2026-10-03.md` (clean-machine route decided; environment not provisioned)
 -   `docs/roadmap/IMPLEMENTATION_PLAN.md`
 -   `docs/security/SECURITY_AND_PERMISSIONS.md`
 -   `docs/testing/ACCEPTANCE_TESTS.md`
@@ -67,6 +72,7 @@ affected specifications.
 -   `docs/ui/MOTION_AND_3D.md`
 -   `docs/ui/PERFORMANCE_BUDGET.md`
 -   `docs/ui/REFERENCE_BRIEF.md`
+-   `docs/ui/reference/vela-stitch-reference.png` (canonical visual reference image; inspect the image itself; subordinate to the written specifications for all non-visual behavior)
 -   `docs/ui/SCREEN_INVENTORY.md`
 -   `docs/ui/UI_ACCEPTANCE_CHECKLIST.md`
 -   `docs/ui/UI_UX_SPEC.md`
@@ -100,7 +106,7 @@ When documents disagree about **intended behavior**, resolve in this order (earl
 3.  **`docs/product/PRODUCT_SPEC.md`**: functional and non-functional requirements.
 4.  **Subsystem specifications** (architecture, orchestration, agents, git, security, persistence,
     operations, testing, config). `docs/ui/UI_UX_SPEC.md` is authoritative for visual and
-    interaction behavior within its domain.
+    interaction behavior within its domain; `docs/ui/reference/vela-stitch-reference.png` is the canonical visual reference and never overrides a written specification for non-visual behavior.
 5.  **`README.md` and `CONTEXT.md`**: product overview and intent; they do not override the above.
 6.  **`docs/research/`**: dated external snapshots; informational, never overriding an ADR or
     specification, and to be revalidated.

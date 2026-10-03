@@ -1,4142 +1,4393 @@
 {
-  "generated": "2026-10-02",
-  "status": "DRAFT_NOT_PUBLISHED",
-  "tickets": 130,
-  "rawDirectEdges": 283,
-  "reducedEdges": 238,
-  "criticalPath": [
-    "F01",
+ "generated": "2026-10-02",
+ "status": "DRAFT_NOT_PUBLISHED",
+ "audit": "Prompt 7 independent audit applied (see AUDIT_PROMPT7.md and SHARED_SURFACE_PROTOCOL.md)",
+ "tickets": 135,
+ "rawDirectEdges": 347,
+ "reducedEdges": 274,
+ "criticalPath": [
+  "F01",
+  "F02",
+  "F04",
+  "F05",
+  "F08",
+  "S01",
+  "S03",
+  "S04",
+  "S08",
+  "S09",
+  "S10",
+  "S11",
+  "S12",
+  "S14",
+  "Z03",
+  "Z05",
+  "Z06"
+ ],
+ "initialFrontier": [
+  "F01",
+  "H01",
+  "SP01",
+  "SP02",
+  "SP03",
+  "SP04",
+  "SP06",
+  "SP07",
+  "SP08",
+  "SP09",
+  "SP10",
+  "SP11",
+  "H04",
+  "H05"
+ ],
+ "levels": {
+  "0": [
+   "F01",
+   "SP01",
+   "SP02",
+   "SP03",
+   "SP04",
+   "SP06",
+   "SP07",
+   "SP08",
+   "SP09",
+   "SP10",
+   "SP11",
+   "H01",
+   "H04",
+   "H05"
+  ],
+  "1": [
+   "F02",
+   "K04",
+   "SP05",
+   "X05",
+   "H06"
+  ],
+  "2": [
+   "F03",
+   "F04",
+   "F06",
+   "F07",
+   "D01",
+   "D02",
+   "D05",
+   "D06",
+   "P03",
+   "T01",
+   "SP12",
+   "K05"
+  ],
+  "3": [
+   "A02",
+   "F05",
+   "L04",
+   "P01",
+   "D03",
+   "D04",
+   "D07",
+   "A04",
+   "SP13",
+   "F09"
+  ],
+  "4": [
+   "Z01",
+   "TK1",
+   "F08",
+   "X02",
+   "U01",
+   "P02",
+   "G01",
+   "T02",
+   "A01"
+  ],
+  "5": [
+   "U02",
+   "A05",
+   "S01",
+   "S02",
+   "X03",
+   "O01",
+   "G02",
+   "G03",
+   "G05",
+   "T03",
+   "A03"
+  ],
+  "6": [
+   "S05",
+   "U04",
+   "S03",
+   "L03",
+   "K06",
+   "U03",
+   "U15",
+   "S06",
+   "S15",
+   "S17",
+   "R01",
+   "G04",
+   "R05",
+   "A08",
+   "T04",
+   "A06"
+  ],
+  "7": [
+   "L01",
+   "S04",
+   "PV1",
+   "K08",
+   "S07",
+   "U05",
+   "K01",
+   "U10",
+   "A09",
+   "A15"
+  ],
+  "8": [
+   "X04",
+   "S08",
+   "U06",
+   "U07",
+   "U12",
+   "A07",
+   "K02",
+   "K09",
+   "A10",
+   "A11",
+   "X01"
+  ],
+  "9": [
+   "U11",
+   "S09",
+   "U14",
+   "U08",
+   "U13",
+   "U16"
+  ],
+  "10": [
+   "K10",
+   "U17",
+   "S10"
+  ],
+  "11": [
+   "PF1",
+   "U18",
+   "S11",
+   "R02",
+   "W01"
+  ],
+  "12": [
+   "S16",
+   "R04",
+   "A12",
+   "U19",
+   "S12",
+   "R06",
+   "R07",
+   "A14",
+   "K07"
+  ],
+  "13": [
+   "A13",
+   "L02",
+   "U09",
+   "Z02",
+   "S13",
+   "S14",
+   "R03",
+   "A16",
+   "R08"
+  ],
+  "14": [
+   "Z04",
+   "Z03",
+   "Z07"
+  ],
+  "15": [
+   "Z05"
+  ],
+  "16": [
+   "Z06"
+  ]
+ },
+ "items": [
+  {
+   "key": "F01",
+   "title": "Workspace bootstrap: Cargo and npm workspaces, toolchain pins, CI checks",
+   "area": "foundation",
+   "phase": 0,
+   "kind": "infra",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:infra",
+    "area:foundation",
+    "risk:low",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Maintainability",
+    "NFR Testability"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP01",
+   "title": "Spike S-TRAY: does prevent_exit with a tray keep the Tauri process alive after the last window closes?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-042",
+    "ADR-012"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP02",
+   "title": "Spike S-UIA-BINDINGS: does the windows crate expose the UI Automation interfaces Vela needs?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-033"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP03",
+   "title": "Spike S-PROC-JOB: does a Windows Job Object with kill-on-close terminate a whole agy process tree?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-021",
+    "FR-009"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP04",
+   "title": "Spike S-NATIVE-POSTURE: do generated allow rules plus a fail-closed hook enforce ALLOW, DENY, and unknown?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:high",
+    "phase:0",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-036",
+    "FR-038"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP06",
+   "title": "Spike S-HOOK-GLOBAL: are global-path hooks in an isolated profile loaded, and are policy files protected from agent writes?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": true,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-038"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP07",
+   "title": "Spike S-SCHEMA-OUTPUT: does --json-schema enforce the reviewer contract in print mode?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-013",
+    "FR-029"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP08",
+   "title": "Spike S-DESKTOP-VISIBILITY: are headless CLI conversations visible and openable in Antigravity Desktop?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:high",
+    "phase:0",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-050",
+    "AT-026"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP09",
+   "title": "Spike S-INTERACTIVE-TRUST: how do the CLI and Desktop treat a new workspace interactively?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "low",
+   "userAssist": true,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:low",
+    "phase:0",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-044"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP10",
+   "title": "Spike S-SKILLS-ANTIGRAVITY: do the Matt Pocock implement and code-review skills run correctly inside agy?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:high",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-004",
+    "FR-011",
+    "FR-013"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP11",
+   "title": "Spike S-CAP-REMAINING: WAITING status, concurrency ceiling, background self-update control, and interactive TUI behavior",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": true,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-037",
+    "FR-024"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "H01",
+   "title": "Confirm Google position on external orchestration of the headless agy with the user account",
+   "area": "human",
+   "phase": 7,
+   "kind": "human-action",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:human-action",
+    "area:human",
+    "risk:high",
+    "phase:7",
+    "ready-for-human",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "ADR-016"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false
+  },
+  {
+   "key": "H04",
+   "title": "Decide and provision production release signing: Windows Authenticode route and production updater keypair",
+   "area": "human",
+   "phase": 7,
+   "kind": "human-action",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:human-action",
+    "area:human",
+    "risk:high",
+    "phase:7",
+    "ready-for-human",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-047"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false,
+   "addedByPrompt7Audit": true
+  },
+  {
+   "key": "H05",
+   "title": "Provide a clean Windows test environment for install, upgrade, and uninstall evidence",
+   "area": "human",
+   "phase": 7,
+   "kind": "human-action",
+   "risk": "medium",
+   "userAssist": true,
+   "labels": [
+    "type:human-action",
+    "area:human",
+    "risk:medium",
+    "phase:7",
+    "ready-for-human",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-047"
+   ],
+   "blockedBy": [],
+   "directBlockersBeforeReduction": [],
+   "depth": 0,
+   "addedByAudit": false,
+   "addedByPrompt7Audit": true
+  },
+  {
+   "key": "F02",
+   "title": "Domain primitives, ports, and TypeScript contract generation",
+   "area": "domain",
+   "phase": 0,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:domain",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Provider independence",
+    "NFR Testability",
+    "FR-029"
+   ],
+   "blockedBy": [
+    "F01"
+   ],
+   "directBlockersBeforeReduction": [
+    "F01"
+   ],
+   "depth": 1,
+   "addedByAudit": false
+  },
+  {
+   "key": "K04",
+   "title": "Fake approval window harness reproducing the verified card roles",
+   "area": "broker",
+   "phase": 2,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:broker",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "AT-011",
+    "AT-014",
+    "AT-017"
+   ],
+   "blockedBy": [
+    "F01"
+   ],
+   "directBlockersBeforeReduction": [
+    "F01"
+   ],
+   "depth": 1,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP05",
+   "title": "Spike S-ASK-RESUME: after a hook-blocked ASK and a human allow, does a resumed conversation run the command?",
+   "area": "spike",
+   "phase": 0,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-031"
+   ],
+   "blockedBy": [
+    "SP04"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP04"
+   ],
+   "depth": 1,
+   "addedByAudit": false
+  },
+  {
+   "key": "X05",
+   "title": "CI supply-chain gates: secret scanning, dependency audit, license check, and locked builds",
+   "area": "security",
+   "phase": 0,
+   "kind": "infra",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:infra",
+    "area:security",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Security",
+    "FR-035"
+   ],
+   "blockedBy": [
+    "F01"
+   ],
+   "directBlockersBeforeReduction": [
+    "F01"
+   ],
+   "depth": 1,
+   "addedByAudit": false,
+   "addedByPrompt7Audit": true
+  },
+  {
+   "key": "H06",
+   "title": "Decide whether v1 creates Desktop-hosted Antigravity sessions for approval delivery (UI Automation path scope)",
+   "area": "human",
+   "phase": 2,
+   "kind": "human-action",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:human-action",
+    "area:human",
+    "risk:high",
+    "phase:2",
+    "ready-for-human",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-033",
+    "FR-040",
+    "FR-041"
+   ],
+   "blockedBy": [
+    "SP09"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP09"
+   ],
+   "depth": 1,
+   "addedByAudit": false,
+   "addedByPrompt7Audit": true
+  },
+  {
+   "key": "F03",
+   "title": "Test kit foundation: fixture repositories, fault-injection harness, and the synced-folder guard",
+   "area": "foundation",
+   "phase": 0,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:foundation",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Testability",
+    "AT-005"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "F04",
+   "title": "Tauri shell walking skeleton with strict CSP and a typed command round trip",
+   "area": "foundation",
+   "phase": 0,
+   "kind": "infra",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:infra",
+    "area:foundation",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-048",
+    "FR-047",
+    "NFR Security"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "F06",
+   "title": "Persistence foundation: single-writer SQLite, migration ladder, journal, and integrity checks",
+   "area": "orchestration",
+   "phase": 0,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "FR-023",
+    "FR-046",
+    "NFR Reliability"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "F07",
+   "title": "Structured logging, correlation ids, and the central redaction layer",
+   "area": "security",
+   "phase": 0,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:security",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Observability",
+    "NFR Security",
+    "FR-035"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "D01",
+   "title": "State machines: run, worker, and ticket projection with exhaustive transition tests",
+   "area": "domain",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:domain",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "FR-020",
+    "FR-021",
+    "FR-022"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "D02",
+   "title": "Dependency graph engine: DAG, cycle detection, frontier, topological layers",
+   "area": "domain",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:domain",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-006",
+    "FR-008"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "D05",
+   "title": "Policy engine core: operation model, PowerShell and cmd normalizer, ordered rules, ALLOW/ASK/DENY",
+   "area": "security",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:security",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-030",
+    "FR-031",
+    "FR-038"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "D06",
+   "title": "Review domain: finding identity, exit policy, loop state, and oscillation detection",
+   "area": "domain",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:domain",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-013",
+    "FR-014"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "P03",
+   "title": "Keep-awake thread and interactive-session probe",
+   "area": "process",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:process",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-041",
+    "AT-017"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "T01",
+   "title": "Local Markdown tracker: ticket parsing, blockers, and malformed-metadata handling",
+   "area": "tracker",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:tracker",
+    "risk:low",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-005"
+   ],
+   "blockedBy": [
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP12",
+   "title": "Spike S-UIA-RELIABILITY: repeat and vary UI Automation approval delivery",
+   "area": "spike",
+   "phase": 2,
+   "kind": "spike",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-033",
+    "AT-011",
+    "AT-014"
+   ],
+   "blockedBy": [
+    "SP02",
+    "K04"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP02",
+    "K04"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "K05",
+   "title": "vela-uia discovery and read: windows, warm-up, correlation, and card observation",
+   "area": "broker",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-033",
+    "FR-039",
+    "AT-014"
+   ],
+   "blockedBy": [
+    "SP02",
+    "K04",
+    "F02"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP02",
+    "K04",
+    "F02"
+   ],
+   "depth": 2,
+   "addedByAudit": false
+  },
+  {
+   "key": "A02",
+   "title": "stream-json parser and result interpreter against recorded transcripts",
+   "area": "antigravity",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-029",
+    "FR-037"
+   ],
+   "blockedBy": [
+    "F03"
+   ],
+   "directBlockersBeforeReduction": [
+    "F03"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "F05",
+   "title": "Renderer skeleton: React, store, IPC wrappers, and front-end test tooling",
+   "area": "ui",
+   "phase": 0,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:low",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Testability",
+    "FR-025"
+   ],
+   "blockedBy": [
+    "F04"
+   ],
+   "directBlockersBeforeReduction": [
+    "F04"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "L04",
+   "title": "Window state persistence and single-instance behavior",
+   "area": "lifecycle",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:lifecycle",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Portability"
+   ],
+   "blockedBy": [
+    "F04"
+   ],
+   "directBlockersBeforeReduction": [
+    "F04"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "P01",
+   "title": "ProcessRunner: spawn, allowlisted environment, timeouts, streamed redacted output, cancel token",
+   "area": "process",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:process",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-012",
+    "NFR Security"
+   ],
+   "blockedBy": [
+    "F07"
+   ],
+   "directBlockersBeforeReduction": [
     "F02",
+    "F07"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "D03",
+   "title": "Parallel-safety engine: predicted write sets, hard blockers, evidence labels, resource keys",
+   "area": "domain",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:domain",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-007",
+    "FR-008",
+    "AT-003"
+   ],
+   "blockedBy": [
+    "D02"
+   ],
+   "directBlockersBeforeReduction": [
+    "D02"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "D04",
+   "title": "Deterministic layered graph layout stored with the snapshot",
+   "area": "domain",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:domain",
+    "risk:low",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-025",
+    "NFR Performance"
+   ],
+   "blockedBy": [
+    "D02"
+   ],
+   "directBlockersBeforeReduction": [
+    "D02"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "D07",
+   "title": "Approval domain: requests, decisions, fingerprints, progress definition, loop-guard counters",
+   "area": "broker",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-034",
+    "FR-035"
+   ],
+   "blockedBy": [
+    "D05",
+    "D01"
+   ],
+   "directBlockersBeforeReduction": [
+    "D05",
+    "D01"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "A04",
+   "title": "vela-hook binary, rule-table format, and spool records (fail-closed)",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-038",
+    "FR-039",
+    "FR-035"
+   ],
+   "blockedBy": [
+    "D05"
+   ],
+   "directBlockersBeforeReduction": [
+    "D05",
+    "F02"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "SP13",
+   "title": "Spike S-VISUAL: is the guarded visual tier ever needed on the primary path?",
+   "area": "spike",
+   "phase": 2,
+   "kind": "spike",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:spike",
+    "area:spike",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-033",
+    "ADR-007"
+   ],
+   "blockedBy": [
+    "SP12"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP12"
+   ],
+   "depth": 3,
+   "addedByAudit": false
+  },
+  {
+   "key": "F09",
+   "title": "Port fakes and the shared conformance suite",
+   "area": "foundation",
+   "phase": 0,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:foundation",
+    "risk:medium",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Testability",
+    "NFR Provider independence"
+   ],
+   "blockedBy": [
+    "F03"
+   ],
+   "directBlockersBeforeReduction": [
+    "F03"
+   ],
+   "depth": 3,
+   "addedByAudit": false,
+   "addedByPrompt7Audit": true
+  },
+  {
+   "key": "Z01",
+   "title": "Installer: NSIS per-user package with development signing, WebView2 handling, and uninstall behavior",
+   "area": "release",
+   "phase": 7,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:release",
+    "risk:high",
+    "phase:7",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-047"
+   ],
+   "blockedBy": [
+    "F04",
+    "A04"
+   ],
+   "directBlockersBeforeReduction": [
+    "F04",
+    "A04"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "TK1",
+   "title": "Scripted fake agy executable replaying recorded Antigravity behavior",
+   "area": "antigravity",
+   "phase": 1,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:antigravity",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Testability",
+    "FR-037"
+   ],
+   "blockedBy": [
+    "A02"
+   ],
+   "directBlockersBeforeReduction": [
+    "A02",
+    "F03"
+   ],
+   "depth": 4,
+   "addedByAudit": true
+  },
+  {
+   "key": "F08",
+   "title": "IPC gateway: command registry, snapshot plus sequenced event stream, resync",
+   "area": "orchestration",
+   "phase": 0,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:0",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-023",
+    "FR-048",
+    "NFR Performance"
+   ],
+   "blockedBy": [
+    "F05",
+    "F06"
+   ],
+   "directBlockersBeforeReduction": [
     "F04",
     "F05",
+    "F06"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "X02",
+   "title": "Renderer hardening verification: CSP, inert rendering, capabilities, injection fuzz",
+   "area": "security",
+   "phase": 6,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:security",
+    "risk:medium",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-048"
+   ],
+   "blockedBy": [
+    "F05"
+   ],
+   "directBlockersBeforeReduction": [
+    "F04",
+    "F05"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "U01",
+   "title": "Design system: tokens, typography, restrained glass, icons, and the base shell",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-025",
+    "FR-026",
+    "AT-008"
+   ],
+   "blockedBy": [
+    "F05"
+   ],
+   "directBlockersBeforeReduction": [
+    "F05"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "P02",
+   "title": "Process tree kill and cancellation",
+   "area": "process",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:process",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-021",
+    "FR-009"
+   ],
+   "blockedBy": [
+    "P01",
+    "SP03"
+   ],
+   "directBlockersBeforeReduction": [
+    "P01",
+    "SP03"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "G01",
+   "title": "GitAdapter: hardened invocation, read operations, and hostile-config tests",
+   "area": "git",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:git",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-043",
+    "NFR Security"
+   ],
+   "blockedBy": [
+    "P01",
+    "F03"
+   ],
+   "directBlockersBeforeReduction": [
+    "P01",
+    "F03"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "T02",
+   "title": "GitHub tracker via gh: read issues, native blocking links, labels, and evidence comments",
+   "area": "tracker",
+   "phase": 4,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:tracker",
+    "risk:medium",
+    "phase:4",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-005",
+    "FR-023"
+   ],
+   "blockedBy": [
+    "P01",
+    "F09"
+   ],
+   "directBlockersBeforeReduction": [
+    "F02",
+    "P01",
+    "F09"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "A01",
+   "title": "Antigravity capability discovery: installation, versions, flags, and authentication state",
+   "area": "antigravity",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-037",
+    "FR-049",
+    "FR-002",
+    "AT-025"
+   ],
+   "blockedBy": [
+    "P01",
+    "F03"
+   ],
+   "directBlockersBeforeReduction": [
+    "P01",
+    "F02",
+    "F03"
+   ],
+   "depth": 4,
+   "addedByAudit": false
+  },
+  {
+   "key": "U02",
+   "title": "Canvas foundation: reactive dot lattice with demand rendering and suspension",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:high",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-026",
+    "FR-027",
+    "AT-008",
+    "AT-009"
+   ],
+   "blockedBy": [
+    "U01"
+   ],
+   "directBlockersBeforeReduction": [
+    "F05",
+    "U01"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "A05",
+   "title": "Per-worker profile manager and generated settings and allow rules",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-038",
+    "FR-050"
+   ],
+   "blockedBy": [
+    "D05",
+    "SP08",
+    "TK1"
+   ],
+   "directBlockersBeforeReduction": [
+    "D05",
+    "SP08",
+    "TK1"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "S01",
+   "title": "Project import: choose a repository, persist it, and list recent projects",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:low",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-001",
+    "AT-001"
+   ],
+   "blockedBy": [
+    "F08"
+   ],
+   "directBlockersBeforeReduction": [
+    "F08"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "S02",
+   "title": "Settings layers, onboarding choices, and the immutable run snapshot",
+   "area": "lifecycle",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:lifecycle",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-040",
+    "FR-042",
+    "NFR Reliability"
+   ],
+   "blockedBy": [
+    "F08"
+   ],
+   "directBlockersBeforeReduction": [
+    "F08"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "X03",
+   "title": "Diagnostics export with redaction verification and log retention",
+   "area": "security",
+   "phase": 6,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:security",
+    "risk:medium",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Observability",
+    "FR-035"
+   ],
+   "blockedBy": [
+    "F07",
+    "F08"
+   ],
+   "directBlockersBeforeReduction": [
+    "F07",
+    "F08"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "O01",
+   "title": "Orchestrator actor skeleton: message bus, transactional transitions, run creation, snapshot assembly",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "FR-023",
+    "NFR Reliability"
+   ],
+   "blockedBy": [
+    "D01",
     "F08",
+    "F09",
+    "F07"
+   ],
+   "directBlockersBeforeReduction": [
+    "F06",
+    "D01",
+    "F08",
+    "F09",
+    "F07"
+   ],
+   "depth": 5,
+   "addedByAudit": true
+  },
+  {
+   "key": "G02",
+   "title": "Worktree manager: root policy, create, remove, lock, repair, slug and case safety, cleanup",
+   "area": "git",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:git",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-010",
+    "FR-044"
+   ],
+   "blockedBy": [
+    "G01"
+   ],
+   "directBlockersBeforeReduction": [
+    "G01"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "G03",
+   "title": "Checkpoint commits, per-worktree operation lock, and hook-aware commit handling",
+   "area": "git",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:git",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-015"
+   ],
+   "blockedBy": [
+    "G01"
+   ],
+   "directBlockersBeforeReduction": [
+    "G01"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "G05",
+   "title": "Remote operations: fetch, non-force push, remote ref verification, idempotent push",
+   "area": "git",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:git",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-016"
+   ],
+   "blockedBy": [
+    "G01"
+   ],
+   "directBlockersBeforeReduction": [
+    "G01"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "T03",
+   "title": "Remote update queue with idempotent retries and outage behavior",
+   "area": "tracker",
+   "phase": 4,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:tracker",
+    "risk:medium",
+    "phase:4",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-016",
+    "NFR Reliability"
+   ],
+   "blockedBy": [
+    "T02",
+    "F06"
+   ],
+   "directBlockersBeforeReduction": [
+    "T02",
+    "F06"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "A03",
+   "title": "Per-turn session driver: spawn, conversation id, explicit timeout, cancel, resume",
+   "area": "antigravity",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-009",
+    "FR-011",
+    "FR-037",
+    "AT-005"
+   ],
+   "blockedBy": [
+    "A01",
+    "P02",
+    "TK1"
+   ],
+   "directBlockersBeforeReduction": [
+    "A01",
+    "A02",
+    "P02",
+    "TK1"
+   ],
+   "depth": 5,
+   "addedByAudit": false
+  },
+  {
+   "key": "S05",
+   "title": "Context discovery and documentation manifest",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:low",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-003"
+   ],
+   "blockedBy": [
     "S01",
-    "S03",
-    "S04",
-    "S08",
-    "S09",
-    "S10",
-    "S11",
-    "S12",
-    "S14",
-    "Z03",
-    "Z05",
-    "Z06"
-  ],
-  "initialFrontier": [
-    "F01",
-    "SP01",
-    "SP02",
-    "SP03",
+    "G01"
+   ],
+   "directBlockersBeforeReduction": [
+    "S01",
+    "G01",
+    "F06"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "U04",
+   "title": "Home scene: drop a project folder, recent project anchors, and the import flow",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-001",
+    "AT-008"
+   ],
+   "blockedBy": [
+    "S01",
+    "U02"
+   ],
+   "directBlockersBeforeReduction": [
+    "S01",
+    "U02",
+    "U01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "S03",
+   "title": "Repository trust: untrusted by default, trust sheet, data-only analysis, Build refusal",
+   "area": "security",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:security",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-043",
+    "AT-020"
+   ],
+   "blockedBy": [
+    "S01",
+    "G01",
+    "D05",
+    "S02",
+    "U01"
+   ],
+   "directBlockersBeforeReduction": [
+    "S01",
+    "G01",
+    "D05",
+    "S02",
+    "U01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "L03",
+   "title": "Login auto-start integration",
+   "area": "lifecycle",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:lifecycle",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-042"
+   ],
+   "blockedBy": [
+    "S02"
+   ],
+   "directBlockersBeforeReduction": [
+    "S02"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "K06",
+   "title": "vela-uia delivery: single-use allow or refusal through patterns, never persistent options",
+   "area": "broker",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-033",
+    "AT-011",
+    "AT-016"
+   ],
+   "blockedBy": [
+    "K05",
+    "S02"
+   ],
+   "directBlockersBeforeReduction": [
+    "K05",
+    "S02"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "U03",
+   "title": "Ambient violet, blue, and cyan field with Full, Balanced, and Efficiency graphics modes",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-026",
+    "FR-027",
+    "AT-009"
+   ],
+   "blockedBy": [
+    "U02",
+    "S02"
+   ],
+   "directBlockersBeforeReduction": [
+    "U02",
+    "S02"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "U15",
+   "title": "Command palette and settings sheet",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-027",
+    "FR-040"
+   ],
+   "blockedBy": [
+    "S02",
+    "U01"
+   ],
+   "directBlockersBeforeReduction": [
+    "S02",
+    "U01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "S06",
+   "title": "Issue ingestion to an approved-ready graph snapshot with cycle reporting",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-005",
+    "FR-006",
+    "FR-007"
+   ],
+   "blockedBy": [
+    "O01",
+    "T01",
+    "D03",
+    "D04",
+    "S01",
+    "S02",
+    "U01"
+   ],
+   "directBlockersBeforeReduction": [
+    "O01",
+    "T01",
+    "D03",
+    "D04",
+    "S01",
+    "S02",
+    "U01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "S15",
+   "title": "Human intervention model: records, kinds, resume state, decisions",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-020",
+    "AT-010"
+   ],
+   "blockedBy": [
+    "O01"
+   ],
+   "directBlockersBeforeReduction": [
+    "O01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "S17",
+   "title": "Desktop notifications for human-required, failure, and completion events",
+   "area": "lifecycle",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:lifecycle",
+    "risk:low",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-028",
+    "AT-023"
+   ],
+   "blockedBy": [
+    "O01"
+   ],
+   "directBlockersBeforeReduction": [
+    "O01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "R01",
+   "title": "Operation records and idempotency framework",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:high",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "FR-022"
+   ],
+   "blockedBy": [
+    "O01"
+   ],
+   "directBlockersBeforeReduction": [
+    "O01"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "G04",
+   "title": "Merge operations: integration merge into branch, no-ff merge, discard unpublished merge, conflict detection",
+   "area": "git",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:git",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-017"
+   ],
+   "blockedBy": [
+    "G02",
+    "G03"
+   ],
+   "directBlockersBeforeReduction": [
+    "G02",
+    "G03"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "R05",
+   "title": "State-store failure: backup, failed migration, and Git-derived inventory rebuild",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:high",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-046",
+    "AT-022"
+   ],
+   "blockedBy": [
+    "F06",
+    "G02",
+    "G03"
+   ],
+   "directBlockersBeforeReduction": [
+    "F06",
+    "G02",
+    "G03"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "A08",
+   "title": "Skills detection and bootstrap for worker worktrees",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-004"
+   ],
+   "blockedBy": [
+    "A01",
+    "G03",
+    "SP10",
+    "G02"
+   ],
+   "directBlockersBeforeReduction": [
+    "A01",
+    "G03",
+    "SP10",
+    "G02"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "T04",
+   "title": "PR workflow and promotion modes: draft PR, ready, local-ready, no silent merge",
+   "area": "tracker",
+   "phase": 4,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:tracker",
+    "risk:medium",
+    "phase:4",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-045",
+    "AT-021"
+   ],
+   "blockedBy": [
+    "T02",
+    "G05"
+   ],
+   "directBlockersBeforeReduction": [
+    "T02",
+    "G05"
+   ],
+   "depth": 6,
+   "addedByAudit": false
+  },
+  {
+   "key": "A06",
+   "title": "Native policy enforcement and the posture probe (MEETS, DOES_NOT_MEET, UNKNOWN)",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-036",
+    "FR-038",
+    "AT-015"
+   ],
+   "blockedBy": [
+    "A05",
+    "A04",
     "SP04",
     "SP06",
-    "SP07",
-    "SP08",
-    "SP09",
-    "SP10",
-    "SP11",
-    "H01",
-    "H02",
-    "H03"
-  ],
-  "levels": {
-    "0": [
-      "F01",
-      "SP01",
-      "SP02",
-      "SP03",
-      "SP04",
-      "SP06",
-      "SP07",
-      "SP08",
-      "SP09",
-      "SP10",
-      "SP11",
-      "H01",
-      "H02",
-      "H03"
-    ],
-    "1": [
-      "F02",
-      "K04",
-      "SP05"
-    ],
-    "2": [
-      "F03",
-      "F04",
-      "F06",
-      "F07",
-      "D01",
-      "D02",
-      "D05",
-      "D06",
-      "P03",
-      "T01",
-      "SP12",
-      "K05"
-    ],
-    "3": [
-      "A02",
-      "F05",
-      "L04",
-      "Z01",
-      "P01",
-      "D03",
-      "D04",
-      "D07",
-      "A04",
-      "SP13"
-    ],
-    "4": [
-      "TK1",
-      "F08",
-      "X02",
-      "U01",
-      "U02",
-      "P02",
-      "G01",
-      "T02",
-      "A01"
-    ],
-    "5": [
-      "A05",
-      "S01",
-      "S02",
-      "X03",
-      "O01",
-      "G02",
-      "G03",
-      "G05",
-      "T03",
-      "A03"
-    ],
-    "6": [
-      "S05",
-      "U04",
-      "S03",
-      "L01",
-      "L03",
-      "K06",
-      "U03",
-      "U15",
-      "S06",
-      "S15",
-      "S17",
-      "R01",
-      "G04",
-      "R05",
-      "A08",
-      "T04",
-      "A06"
-    ],
-    "7": [
-      "S04",
-      "PV1",
-      "K08",
-      "S07",
-      "U05",
-      "K01",
-      "U10",
-      "A09",
-      "A15",
-      "X04"
-    ],
-    "8": [
-      "S08",
-      "K10",
-      "U06",
-      "U07",
-      "U11",
-      "U12",
-      "A07",
-      "K02",
-      "K09",
-      "A10",
-      "A11",
-      "X01"
-    ],
-    "9": [
-      "S09",
-      "U14",
-      "U17",
-      "U08",
-      "U13",
-      "U16"
-    ],
-    "10": [
-      "S10",
-      "PF1",
-      "U18"
-    ],
-    "11": [
-      "S11",
-      "S16",
-      "R02",
-      "R04",
-      "A12",
-      "U19"
-    ],
-    "12": [
-      "S12",
-      "A13",
-      "R06",
-      "R07",
-      "A14",
-      "K07",
-      "L02",
-      "U09",
-      "Z02"
-    ],
-    "13": [
-      "S13",
-      "S14",
-      "R03",
-      "A16",
-      "R08"
-    ],
-    "14": [
-      "Z04",
-      "Z03"
-    ],
-    "15": [
-      "Z05"
-    ],
-    "16": [
-      "Z06"
-    ]
+    "A03"
+   ],
+   "directBlockersBeforeReduction": [
+    "A05",
+    "A04",
+    "SP04",
+    "SP06",
+    "A03",
+    "TK1"
+   ],
+   "depth": 6,
+   "addedByAudit": false
   },
-  "items": [
-    {
-      "key": "F01",
-      "title": "Workspace bootstrap: Cargo and npm workspaces, toolchain pins, CI checks",
-      "area": "foundation",
-      "phase": 0,
-      "kind": "infra",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:infra",
-        "area:foundation",
-        "risk:low",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Maintainability",
-        "NFR Testability"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP01",
-      "title": "Spike S-TRAY: does prevent_exit with a tray keep the Tauri process alive after the last window closes?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-042",
-        "ADR-012"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP02",
-      "title": "Spike S-UIA-BINDINGS: does the windows crate expose the UI Automation interfaces Vela needs?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-033"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP03",
-      "title": "Spike S-PROC-JOB: does a Windows Job Object with kill-on-close terminate a whole agy process tree?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-021",
-        "FR-009"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP04",
-      "title": "Spike S-NATIVE-POSTURE: do generated allow rules plus a fail-closed hook enforce ALLOW, DENY, and unknown?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "high",
-      "userAssist": true,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:high",
-        "phase:0",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-036",
-        "FR-038"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP06",
-      "title": "Spike S-HOOK-GLOBAL: are global-path hooks in an isolated profile loaded, and are policy files protected from agent writes?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": true,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-038"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP07",
-      "title": "Spike S-SCHEMA-OUTPUT: does --json-schema enforce the reviewer contract in print mode?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-013",
-        "FR-029"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP08",
-      "title": "Spike S-DESKTOP-VISIBILITY: are headless CLI conversations visible and openable in Antigravity Desktop?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "high",
-      "userAssist": true,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:high",
-        "phase:0",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-050",
-        "AT-026"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP09",
-      "title": "Spike S-INTERACTIVE-TRUST: how do the CLI and Desktop treat a new workspace interactively?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "low",
-      "userAssist": true,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:low",
-        "phase:0",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-044"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP10",
-      "title": "Spike S-SKILLS-ANTIGRAVITY: do the Matt Pocock implement and code-review skills run correctly inside agy?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:high",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-004",
-        "FR-011",
-        "FR-013"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP11",
-      "title": "Spike S-CAP-REMAINING: WAITING status, concurrency ceiling, background self-update control, and interactive TUI behavior",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": true,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-037",
-        "FR-024"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "H01",
-      "title": "Confirm Google position on external orchestration of the headless agy with the user account",
-      "area": "human",
-      "phase": 7,
-      "kind": "human",
-      "risk": "high",
-      "userAssist": true,
-      "labels": [
-        "type:human-action",
-        "area:human",
-        "risk:high",
-        "phase:7",
-        "ready-for-human",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "ADR-016"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "H02",
-      "title": "Add the Stitch reference image to docs/ui/reference and record it in the index",
-      "area": "human",
-      "phase": 5,
-      "kind": "human",
-      "risk": "medium",
-      "userAssist": true,
-      "labels": [
-        "type:human-action",
-        "area:human",
-        "risk:medium",
-        "phase:5",
-        "ready-for-human",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "AT-008"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "H03",
-      "title": "Record the performance reference hardware profile",
-      "area": "human",
-      "phase": 6,
-      "kind": "human",
-      "risk": "low",
-      "userAssist": true,
-      "labels": [
-        "type:human-action",
-        "area:human",
-        "risk:low",
-        "phase:6",
-        "ready-for-human",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-027",
-        "NFR Performance"
-      ],
-      "blockedBy": [],
-      "directBlockersBeforeReduction": [],
-      "depth": 0,
-      "addedByAudit": false
-    },
-    {
-      "key": "F02",
-      "title": "Domain primitives, ports, and TypeScript contract generation",
-      "area": "domain",
-      "phase": 0,
-      "kind": "infra",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:domain",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Provider independence",
-        "NFR Testability",
-        "FR-029"
-      ],
-      "blockedBy": [
-        "F01"
-      ],
-      "directBlockersBeforeReduction": [
-        "F01"
-      ],
-      "depth": 1,
-      "addedByAudit": false
-    },
-    {
-      "key": "K04",
-      "title": "Fake approval window harness reproducing the verified card roles",
-      "area": "broker",
-      "phase": 2,
-      "kind": "test",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:broker",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "AT-011",
-        "AT-014",
-        "AT-017"
-      ],
-      "blockedBy": [
-        "F01"
-      ],
-      "directBlockersBeforeReduction": [
-        "F01"
-      ],
-      "depth": 1,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP05",
-      "title": "Spike S-ASK-RESUME: after a hook-blocked ASK and a human allow, does a resumed conversation run the command?",
-      "area": "spike",
-      "phase": 0,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-031"
-      ],
-      "blockedBy": [
-        "SP04"
-      ],
-      "directBlockersBeforeReduction": [
-        "SP04"
-      ],
-      "depth": 1,
-      "addedByAudit": false
-    },
-    {
-      "key": "F03",
-      "title": "Test kit foundation: fixture repositories, fakes, and fault points",
-      "area": "foundation",
-      "phase": 0,
-      "kind": "test",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:foundation",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Testability",
-        "AT-001",
-        "AT-005"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "F04",
-      "title": "Tauri shell walking skeleton with strict CSP and a typed command round trip",
-      "area": "foundation",
-      "phase": 0,
-      "kind": "infra",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:infra",
-        "area:foundation",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-048",
-        "FR-047",
-        "NFR Security"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "F06",
-      "title": "Persistence foundation: single-writer SQLite, migration ladder, journal, and integrity checks",
-      "area": "orchestration",
-      "phase": 0,
-      "kind": "infra",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "FR-023",
-        "FR-046",
-        "NFR Reliability"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "F07",
-      "title": "Structured logging, correlation ids, and the central redaction layer",
-      "area": "security",
-      "phase": 0,
-      "kind": "infra",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:security",
-        "risk:medium",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Observability",
-        "NFR Security",
-        "FR-035"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "D01",
-      "title": "State machines: run, worker, and ticket projection with exhaustive transition tests",
-      "area": "domain",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:domain",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "FR-020",
-        "FR-021",
-        "FR-022"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "D02",
-      "title": "Dependency graph engine: DAG, cycle detection, frontier, topological layers",
-      "area": "domain",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:domain",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-006",
-        "FR-008"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "D05",
-      "title": "Policy engine core: operation model, PowerShell and cmd normalizer, ordered rules, ALLOW/ASK/DENY",
-      "area": "security",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:security",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-030",
-        "FR-031",
-        "FR-038"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "D06",
-      "title": "Review domain: finding identity, exit policy, loop state, and oscillation detection",
-      "area": "domain",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:domain",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-013",
-        "FR-014"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "P03",
-      "title": "Keep-awake thread and interactive-session probe",
-      "area": "process",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:process",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-041",
-        "AT-017"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "T01",
-      "title": "Local Markdown tracker: ticket parsing, blockers, and malformed-metadata handling",
-      "area": "tracker",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:tracker",
-        "risk:low",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-005"
-      ],
-      "blockedBy": [
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP12",
-      "title": "Spike S-UIA-RELIABILITY: repeat and vary UI Automation approval delivery",
-      "area": "spike",
-      "phase": 2,
-      "kind": "spike",
-      "risk": "high",
-      "userAssist": true,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "FR-033",
-        "AT-011",
-        "AT-014"
-      ],
-      "blockedBy": [
-        "SP02",
-        "K04"
-      ],
-      "directBlockersBeforeReduction": [
-        "SP02",
-        "K04"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "K05",
-      "title": "vela-uia discovery and read: windows, warm-up, correlation, and card observation",
-      "area": "broker",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-033",
-        "FR-039"
-      ],
-      "blockedBy": [
-        "SP02",
-        "K04",
-        "F02"
-      ],
-      "directBlockersBeforeReduction": [
-        "SP02",
-        "K04",
-        "F02"
-      ],
-      "depth": 2,
-      "addedByAudit": false
-    },
-    {
-      "key": "A02",
-      "title": "stream-json parser and result interpreter against recorded transcripts",
-      "area": "antigravity",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-029",
-        "FR-037"
-      ],
-      "blockedBy": [
-        "F03"
-      ],
-      "directBlockersBeforeReduction": [
-        "F03"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "F05",
-      "title": "Renderer skeleton: React, store, IPC wrappers, and front-end test tooling",
-      "area": "ui",
-      "phase": 0,
-      "kind": "infra",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:low",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Testability",
-        "FR-025"
-      ],
-      "blockedBy": [
-        "F04"
-      ],
-      "directBlockersBeforeReduction": [
-        "F04"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "L04",
-      "title": "Window state persistence and single-instance behavior",
-      "area": "lifecycle",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:lifecycle",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Portability"
-      ],
-      "blockedBy": [
-        "F04"
-      ],
-      "directBlockersBeforeReduction": [
-        "F04"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "Z01",
-      "title": "Installer: signed NSIS per-user package with WebView2 handling and clean install and uninstall",
-      "area": "release",
-      "phase": 7,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:release",
-        "risk:high",
-        "phase:7",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-047"
-      ],
-      "blockedBy": [
-        "F04"
-      ],
-      "directBlockersBeforeReduction": [
-        "F04"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "P01",
-      "title": "ProcessRunner: spawn, allowlisted environment, timeouts, streamed redacted output, cancel token",
-      "area": "process",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:process",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-012",
-        "NFR Security"
-      ],
-      "blockedBy": [
-        "F07"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02",
-        "F07"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "D03",
-      "title": "Parallel-safety engine: predicted write sets, hard blockers, evidence labels, resource keys",
-      "area": "domain",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:domain",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-007",
-        "FR-008",
-        "AT-003"
-      ],
-      "blockedBy": [
-        "D02"
-      ],
-      "directBlockersBeforeReduction": [
-        "D02"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "D04",
-      "title": "Deterministic layered graph layout stored with the snapshot",
-      "area": "domain",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:domain",
-        "risk:low",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-025",
-        "NFR Performance"
-      ],
-      "blockedBy": [
-        "D02"
-      ],
-      "directBlockersBeforeReduction": [
-        "D02"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "D07",
-      "title": "Approval domain: requests, decisions, fingerprints, progress definition, loop-guard counters",
-      "area": "broker",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-034",
-        "FR-035"
-      ],
-      "blockedBy": [
-        "D05",
-        "D01"
-      ],
-      "directBlockersBeforeReduction": [
-        "D05",
-        "D01"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "A04",
-      "title": "vela-hook binary, rule-table format, and spool records (fail-closed)",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-038",
-        "FR-039",
-        "FR-035"
-      ],
-      "blockedBy": [
-        "D05"
-      ],
-      "directBlockersBeforeReduction": [
-        "D05",
-        "F02"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "SP13",
-      "title": "Spike S-VISUAL: is the guarded visual tier ever needed on the primary path?",
-      "area": "spike",
-      "phase": 2,
-      "kind": "spike",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:spike",
-        "area:spike",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-033",
-        "ADR-007"
-      ],
-      "blockedBy": [
-        "SP12"
-      ],
-      "directBlockersBeforeReduction": [
-        "SP12"
-      ],
-      "depth": 3,
-      "addedByAudit": false
-    },
-    {
-      "key": "TK1",
-      "title": "Scripted fake agy executable replaying recorded Antigravity behavior",
-      "area": "antigravity",
-      "phase": 1,
-      "kind": "test",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:antigravity",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Testability",
-        "FR-037"
-      ],
-      "blockedBy": [
-        "A02"
-      ],
-      "directBlockersBeforeReduction": [
-        "A02",
-        "F03"
-      ],
-      "depth": 4,
-      "addedByAudit": true
-    },
-    {
-      "key": "F08",
-      "title": "IPC gateway: command registry, snapshot plus sequenced event stream, resync",
-      "area": "orchestration",
-      "phase": 0,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:0",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-023",
-        "FR-048",
-        "NFR Performance"
-      ],
-      "blockedBy": [
-        "F05",
-        "F06"
-      ],
-      "directBlockersBeforeReduction": [
-        "F04",
-        "F05",
-        "F06"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "X02",
-      "title": "Renderer hardening verification: CSP, inert rendering, capabilities, injection fuzz",
-      "area": "security",
-      "phase": 6,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:security",
-        "risk:medium",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-048"
-      ],
-      "blockedBy": [
-        "F05"
-      ],
-      "directBlockersBeforeReduction": [
-        "F04",
-        "F05"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "U01",
-      "title": "Design system: tokens, typography, restrained glass, icons, and the base shell",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-025",
-        "FR-026",
-        "AT-008"
-      ],
-      "blockedBy": [
-        "F05"
-      ],
-      "directBlockersBeforeReduction": [
-        "F05"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "U02",
-      "title": "Canvas foundation: reactive dot lattice with demand rendering and suspension",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:high",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-026",
-        "FR-027",
-        "AT-008",
-        "AT-009"
-      ],
-      "blockedBy": [
-        "F05"
-      ],
-      "directBlockersBeforeReduction": [
-        "F05"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "P02",
-      "title": "Process tree kill and cancellation",
-      "area": "process",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:process",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-021",
-        "FR-009"
-      ],
-      "blockedBy": [
-        "P01",
-        "SP03"
-      ],
-      "directBlockersBeforeReduction": [
-        "P01",
-        "SP03"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "G01",
-      "title": "GitAdapter: hardened invocation, read operations, and hostile-config tests",
-      "area": "git",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:git",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-043",
-        "NFR Security"
-      ],
-      "blockedBy": [
-        "P01",
-        "F03"
-      ],
-      "directBlockersBeforeReduction": [
-        "P01",
-        "F03"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "T02",
-      "title": "GitHub tracker via gh: read issues, native blocking links, labels, and evidence comments",
-      "area": "tracker",
-      "phase": 4,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:tracker",
-        "risk:medium",
-        "phase:4",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-005",
-        "FR-023"
-      ],
-      "blockedBy": [
-        "P01"
-      ],
-      "directBlockersBeforeReduction": [
-        "F02",
-        "P01"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "A01",
-      "title": "Antigravity capability discovery: installation, versions, flags, and authentication state",
-      "area": "antigravity",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-037",
-        "FR-049",
-        "FR-002",
-        "AT-025"
-      ],
-      "blockedBy": [
-        "P01",
-        "F03"
-      ],
-      "directBlockersBeforeReduction": [
-        "P01",
-        "F02",
-        "F03"
-      ],
-      "depth": 4,
-      "addedByAudit": false
-    },
-    {
-      "key": "A05",
-      "title": "Per-worker profile manager and generated settings and allow rules",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-038",
-        "FR-050"
-      ],
-      "blockedBy": [
-        "D05",
-        "SP08",
-        "TK1"
-      ],
-      "directBlockersBeforeReduction": [
-        "D05",
-        "SP08",
-        "TK1"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "S01",
-      "title": "Project import: choose a repository, persist it, and list recent projects",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:low",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-001",
-        "AT-001"
-      ],
-      "blockedBy": [
-        "F08"
-      ],
-      "directBlockersBeforeReduction": [
-        "F08"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "S02",
-      "title": "Settings layers, onboarding choices, and the immutable run snapshot",
-      "area": "lifecycle",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:lifecycle",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-040",
-        "FR-042",
-        "NFR Reliability"
-      ],
-      "blockedBy": [
-        "F08"
-      ],
-      "directBlockersBeforeReduction": [
-        "F08"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "X03",
-      "title": "Diagnostics export with redaction verification and log retention",
-      "area": "security",
-      "phase": 6,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:security",
-        "risk:medium",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Observability",
-        "FR-035"
-      ],
-      "blockedBy": [
-        "F07",
-        "F08"
-      ],
-      "directBlockersBeforeReduction": [
-        "F07",
-        "F08"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "O01",
-      "title": "Orchestrator actor skeleton: message bus, transactional transitions, run creation, snapshot assembly",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "FR-023",
-        "NFR Reliability"
-      ],
-      "blockedBy": [
-        "D01",
-        "F08"
-      ],
-      "directBlockersBeforeReduction": [
-        "F06",
-        "D01",
-        "F08"
-      ],
-      "depth": 5,
-      "addedByAudit": true
-    },
-    {
-      "key": "G02",
-      "title": "Worktree manager: root policy, create, remove, lock, repair, slug and case safety, cleanup",
-      "area": "git",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:git",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-010",
-        "FR-044"
-      ],
-      "blockedBy": [
-        "G01"
-      ],
-      "directBlockersBeforeReduction": [
-        "G01"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "G03",
-      "title": "Checkpoint commits, per-worktree operation lock, and hook-aware commit handling",
-      "area": "git",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:git",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-015"
-      ],
-      "blockedBy": [
-        "G01"
-      ],
-      "directBlockersBeforeReduction": [
-        "G01"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "G05",
-      "title": "Remote operations: fetch, non-force push, remote ref verification, idempotent push",
-      "area": "git",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:git",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-016"
-      ],
-      "blockedBy": [
-        "G01"
-      ],
-      "directBlockersBeforeReduction": [
-        "G01"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "T03",
-      "title": "Remote update queue with idempotent retries and outage behavior",
-      "area": "tracker",
-      "phase": 4,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:tracker",
-        "risk:medium",
-        "phase:4",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-016",
-        "NFR Reliability"
-      ],
-      "blockedBy": [
-        "T02",
-        "F06"
-      ],
-      "directBlockersBeforeReduction": [
-        "T02",
-        "F06"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "A03",
-      "title": "Per-turn session driver: spawn, conversation id, explicit timeout, cancel, resume",
-      "area": "antigravity",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-009",
-        "FR-011",
-        "FR-037",
-        "AT-005"
-      ],
-      "blockedBy": [
-        "A01",
-        "P02",
-        "TK1"
-      ],
-      "directBlockersBeforeReduction": [
-        "A01",
-        "A02",
-        "P02",
-        "TK1"
-      ],
-      "depth": 5,
-      "addedByAudit": false
-    },
-    {
-      "key": "S05",
-      "title": "Context discovery and documentation manifest",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:low",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-003"
-      ],
-      "blockedBy": [
-        "S01",
-        "G01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S01",
-        "G01",
-        "F06"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "U04",
-      "title": "Home scene: drop a project folder, recent project anchors, and the import flow",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-001",
-        "AT-008"
-      ],
-      "blockedBy": [
-        "S01",
-        "U02",
-        "U01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S01",
-        "U02",
-        "U01"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "S03",
-      "title": "Repository trust: untrusted by default, trust sheet, data-only analysis, Build refusal",
-      "area": "security",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:security",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-043",
-        "AT-020"
-      ],
-      "blockedBy": [
-        "S01",
-        "G01",
-        "D05",
-        "S02"
-      ],
-      "directBlockersBeforeReduction": [
-        "S01",
-        "G01",
-        "D05",
-        "S02"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "L01",
-      "title": "Onboarding experience: consent choices, background, auto-start, recovery continuation",
-      "area": "lifecycle",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:lifecycle",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-040",
-        "FR-042",
-        "AT-016"
-      ],
-      "blockedBy": [
-        "S02",
-        "U01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S02",
-        "F05",
-        "U01"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "L03",
-      "title": "Login auto-start integration",
-      "area": "lifecycle",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:lifecycle",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-042"
-      ],
-      "blockedBy": [
-        "S02"
-      ],
-      "directBlockersBeforeReduction": [
-        "S02"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "K06",
-      "title": "vela-uia delivery: single-use allow or refusal through patterns, never persistent options",
-      "area": "broker",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-033",
-        "AT-011"
-      ],
-      "blockedBy": [
-        "K05",
-        "S02"
-      ],
-      "directBlockersBeforeReduction": [
-        "K05",
-        "S02"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "U03",
-      "title": "Ambient violet, blue, and cyan field with Full, Balanced, and Efficiency graphics modes",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-026",
-        "FR-027",
-        "AT-009"
-      ],
-      "blockedBy": [
-        "U02",
-        "S02"
-      ],
-      "directBlockersBeforeReduction": [
-        "U02",
-        "S02"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "U15",
-      "title": "Command palette and settings sheet",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-027",
-        "FR-040"
-      ],
-      "blockedBy": [
-        "S02",
-        "U01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S02",
-        "U01"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "S06",
-      "title": "Issue ingestion to an approved-ready graph snapshot with cycle reporting",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-005",
-        "FR-006",
-        "FR-007"
-      ],
-      "blockedBy": [
-        "O01",
-        "T01",
-        "D03",
-        "D04",
-        "S01",
-        "S02"
-      ],
-      "directBlockersBeforeReduction": [
-        "O01",
-        "T01",
-        "D03",
-        "D04",
-        "S01",
-        "S02"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "S15",
-      "title": "Human intervention model: records, kinds, resume state, decisions",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-020",
-        "AT-010"
-      ],
-      "blockedBy": [
-        "O01"
-      ],
-      "directBlockersBeforeReduction": [
-        "O01"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "S17",
-      "title": "Desktop notifications for human-required, failure, and completion events",
-      "area": "lifecycle",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:lifecycle",
-        "risk:low",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-028",
-        "AT-023"
-      ],
-      "blockedBy": [
-        "O01"
-      ],
-      "directBlockersBeforeReduction": [
-        "O01"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "R01",
-      "title": "Operation records and idempotency framework",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:high",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "FR-022"
-      ],
-      "blockedBy": [
-        "O01"
-      ],
-      "directBlockersBeforeReduction": [
-        "O01"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "G04",
-      "title": "Merge operations: integration merge into branch, no-ff merge, discard unpublished merge, conflict detection",
-      "area": "git",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:git",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-017"
-      ],
-      "blockedBy": [
-        "G02",
-        "G03"
-      ],
-      "directBlockersBeforeReduction": [
-        "G02",
-        "G03"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "R05",
-      "title": "State-store failure: backup, failed migration, and Git-derived inventory rebuild",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:high",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-046",
-        "AT-022"
-      ],
-      "blockedBy": [
-        "F06",
-        "G02",
-        "G03"
-      ],
-      "directBlockersBeforeReduction": [
-        "F06",
-        "G02",
-        "G03"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "A08",
-      "title": "Skills detection and bootstrap for worker worktrees",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-004"
-      ],
-      "blockedBy": [
-        "A01",
-        "G03",
-        "SP10"
-      ],
-      "directBlockersBeforeReduction": [
-        "A01",
-        "G03",
-        "SP10"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "T04",
-      "title": "PR workflow and promotion modes: draft PR, ready, local-ready, no silent merge",
-      "area": "tracker",
-      "phase": 4,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:tracker",
-        "risk:medium",
-        "phase:4",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-045",
-        "AT-021"
-      ],
-      "blockedBy": [
-        "T02",
-        "G05"
-      ],
-      "directBlockersBeforeReduction": [
-        "T02",
-        "G05"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "A06",
-      "title": "Native policy enforcement and the posture probe (MEETS, DOES_NOT_MEET, UNKNOWN)",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-036",
-        "FR-038",
-        "AT-015"
-      ],
-      "blockedBy": [
-        "A05",
-        "A04",
-        "SP04",
-        "SP06",
-        "A03"
-      ],
-      "directBlockersBeforeReduction": [
-        "A05",
-        "A04",
-        "SP04",
-        "SP06",
-        "A03",
-        "TK1"
-      ],
-      "depth": 6,
-      "addedByAudit": false
-    },
-    {
-      "key": "S04",
-      "title": "Preflight engine end to end: repository, toolchain, trust, and Windows checks with severity table",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:medium",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-002",
-        "AT-001"
-      ],
-      "blockedBy": [
-        "S03",
-        "O01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S03",
-        "O01",
-        "G01"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "PV1",
-      "title": "Worktree provisioning contract: confirmed commands, file allowlist, caches, resource keys",
-      "area": "git",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:git",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-044",
-        "AT-001"
-      ],
-      "blockedBy": [
-        "G02",
-        "S03"
-      ],
-      "directBlockersBeforeReduction": [
-        "G02",
-        "S03",
-        "S02",
-        "P01"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "K08",
-      "title": "Guarded visual fallback module (only if the spike says it is needed)",
-      "area": "broker",
-      "phase": 6,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:high",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-033"
-      ],
-      "blockedBy": [
-        "K06",
-        "SP13"
-      ],
-      "directBlockersBeforeReduction": [
-        "K06",
-        "SP13"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "S07",
-      "title": "GitHub issue ingestion into the same graph pipeline",
-      "area": "tracker",
-      "phase": 4,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:tracker",
-        "risk:medium",
-        "phase:4",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-005"
-      ],
-      "blockedBy": [
-        "S06",
-        "T02"
-      ],
-      "directBlockersBeforeReduction": [
-        "S06",
-        "T02"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "U05",
-      "title": "Project universe: dependency constellation rendering, camera, and fit view",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:high",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-025",
-        "AT-008"
-      ],
-      "blockedBy": [
-        "U02",
-        "S06",
-        "U01"
-      ],
-      "directBlockersBeforeReduction": [
-        "U02",
-        "S06",
-        "U01"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "K01",
-      "title": "Approval Broker core: classification pipeline, evidence tiers, decisions, rules, interventions",
-      "area": "broker",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-031",
-        "FR-035",
-        "FR-039",
-        "AT-012"
-      ],
-      "blockedBy": [
-        "D07",
-        "S15"
-      ],
-      "directBlockersBeforeReduction": [
-        "D05",
-        "D07",
-        "S15",
-        "F06"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "U10",
-      "title": "Intervention sheet for every intervention kind",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-020",
-        "AT-010"
-      ],
-      "blockedBy": [
-        "S15",
-        "U01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S15",
-        "U01"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "A09",
-      "title": "Worker task envelope and prompts: implement invocation, recovery envelope, untrusted-text handling",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-009",
-        "FR-011",
-        "FR-029"
-      ],
-      "blockedBy": [
-        "A03",
-        "A08",
-        "S05"
-      ],
-      "directBlockersBeforeReduction": [
-        "A03",
-        "A08",
-        "S05"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "A15",
-      "title": "Real-environment compatibility suite gated by VELA_REAL_ANTIGRAVITY",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "test",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:antigravity",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-037",
-        "AT-015",
-        "AT-025"
-      ],
-      "blockedBy": [
-        "A06"
-      ],
-      "directBlockersBeforeReduction": [
-        "A03",
-        "A06"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "X04",
-      "title": "Security regression suite: normalizer corpus, hostile repositories, credential audit, force-push denial",
-      "area": "security",
-      "phase": 6,
-      "kind": "test",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:security",
-        "risk:high",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-030",
-        "AT-012",
-        "AT-025"
-      ],
-      "blockedBy": [
-        "A06",
-        "K06",
-        "S03"
-      ],
-      "directBlockersBeforeReduction": [
-        "A06",
-        "K06",
-        "S03",
-        "D05",
-        "G01"
-      ],
-      "depth": 7,
-      "addedByAudit": false
-    },
-    {
-      "key": "S08",
-      "title": "Graph approval and Build start: integration branch, integration worktree, base SHA",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-008",
-        "FR-045"
-      ],
-      "blockedBy": [
-        "S06",
-        "G02",
-        "S04"
-      ],
-      "directBlockersBeforeReduction": [
-        "S06",
-        "G02",
-        "S03",
-        "S04"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "K10",
-      "title": "Effective-approval preflight and unattended-readiness report",
-      "area": "broker",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:medium",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-036",
-        "AT-015"
-      ],
-      "blockedBy": [
-        "A06",
-        "K06",
-        "S04",
-        "P03"
-      ],
-      "directBlockersBeforeReduction": [
-        "A06",
-        "K06",
-        "S04",
-        "P03"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "U06",
-      "title": "Node states and event-driven effects: ripples, edge flow, settling",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-025",
-        "FR-026",
-        "AT-008"
-      ],
-      "blockedBy": [
-        "U05"
-      ],
-      "directBlockersBeforeReduction": [
-        "U05",
-        "D01",
-        "F08"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "U07",
-      "title": "Issue focus transition and inspector with progressive disclosure",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-023",
-        "AT-008"
-      ],
-      "blockedBy": [
-        "U05"
-      ],
-      "directBlockersBeforeReduction": [
-        "U05",
-        "F08"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "U11",
-      "title": "Build-ready view and preflight panel with parallelization reasoning",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-002",
-        "FR-008",
-        "AT-003"
-      ],
-      "blockedBy": [
-        "S04",
-        "U05"
-      ],
-      "directBlockersBeforeReduction": [
-        "S04",
-        "S06",
-        "D03",
-        "U05"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "U12",
-      "title": "Conflict forecasting visualization",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-008",
-        "AT-003"
-      ],
-      "blockedBy": [
-        "U05"
-      ],
-      "directBlockersBeforeReduction": [
-        "D03",
-        "U05"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "A07",
-      "title": "Headless ASK path: spool, APPROVAL_ASK, one-time allow, and resume",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-031",
-        "AT-011"
-      ],
-      "blockedBy": [
-        "A06",
-        "SP05",
-        "K01"
-      ],
-      "directBlockersBeforeReduction": [
-        "A06",
-        "SP05",
-        "K01"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "K02",
-      "title": "Approval Watchdog and loop guard: progress heartbeats, thresholds, APPROVAL_STALLED",
-      "area": "broker",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-032",
-        "FR-034",
-        "AT-013"
-      ],
-      "blockedBy": [
-        "K01"
-      ],
-      "directBlockersBeforeReduction": [
-        "K01"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "K09",
-      "title": "Scoped rule creation from an intervention with the scope shown first",
-      "area": "broker",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:medium",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-031"
-      ],
-      "blockedBy": [
-        "K01",
-        "U10"
-      ],
-      "directBlockersBeforeReduction": [
-        "K01",
-        "U10"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "A10",
-      "title": "Authoritative reviewer session: fresh conversation, code-review at the fixed point, structured output",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-013",
-        "FR-029",
-        "AT-004"
-      ],
-      "blockedBy": [
-        "A09",
-        "D06",
-        "SP07"
-      ],
-      "directBlockersBeforeReduction": [
-        "A09",
-        "D06",
-        "SP07"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "A11",
-      "title": "Dependency analyst session: read-only, validated, stored in the snapshot",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-007"
-      ],
-      "blockedBy": [
-        "A09",
-        "S06"
-      ],
-      "directBlockersBeforeReduction": [
-        "A09",
-        "S06"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "X01",
-      "title": "Prompt-injection and untrusted-input boundaries verified end to end",
-      "area": "security",
-      "phase": 6,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:security",
-        "risk:high",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-043",
-        "NFR Security"
-      ],
-      "blockedBy": [
-        "S03",
-        "A09"
-      ],
-      "directBlockersBeforeReduction": [
-        "D05",
-        "S03",
-        "A09"
-      ],
-      "depth": 8,
-      "addedByAudit": false
-    },
-    {
-      "key": "S09",
-      "title": "Scheduler tick: frontier, safety, capacity, and worker records with a fake agent",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-008",
-        "AT-002",
-        "AT-003"
-      ],
-      "blockedBy": [
-        "S08"
-      ],
-      "directBlockersBeforeReduction": [
-        "S08"
-      ],
-      "depth": 9,
-      "addedByAudit": false
-    },
-    {
-      "key": "U14",
-      "title": "Reduced motion everywhere and the WebGL failure fallback",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Accessibility",
-        "FR-027"
-      ],
-      "blockedBy": [
-        "U06"
-      ],
-      "directBlockersBeforeReduction": [
-        "U02",
-        "U06"
-      ],
-      "depth": 9,
-      "addedByAudit": false
-    },
-    {
-      "key": "U17",
-      "title": "Large graphs: 500-node performance and adaptive quality suggestions",
-      "area": "perf",
-      "phase": 6,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:perf",
-        "risk:high",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-027",
-        "NFR Performance"
-      ],
-      "blockedBy": [
-        "U06",
-        "U03"
-      ],
-      "directBlockersBeforeReduction": [
-        "U05",
-        "U06",
-        "U03"
-      ],
-      "depth": 9,
-      "addedByAudit": false
-    },
-    {
-      "key": "U08",
-      "title": "Timeline and evidence panels: commands, tests, review findings",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-023",
-        "FR-012",
-        "FR-013"
-      ],
-      "blockedBy": [
-        "U07"
-      ],
-      "directBlockersBeforeReduction": [
-        "U07",
-        "F08"
-      ],
-      "depth": 9,
-      "addedByAudit": false
-    },
-    {
-      "key": "U13",
-      "title": "Accessibility: graph tree and list, keyboard navigation, focus, and screen-reader labels",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:high",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Accessibility"
-      ],
-      "blockedBy": [
-        "U07"
-      ],
-      "directBlockersBeforeReduction": [
-        "U05",
-        "U07"
-      ],
-      "depth": 9,
-      "addedByAudit": false
-    },
-    {
-      "key": "U16",
-      "title": "Completion state and execution summary",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-023",
-        "FR-045"
-      ],
-      "blockedBy": [
-        "U07"
-      ],
-      "directBlockersBeforeReduction": [
-        "U07"
-      ],
-      "depth": 9,
-      "addedByAudit": false
-    },
-    {
-      "key": "S10",
-      "title": "Worker lifecycle with a fake agent: provision, implement, focused validation, timeline",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-009",
-        "FR-011",
-        "FR-012",
-        "AT-001"
-      ],
-      "blockedBy": [
-        "S09",
-        "PV1"
-      ],
-      "directBlockersBeforeReduction": [
-        "S09",
-        "PV1",
-        "P01",
-        "G02",
-        "F03"
-      ],
-      "depth": 10,
-      "addedByAudit": false
-    },
-    {
-      "key": "PF1",
-      "title": "Performance harness and budget measurement on the reference hardware",
-      "area": "perf",
-      "phase": 6,
-      "kind": "test",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:perf",
-        "risk:medium",
-        "phase:6",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-027",
-        "AT-009",
-        "NFR Performance"
-      ],
-      "blockedBy": [
-        "U17",
-        "H03"
-      ],
-      "directBlockersBeforeReduction": [
-        "U17",
-        "H03",
-        "F08"
-      ],
-      "depth": 10,
-      "addedByAudit": false
-    },
-    {
-      "key": "U18",
-      "title": "Visual regression suite and fixtures for the key states",
-      "area": "ui",
-      "phase": 5,
-      "kind": "test",
-      "risk": "low",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:ui",
-        "risk:low",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "AT-008",
-        "NFR Testability"
-      ],
-      "blockedBy": [
-        "U08",
-        "U10",
-        "U12",
-        "U16"
-      ],
-      "directBlockersBeforeReduction": [
-        "U08",
-        "U10",
-        "U12",
-        "U16"
-      ],
-      "depth": 10,
-      "addedByAudit": false
-    },
-    {
-      "key": "S11",
-      "title": "Checkpoint and review loop with a fake reviewer: fixed point, findings, fix loop, cap",
-      "area": "orchestration",
-      "phase": 1,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:1",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-013",
-        "FR-014",
-        "FR-015",
-        "AT-004"
-      ],
-      "blockedBy": [
-        "S10",
-        "G03",
-        "D06"
-      ],
-      "directBlockersBeforeReduction": [
-        "S10",
-        "G03",
-        "D06"
-      ],
-      "depth": 11,
-      "addedByAudit": false
-    },
-    {
-      "key": "S16",
-      "title": "Execution profiles and capacity model with simulated capacity events",
-      "area": "orchestration",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-024",
-        "AT-007"
-      ],
-      "blockedBy": [
-        "S10"
-      ],
-      "directBlockersBeforeReduction": [
-        "S10"
-      ],
-      "depth": 11,
-      "addedByAudit": false
-    },
-    {
-      "key": "R02",
-      "title": "Startup reconciliation and recovery-resume",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:high",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "FR-022",
-        "AT-005"
-      ],
-      "blockedBy": [
-        "R01",
-        "S10"
-      ],
-      "directBlockersBeforeReduction": [
-        "R01",
-        "G01",
-        "S10"
-      ],
-      "depth": 11,
-      "addedByAudit": false
-    },
-    {
-      "key": "R04",
-      "title": "Stop All, pause, and resume for running workers",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:high",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-021",
-        "FR-022"
-      ],
-      "blockedBy": [
-        "S10",
-        "P02",
-        "R01"
-      ],
-      "directBlockersBeforeReduction": [
-        "S10",
-        "P02",
-        "R01"
-      ],
-      "depth": 11,
-      "addedByAudit": false
-    },
-    {
-      "key": "A12",
-      "title": "Conversation ids and Desktop visibility: record, show, and open per the verified mechanism",
-      "area": "antigravity",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-050",
-        "AT-026"
-      ],
-      "blockedBy": [
-        "SP08",
-        "A03",
-        "U07",
-        "S10"
-      ],
-      "directBlockersBeforeReduction": [
-        "SP08",
-        "A03",
-        "U07",
-        "S10"
-      ],
-      "depth": 11,
-      "addedByAudit": false
-    },
-    {
-      "key": "U19",
-      "title": "UI fidelity review gate against the Stitch reference",
-      "area": "ui",
-      "phase": 5,
-      "kind": "human",
-      "risk": "medium",
-      "userAssist": true,
-      "labels": [
-        "type:human-action",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-human",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "AT-008"
-      ],
-      "blockedBy": [
-        "H02",
-        "U18"
-      ],
-      "directBlockersBeforeReduction": [
-        "H02",
-        "U18"
-      ],
-      "depth": 11,
-      "addedByAudit": false
-    },
-    {
-      "key": "S12",
-      "title": "Merge lane and integration validation: two parallel tickets merge, gate, frontier advances",
-      "area": "orchestration",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-017",
-        "FR-018",
-        "AT-002",
-        "AT-018"
-      ],
-      "blockedBy": [
-        "S11",
-        "G04",
-        "G05"
-      ],
-      "directBlockersBeforeReduction": [
-        "S11",
-        "G04",
-        "G05"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "A13",
-      "title": "Capacity detection from Antigravity output and pause/cooldown mapping",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:medium",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-024",
-        "AT-007"
-      ],
-      "blockedBy": [
-        "A03",
-        "S16"
-      ],
-      "directBlockersBeforeReduction": [
-        "A03",
-        "S16"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "R06",
-      "title": "Sleep, wake, network loss, and GitHub outage handling",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:medium",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "NFR Reliability"
-      ],
-      "blockedBy": [
-        "R02",
-        "T03",
-        "P03"
-      ],
-      "directBlockersBeforeReduction": [
-        "R02",
-        "T03",
-        "P03"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "R07",
-      "title": "Reboot continuation and the recovery_continuation setting",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:medium",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-042",
-        "AT-019"
-      ],
-      "blockedBy": [
-        "R02"
-      ],
-      "directBlockersBeforeReduction": [
-        "R02",
-        "S02"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "A14",
-      "title": "Antigravity version drift and background self-update divergence",
-      "area": "antigravity",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:medium",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-037",
-        "FR-019"
-      ],
-      "blockedBy": [
-        "A01",
-        "R02"
-      ],
-      "directBlockersBeforeReduction": [
-        "A01",
-        "R02"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "K07",
-      "title": "Interactive-session degradation and reconciliation for UI-automation work",
-      "area": "broker",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:broker",
-        "risk:medium",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-041",
-        "AT-017"
-      ],
-      "blockedBy": [
-        "K06",
-        "P03",
-        "R02",
-        "K01"
-      ],
-      "directBlockersBeforeReduction": [
-        "K06",
-        "P03",
-        "R02",
-        "K01"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "L02",
-      "title": "Tray, background operation, hide-on-close, and safe pause on close",
-      "area": "lifecycle",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:lifecycle",
-        "risk:high",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-042",
-        "FR-021",
-        "AT-019"
-      ],
-      "blockedBy": [
-        "SP01",
-        "R04"
-      ],
-      "directBlockersBeforeReduction": [
-        "SP01",
-        "S02",
-        "R04"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "U09",
-      "title": "Floating run bar: worker count, status, mode, pause, and an always reachable Stop All",
-      "area": "ui",
-      "phase": 5,
-      "kind": "feature",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:ui",
-        "risk:medium",
-        "phase:5",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-021",
-        "NFR Accessibility",
-        "AT-006"
-      ],
-      "blockedBy": [
-        "R04",
-        "U01"
-      ],
-      "directBlockersBeforeReduction": [
-        "F08",
-        "R04",
-        "U01"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "Z02",
-      "title": "Updater: signed updates, deferral during runs, pre-update backup, rollback",
-      "area": "release",
-      "phase": 7,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:release",
-        "risk:high",
-        "phase:7",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-047",
-        "AT-024"
-      ],
-      "blockedBy": [
-        "Z01",
-        "R05",
-        "R04"
-      ],
-      "directBlockersBeforeReduction": [
-        "Z01",
-        "R05",
-        "R04"
-      ],
-      "depth": 12,
-      "addedByAudit": false
-    },
-    {
-      "key": "S13",
-      "title": "Conflict resolution attempt and MERGE_CONFLICT escalation",
-      "area": "orchestration",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-017",
-        "AT-018"
-      ],
-      "blockedBy": [
-        "S12"
-      ],
-      "directBlockersBeforeReduction": [
-        "S12"
-      ],
-      "depth": 13,
-      "addedByAudit": false
-    },
-    {
-      "key": "S14",
-      "title": "Finalization: final review, push by Vela, promotion, cleanup, and completion",
-      "area": "orchestration",
-      "phase": 4,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:orchestration",
-        "risk:high",
-        "phase:4",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-016",
-        "FR-045",
-        "AT-021"
-      ],
-      "blockedBy": [
-        "S12",
-        "T04"
-      ],
-      "directBlockersBeforeReduction": [
-        "S12",
-        "G05",
-        "T04",
-        "D06"
-      ],
-      "depth": 13,
-      "addedByAudit": false
-    },
-    {
-      "key": "R03",
-      "title": "Crash-injection recovery matrix across every worker transition",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "test",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:recovery",
-        "risk:high",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-019",
-        "AT-005",
-        "AT-019"
-      ],
-      "blockedBy": [
-        "R02",
-        "S12"
-      ],
-      "directBlockersBeforeReduction": [
-        "R02",
-        "S11",
-        "S12"
-      ],
-      "depth": 13,
-      "addedByAudit": false
-    },
-    {
-      "key": "A16",
-      "title": "Antigravity-backed single-ticket run end to end (AT-001 with the real agent)",
-      "area": "antigravity",
-      "phase": 2,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:antigravity",
-        "risk:high",
-        "phase:2",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-009",
-        "FR-011",
-        "FR-013",
-        "AT-001"
-      ],
-      "blockedBy": [
-        "A10",
-        "S12",
-        "A06"
-      ],
-      "directBlockersBeforeReduction": [
-        "A09",
-        "A10",
-        "S12",
-        "A06"
-      ],
-      "depth": 13,
-      "addedByAudit": false
-    },
-    {
-      "key": "R08",
-      "title": "Stop All safe points for the merge lane and push; integration health UNKNOWN handling",
-      "area": "recovery",
-      "phase": 3,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:recovery",
-        "risk:high",
-        "phase:3",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-021",
-        "FR-022",
-        "AT-006"
-      ],
-      "blockedBy": [
-        "R04",
-        "S12"
-      ],
-      "directBlockersBeforeReduction": [
-        "R04",
-        "S12"
-      ],
-      "depth": 13,
-      "addedByAudit": true
-    },
-    {
-      "key": "Z04",
-      "title": "Antigravity release gate: real-environment acceptance for AT-001, 011, 013, 015, 017, 025, 026",
-      "area": "release",
-      "phase": 7,
-      "kind": "test",
-      "risk": "high",
-      "userAssist": true,
-      "labels": [
-        "type:test",
-        "area:release",
-        "risk:high",
-        "phase:7",
-        "ready-for-agent",
-        "needs-user-assist"
-      ],
-      "requirements": [
-        "AT-001",
-        "AT-011",
-        "AT-013",
-        "AT-015",
-        "AT-017",
-        "AT-025",
-        "AT-026"
-      ],
-      "blockedBy": [
-        "A16",
-        "K10",
-        "A12",
-        "A15",
-        "K07"
-      ],
-      "directBlockersBeforeReduction": [
-        "A16",
-        "K10",
-        "A12",
-        "A15",
-        "K07"
-      ],
-      "depth": 14,
-      "addedByAudit": false
-    },
-    {
-      "key": "Z03",
-      "title": "End-to-end fixture suite with fakes: AT-001 to AT-010 and AT-018 to AT-022",
-      "area": "release",
-      "phase": 7,
-      "kind": "test",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:test",
-        "area:release",
-        "risk:high",
-        "phase:7",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "AT-001",
-        "AT-002",
-        "AT-003",
-        "AT-004",
-        "AT-005",
-        "AT-006",
-        "AT-007",
-        "AT-010",
-        "AT-018",
-        "AT-019",
-        "AT-020",
-        "AT-021",
-        "AT-022"
-      ],
-      "blockedBy": [
-        "S14",
-        "S13",
-        "R03",
-        "R08",
-        "R05",
-        "S16",
-        "L02",
-        "R07",
-        "S15"
-      ],
-      "directBlockersBeforeReduction": [
-        "S14",
-        "S13",
-        "R03",
-        "R04",
-        "R08",
-        "R05",
-        "S16",
-        "L02",
-        "R07",
-        "S15"
-      ],
-      "depth": 14,
-      "addedByAudit": false
-    },
-    {
-      "key": "Z05",
-      "title": "Requirements traceability report: every FR and AT with implementation and evidence",
-      "area": "release",
-      "phase": 7,
-      "kind": "docs",
-      "risk": "medium",
-      "userAssist": false,
-      "labels": [
-        "type:docs",
-        "area:release",
-        "risk:medium",
-        "phase:7",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "FR-001..FR-050",
-        "AT-001..AT-026"
-      ],
-      "blockedBy": [
-        "Z03",
-        "Z04",
-        "PF1",
-        "X04",
-        "Z02",
-        "U19",
-        "X01",
-        "X02",
-        "X03"
-      ],
-      "directBlockersBeforeReduction": [
-        "Z03",
-        "Z04",
-        "PF1",
-        "X04",
-        "Z02",
-        "U19",
-        "X01",
-        "X02",
-        "X03"
-      ],
-      "depth": 15,
-      "addedByAudit": false
-    },
-    {
-      "key": "Z06",
-      "title": "Release candidate validation against the release checklist",
-      "area": "release",
-      "phase": 7,
-      "kind": "feature",
-      "risk": "high",
-      "userAssist": false,
-      "labels": [
-        "type:feature",
-        "area:release",
-        "risk:high",
-        "phase:7",
-        "ready-for-agent"
-      ],
-      "requirements": [
-        "NFR Reliability",
-        "NFR Security"
-      ],
-      "blockedBy": [
-        "Z05",
-        "H01",
-        "L03",
-        "L04",
-        "K08"
-      ],
-      "directBlockersBeforeReduction": [
-        "Z05",
-        "H01",
-        "L03",
-        "L04",
-        "K08"
-      ],
-      "depth": 16,
-      "addedByAudit": false
-    }
-  ]
+  {
+   "key": "L01",
+   "title": "Onboarding experience: consent choices, background, auto-start, recovery continuation",
+   "area": "lifecycle",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:lifecycle",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-040",
+    "FR-042",
+    "AT-016"
+   ],
+   "blockedBy": [
+    "U15"
+   ],
+   "directBlockersBeforeReduction": [
+    "S02",
+    "F05",
+    "U01",
+    "U15"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "S04",
+   "title": "Preflight engine end to end: repository, toolchain, trust, and Windows checks with severity table",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:medium",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-002",
+    "AT-001"
+   ],
+   "blockedBy": [
+    "S03",
+    "O01",
+    "G05",
+    "T02"
+   ],
+   "directBlockersBeforeReduction": [
+    "S03",
+    "O01",
+    "G01",
+    "G05",
+    "T02"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "PV1",
+   "title": "Worktree provisioning contract: confirmed commands, file allowlist, caches, resource keys",
+   "area": "git",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:git",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-044",
+    "AT-001"
+   ],
+   "blockedBy": [
+    "G02",
+    "S03"
+   ],
+   "directBlockersBeforeReduction": [
+    "G02",
+    "S03",
+    "S02",
+    "P01"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "K08",
+   "title": "Guarded visual fallback module (only if the spike says it is needed)",
+   "area": "broker",
+   "phase": 6,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:high",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-033"
+   ],
+   "blockedBy": [
+    "K06",
+    "SP13"
+   ],
+   "directBlockersBeforeReduction": [
+    "K06",
+    "SP13"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "S07",
+   "title": "GitHub issue ingestion into the same graph pipeline",
+   "area": "tracker",
+   "phase": 4,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:tracker",
+    "risk:medium",
+    "phase:4",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-005"
+   ],
+   "blockedBy": [
+    "S06",
+    "T02"
+   ],
+   "directBlockersBeforeReduction": [
+    "S06",
+    "T02"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "U05",
+   "title": "Project universe: dependency constellation rendering, camera, and fit view",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:high",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-025",
+    "AT-008"
+   ],
+   "blockedBy": [
+    "U02",
+    "S06"
+   ],
+   "directBlockersBeforeReduction": [
+    "U02",
+    "S06",
+    "U01"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "K01",
+   "title": "Approval Broker core: classification pipeline, evidence tiers, decisions, rules, interventions",
+   "area": "broker",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-031",
+    "FR-035",
+    "FR-039",
+    "AT-012"
+   ],
+   "blockedBy": [
+    "D07",
+    "S15"
+   ],
+   "directBlockersBeforeReduction": [
+    "D05",
+    "D07",
+    "S15",
+    "F06"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "U10",
+   "title": "Intervention sheet for every intervention kind",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-020",
+    "AT-010"
+   ],
+   "blockedBy": [
+    "S15",
+    "U01",
+    "X02"
+   ],
+   "directBlockersBeforeReduction": [
+    "S15",
+    "U01",
+    "X02"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "A09",
+   "title": "Worker task envelope and prompts: implement invocation, recovery envelope, untrusted-text handling",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-009",
+    "FR-011",
+    "FR-029"
+   ],
+   "blockedBy": [
+    "A03",
+    "A08",
+    "S05"
+   ],
+   "directBlockersBeforeReduction": [
+    "A03",
+    "A08",
+    "S05"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "A15",
+   "title": "Real-environment compatibility suite gated by VELA_REAL_ANTIGRAVITY",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:antigravity",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-037",
+    "AT-015",
+    "AT-025"
+   ],
+   "blockedBy": [
+    "A06"
+   ],
+   "directBlockersBeforeReduction": [
+    "A03",
+    "A06"
+   ],
+   "depth": 7,
+   "addedByAudit": false
+  },
+  {
+   "key": "X04",
+   "title": "Security regression suite: normalizer corpus, hostile repositories, credential audit, force-push denial",
+   "area": "security",
+   "phase": 6,
+   "kind": "test",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:security",
+    "risk:high",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-030",
+    "AT-012",
+    "AT-025"
+   ],
+   "blockedBy": [
+    "A06",
+    "K06",
+    "S03",
+    "K01"
+   ],
+   "directBlockersBeforeReduction": [
+    "A06",
+    "K06",
+    "S03",
+    "D05",
+    "G01",
+    "K01"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "S08",
+   "title": "Graph approval and Build start: integration branch, integration worktree, base SHA",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-008",
+    "FR-045"
+   ],
+   "blockedBy": [
+    "S06",
+    "G02",
+    "S04"
+   ],
+   "directBlockersBeforeReduction": [
+    "S06",
+    "G02",
+    "S03",
+    "S04"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "U06",
+   "title": "Node states and event-driven effects: ripples, edge flow, settling",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-025",
+    "FR-026",
+    "AT-008"
+   ],
+   "blockedBy": [
+    "U05"
+   ],
+   "directBlockersBeforeReduction": [
+    "U05",
+    "D01",
+    "F08"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "U07",
+   "title": "Issue focus transition and inspector with progressive disclosure",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-023",
+    "AT-008"
+   ],
+   "blockedBy": [
+    "U05",
+    "X02"
+   ],
+   "directBlockersBeforeReduction": [
+    "U05",
+    "F08",
+    "X02"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "U12",
+   "title": "Conflict forecasting visualization",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-008",
+    "AT-003"
+   ],
+   "blockedBy": [
+    "U05"
+   ],
+   "directBlockersBeforeReduction": [
+    "D03",
+    "U05"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "A07",
+   "title": "Headless ASK path: spool, APPROVAL_ASK, one-time allow, and resume",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-031",
+    "AT-011"
+   ],
+   "blockedBy": [
+    "A06",
+    "SP05",
+    "K01"
+   ],
+   "directBlockersBeforeReduction": [
+    "A06",
+    "SP05",
+    "K01"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "K02",
+   "title": "Approval Watchdog and loop guard: progress heartbeats, thresholds, APPROVAL_STALLED",
+   "area": "broker",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-032",
+    "FR-034",
+    "AT-013"
+   ],
+   "blockedBy": [
+    "K01"
+   ],
+   "directBlockersBeforeReduction": [
+    "K01"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "K09",
+   "title": "Scoped rule creation from an intervention with the scope shown first",
+   "area": "broker",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:medium",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-031"
+   ],
+   "blockedBy": [
+    "K01",
+    "U10"
+   ],
+   "directBlockersBeforeReduction": [
+    "K01",
+    "U10"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "A10",
+   "title": "Authoritative reviewer session: fresh conversation, code-review at the fixed point, structured output",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-013",
+    "FR-029",
+    "AT-004"
+   ],
+   "blockedBy": [
+    "A09",
+    "D06",
+    "SP07"
+   ],
+   "directBlockersBeforeReduction": [
+    "A09",
+    "D06",
+    "SP07"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "A11",
+   "title": "Dependency analyst session: read-only, validated, stored in the snapshot",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-007"
+   ],
+   "blockedBy": [
+    "A09",
+    "S06"
+   ],
+   "directBlockersBeforeReduction": [
+    "A09",
+    "S06"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "X01",
+   "title": "Prompt-injection and untrusted-input boundaries verified end to end",
+   "area": "security",
+   "phase": 6,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:security",
+    "risk:high",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-043",
+    "NFR Security"
+   ],
+   "blockedBy": [
+    "S03",
+    "A09"
+   ],
+   "directBlockersBeforeReduction": [
+    "D05",
+    "S03",
+    "A09"
+   ],
+   "depth": 8,
+   "addedByAudit": false
+  },
+  {
+   "key": "U11",
+   "title": "Build-ready view and preflight panel with parallelization reasoning",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-002",
+    "FR-008",
+    "AT-003"
+   ],
+   "blockedBy": [
+    "U05",
+    "S08"
+   ],
+   "directBlockersBeforeReduction": [
+    "S04",
+    "S06",
+    "D03",
+    "U05",
+    "S08"
+   ],
+   "depth": 9,
+   "addedByAudit": false
+  },
+  {
+   "key": "S09",
+   "title": "Scheduler tick: frontier, safety, capacity, and worker records with a fake agent",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-008",
+    "AT-002",
+    "AT-003"
+   ],
+   "blockedBy": [
+    "S08"
+   ],
+   "directBlockersBeforeReduction": [
+    "S08"
+   ],
+   "depth": 9,
+   "addedByAudit": false
+  },
+  {
+   "key": "U14",
+   "title": "Reduced motion everywhere and the WebGL failure fallback",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Accessibility",
+    "FR-027"
+   ],
+   "blockedBy": [
+    "U06"
+   ],
+   "directBlockersBeforeReduction": [
+    "U02",
+    "U06"
+   ],
+   "depth": 9,
+   "addedByAudit": false
+  },
+  {
+   "key": "U08",
+   "title": "Timeline and evidence panels: commands, tests, review findings",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-023",
+    "FR-012",
+    "FR-013"
+   ],
+   "blockedBy": [
+    "U07"
+   ],
+   "directBlockersBeforeReduction": [
+    "U07",
+    "F08",
+    "X02"
+   ],
+   "depth": 9,
+   "addedByAudit": false
+  },
+  {
+   "key": "U13",
+   "title": "Accessibility: graph tree and list, keyboard navigation, focus, and screen-reader labels",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:high",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Accessibility"
+   ],
+   "blockedBy": [
+    "U07"
+   ],
+   "directBlockersBeforeReduction": [
+    "U05",
+    "U07"
+   ],
+   "depth": 9,
+   "addedByAudit": false
+  },
+  {
+   "key": "U16",
+   "title": "Completion state and execution summary",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-023",
+    "FR-045"
+   ],
+   "blockedBy": [
+    "U07"
+   ],
+   "directBlockersBeforeReduction": [
+    "U07"
+   ],
+   "depth": 9,
+   "addedByAudit": false
+  },
+  {
+   "key": "K10",
+   "title": "Antigravity preflight providers and unattended readiness: capabilities, authentication, skills, posture, and UI-automation consent",
+   "area": "broker",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:medium",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-036",
+    "AT-015",
+    "FR-002",
+    "FR-004",
+    "FR-037",
+    "FR-049"
+   ],
+   "blockedBy": [
+    "A06",
+    "K06",
+    "P03",
+    "U11",
+    "A08"
+   ],
+   "directBlockersBeforeReduction": [
+    "A06",
+    "K06",
+    "S04",
+    "P03",
+    "U11",
+    "A08"
+   ],
+   "depth": 10,
+   "addedByAudit": false
+  },
+  {
+   "key": "U17",
+   "title": "Large graphs: 500-node performance and adaptive quality suggestions",
+   "area": "perf",
+   "phase": 6,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:perf",
+    "risk:high",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-027",
+    "NFR Performance"
+   ],
+   "blockedBy": [
+    "U03",
+    "U07",
+    "U14"
+   ],
+   "directBlockersBeforeReduction": [
+    "U05",
+    "U06",
+    "U03",
+    "U07",
+    "U14"
+   ],
+   "depth": 10,
+   "addedByAudit": false
+  },
+  {
+   "key": "S10",
+   "title": "Worker lifecycle with a fake agent: provision, implement, focused validation, timeline",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-009",
+    "FR-011",
+    "FR-012",
+    "AT-001"
+   ],
+   "blockedBy": [
+    "S09",
+    "PV1",
+    "R01"
+   ],
+   "directBlockersBeforeReduction": [
+    "S09",
+    "PV1",
+    "P01",
+    "G02",
+    "F03",
+    "R01"
+   ],
+   "depth": 10,
+   "addedByAudit": false
+  },
+  {
+   "key": "PF1",
+   "title": "Performance harness and budget measurement on the reference hardware",
+   "area": "perf",
+   "phase": 6,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:perf",
+    "risk:medium",
+    "phase:6",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-027",
+    "AT-009",
+    "NFR Performance"
+   ],
+   "blockedBy": [
+    "U17"
+   ],
+   "directBlockersBeforeReduction": [
+    "U17",
+    "F08"
+   ],
+   "depth": 11,
+   "addedByAudit": false
+  },
+  {
+   "key": "U18",
+   "title": "Visual regression suite and fixtures for the key states",
+   "area": "ui",
+   "phase": 5,
+   "kind": "test",
+   "risk": "low",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:ui",
+    "risk:low",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "AT-008",
+    "NFR Testability"
+   ],
+   "blockedBy": [
+    "U08",
+    "U10",
+    "U12",
+    "U16",
+    "U04",
+    "U17"
+   ],
+   "directBlockersBeforeReduction": [
+    "U08",
+    "U10",
+    "U12",
+    "U16",
+    "U04",
+    "U14",
+    "U17"
+   ],
+   "depth": 11,
+   "addedByAudit": false
+  },
+  {
+   "key": "S11",
+   "title": "Checkpoint and review loop with a fake reviewer: fixed point, findings, fix loop, cap",
+   "area": "orchestration",
+   "phase": 1,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:1",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-013",
+    "FR-014",
+    "FR-015",
+    "AT-004"
+   ],
+   "blockedBy": [
+    "S10",
+    "G03",
+    "D06"
+   ],
+   "directBlockersBeforeReduction": [
+    "S10",
+    "G03",
+    "D06"
+   ],
+   "depth": 11,
+   "addedByAudit": false
+  },
+  {
+   "key": "R02",
+   "title": "Startup reconciliation and recovery-resume",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:high",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "FR-022",
+    "AT-005"
+   ],
+   "blockedBy": [
+    "S10"
+   ],
+   "directBlockersBeforeReduction": [
+    "R01",
+    "G01",
+    "S10"
+   ],
+   "depth": 11,
+   "addedByAudit": false
+  },
+  {
+   "key": "W01",
+   "title": "Production composition root: real adapter wiring and a fixture run in the real window",
+   "area": "foundation",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:foundation",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-012",
+    "NFR Reliability",
+    "NFR Security",
+    "NFR Testability"
+   ],
+   "blockedBy": [
+    "S10",
+    "S17",
+    "P03",
+    "T04"
+   ],
+   "directBlockersBeforeReduction": [
+    "S10",
+    "S17",
+    "P03",
+    "T04"
+   ],
+   "depth": 11,
+   "addedByAudit": false,
+   "addedByPrompt7Audit": true
+  },
+  {
+   "key": "S16",
+   "title": "Execution profiles and capacity model with simulated capacity events",
+   "area": "orchestration",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-024",
+    "AT-007"
+   ],
+   "blockedBy": [
+    "R02",
+    "SP11",
+    "S15"
+   ],
+   "directBlockersBeforeReduction": [
+    "S10",
+    "R02",
+    "SP11",
+    "S15"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "R04",
+   "title": "Stop All, pause, and resume for running workers",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:high",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-021",
+    "FR-022"
+   ],
+   "blockedBy": [
+    "P02",
+    "S11"
+   ],
+   "directBlockersBeforeReduction": [
+    "S10",
+    "P02",
+    "R01",
+    "S11"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "A12",
+   "title": "Conversation visibility in Antigravity Desktop: read model, Open in Antigravity action, and the AT-026 harness",
+   "area": "antigravity",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-050",
+    "AT-026"
+   ],
+   "blockedBy": [
+    "SP08",
+    "U07",
+    "S11",
+    "A10",
+    "A11"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP08",
+    "A03",
+    "U07",
+    "S10",
+    "S11",
+    "A10",
+    "A11"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "U19",
+   "title": "UI fidelity review gate against the Stitch reference",
+   "area": "ui",
+   "phase": 5,
+   "kind": "human-action",
+   "risk": "medium",
+   "userAssist": true,
+   "labels": [
+    "type:human-action",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-human",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "AT-008"
+   ],
+   "blockedBy": [
+    "U18"
+   ],
+   "directBlockersBeforeReduction": [
+    "U18"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "S12",
+   "title": "Merge lane and integration validation: two parallel tickets merge, gate, frontier advances",
+   "area": "orchestration",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-017",
+    "FR-018",
+    "AT-002",
+    "AT-018"
+   ],
+   "blockedBy": [
+    "S11",
+    "G04"
+   ],
+   "directBlockersBeforeReduction": [
+    "S11",
+    "G04",
+    "G05"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "R06",
+   "title": "Sleep, wake, network loss, and GitHub outage handling",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:medium",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "NFR Reliability"
+   ],
+   "blockedBy": [
+    "R02",
+    "T03",
+    "P03"
+   ],
+   "directBlockersBeforeReduction": [
+    "R02",
+    "T03",
+    "P03"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "R07",
+   "title": "Reboot continuation and the recovery_continuation setting",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:medium",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-042",
+    "AT-019"
+   ],
+   "blockedBy": [
+    "R02"
+   ],
+   "directBlockersBeforeReduction": [
+    "R02",
+    "S02"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "A14",
+   "title": "Antigravity recovery and version drift: orphan sessions, stale profile and spool state, and background self-update",
+   "area": "antigravity",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:medium",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-037",
+    "FR-019",
+    "FR-022"
+   ],
+   "blockedBy": [
+    "R02",
+    "A03",
+    "A05",
+    "SP11"
+   ],
+   "directBlockersBeforeReduction": [
+    "A01",
+    "R02",
+    "A03",
+    "A05",
+    "SP11"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "K07",
+   "title": "Interactive-session degradation and reconciliation for UI-automation work",
+   "area": "broker",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:broker",
+    "risk:medium",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-041",
+    "AT-017"
+   ],
+   "blockedBy": [
+    "K06",
+    "P03",
+    "R02",
+    "H06",
+    "K02"
+   ],
+   "directBlockersBeforeReduction": [
+    "K06",
+    "P03",
+    "R02",
+    "K01",
+    "H06",
+    "K02"
+   ],
+   "depth": 12,
+   "addedByAudit": false
+  },
+  {
+   "key": "A13",
+   "title": "Capacity detection from Antigravity output and pause/cooldown mapping",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:medium",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-024",
+    "AT-007"
+   ],
+   "blockedBy": [
+    "A03",
+    "S16"
+   ],
+   "directBlockersBeforeReduction": [
+    "A03",
+    "S16"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "L02",
+   "title": "Tray, background operation, hide-on-close, and safe pause on close",
+   "area": "lifecycle",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:lifecycle",
+    "risk:high",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-042",
+    "FR-021",
+    "AT-019"
+   ],
+   "blockedBy": [
+    "SP01",
+    "R04"
+   ],
+   "directBlockersBeforeReduction": [
+    "SP01",
+    "S02",
+    "R04"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "U09",
+   "title": "Floating run bar: worker count, status, mode, pause, and an always reachable Stop All",
+   "area": "ui",
+   "phase": 5,
+   "kind": "feature",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:ui",
+    "risk:medium",
+    "phase:5",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-021",
+    "NFR Accessibility",
+    "AT-006"
+   ],
+   "blockedBy": [
+    "R04"
+   ],
+   "directBlockersBeforeReduction": [
+    "F08",
+    "R04",
+    "U01"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "Z02",
+   "title": "Updater: signed updates, deferral during runs, pre-update backup, rollback",
+   "area": "release",
+   "phase": 7,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:release",
+    "risk:high",
+    "phase:7",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-047",
+    "AT-024"
+   ],
+   "blockedBy": [
+    "Z01",
+    "R05",
+    "R04"
+   ],
+   "directBlockersBeforeReduction": [
+    "Z01",
+    "R05",
+    "R04"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "S13",
+   "title": "Conflict resolution attempt and MERGE_CONFLICT escalation",
+   "area": "orchestration",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-017",
+    "AT-018"
+   ],
+   "blockedBy": [
+    "S12"
+   ],
+   "directBlockersBeforeReduction": [
+    "S12"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "S14",
+   "title": "Finalization: final review, push by Vela, promotion, cleanup, and completion",
+   "area": "orchestration",
+   "phase": 4,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:orchestration",
+    "risk:high",
+    "phase:4",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-016",
+    "FR-045",
+    "AT-021"
+   ],
+   "blockedBy": [
+    "S12",
+    "T04"
+   ],
+   "directBlockersBeforeReduction": [
+    "S12",
+    "G05",
+    "T04",
+    "D06"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "R03",
+   "title": "Crash-injection recovery matrix across every worker transition",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "test",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:recovery",
+    "risk:high",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-019",
+    "AT-005",
+    "AT-019"
+   ],
+   "blockedBy": [
+    "R02",
+    "S12",
+    "K01"
+   ],
+   "directBlockersBeforeReduction": [
+    "R02",
+    "S11",
+    "S12",
+    "K01"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "A16",
+   "title": "Antigravity-backed single-ticket run end to end (AT-001 with the real agent)",
+   "area": "antigravity",
+   "phase": 2,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:antigravity",
+    "risk:high",
+    "phase:2",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-009",
+    "FR-011",
+    "FR-013",
+    "AT-001"
+   ],
+   "blockedBy": [
+    "A10",
+    "S12",
+    "W01",
+    "A07"
+   ],
+   "directBlockersBeforeReduction": [
+    "A09",
+    "A10",
+    "S12",
+    "A06",
+    "W01",
+    "A07"
+   ],
+   "depth": 13,
+   "addedByAudit": false
+  },
+  {
+   "key": "R08",
+   "title": "Stop All safe points for the merge lane and push; integration health UNKNOWN handling",
+   "area": "recovery",
+   "phase": 3,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:recovery",
+    "risk:high",
+    "phase:3",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-021",
+    "FR-022",
+    "AT-006"
+   ],
+   "blockedBy": [
+    "R04",
+    "S12"
+   ],
+   "directBlockersBeforeReduction": [
+    "R04",
+    "S12"
+   ],
+   "depth": 13,
+   "addedByAudit": true
+  },
+  {
+   "key": "Z04",
+   "title": "Antigravity release gate: real-environment acceptance for AT-001, 011, 013, 015, 017, 025, 026",
+   "area": "release",
+   "phase": 7,
+   "kind": "test",
+   "risk": "high",
+   "userAssist": true,
+   "labels": [
+    "type:test",
+    "area:release",
+    "risk:high",
+    "phase:7",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "AT-001",
+    "AT-011",
+    "AT-013",
+    "AT-015",
+    "AT-017",
+    "AT-025",
+    "AT-026"
+   ],
+   "blockedBy": [
+    "A16",
+    "K10",
+    "A12",
+    "A15",
+    "K07"
+   ],
+   "directBlockersBeforeReduction": [
+    "A16",
+    "K10",
+    "A12",
+    "A15",
+    "K07",
+    "H06"
+   ],
+   "depth": 14,
+   "addedByAudit": false
+  },
+  {
+   "key": "Z03",
+   "title": "End-to-end fixture suite with fakes: AT-001 to AT-007, AT-010, and AT-018 to AT-022",
+   "area": "release",
+   "phase": 7,
+   "kind": "test",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:test",
+    "area:release",
+    "risk:high",
+    "phase:7",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "AT-001",
+    "AT-002",
+    "AT-003",
+    "AT-004",
+    "AT-005",
+    "AT-006",
+    "AT-007",
+    "AT-010",
+    "AT-018",
+    "AT-019",
+    "AT-020",
+    "AT-021",
+    "AT-022"
+   ],
+   "blockedBy": [
+    "S14",
+    "S13",
+    "R03",
+    "R08",
+    "R05",
+    "S16",
+    "L02",
+    "R07",
+    "W01"
+   ],
+   "directBlockersBeforeReduction": [
+    "S14",
+    "S13",
+    "R03",
+    "R04",
+    "R08",
+    "R05",
+    "S16",
+    "L02",
+    "R07",
+    "S15",
+    "W01"
+   ],
+   "depth": 14,
+   "addedByAudit": false
+  },
+  {
+   "key": "Z05",
+   "title": "Requirements traceability report: every FR and AT with implementation and evidence",
+   "area": "release",
+   "phase": 7,
+   "kind": "docs",
+   "risk": "medium",
+   "userAssist": false,
+   "labels": [
+    "type:docs",
+    "area:release",
+    "risk:medium",
+    "phase:7",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "FR-001..FR-050",
+    "AT-001..AT-026"
+   ],
+   "blockedBy": [
+    "Z03",
+    "Z04",
+    "PF1",
+    "X04",
+    "U19",
+    "X01",
+    "X03",
+    "A13",
+    "A14",
+    "K09",
+    "R06",
+    "S07",
+    "U09",
+    "U13",
+    "Z07"
+   ],
+   "directBlockersBeforeReduction": [
+    "Z03",
+    "Z04",
+    "PF1",
+    "X04",
+    "Z02",
+    "U19",
+    "X01",
+    "X02",
+    "X03",
+    "A13",
+    "A14",
+    "K09",
+    "L01",
+    "R06",
+    "S07",
+    "U09",
+    "U13",
+    "Z07"
+   ],
+   "depth": 15,
+   "addedByAudit": false
+  },
+  {
+   "key": "Z06",
+   "title": "Release candidate validation against the release checklist",
+   "area": "release",
+   "phase": 7,
+   "kind": "feature",
+   "risk": "high",
+   "userAssist": false,
+   "labels": [
+    "type:feature",
+    "area:release",
+    "risk:high",
+    "phase:7",
+    "ready-for-agent"
+   ],
+   "requirements": [
+    "NFR Reliability",
+    "NFR Security"
+   ],
+   "blockedBy": [
+    "Z05",
+    "H01",
+    "L04",
+    "K08",
+    "H04",
+    "X05"
+   ],
+   "directBlockersBeforeReduction": [
+    "Z05",
+    "H01",
+    "L03",
+    "L04",
+    "K08",
+    "H04",
+    "X05"
+   ],
+   "depth": 16,
+   "addedByAudit": false
+  },
+  {
+   "key": "Z07",
+   "title": "Clean-machine installer and lifecycle validation on the H05 environment",
+   "area": "release",
+   "phase": 7,
+   "kind": "test",
+   "risk": "medium",
+   "userAssist": true,
+   "labels": [
+    "type:test",
+    "area:release",
+    "risk:medium",
+    "phase:7",
+    "ready-for-agent",
+    "needs-user-assist"
+   ],
+   "requirements": [
+    "FR-047"
+   ],
+   "blockedBy": [
+    "Z02",
+    "H05",
+    "W01",
+    "K10",
+    "L03",
+    "L01"
+   ],
+   "directBlockersBeforeReduction": [
+    "Z01",
+    "Z02",
+    "H05",
+    "W01",
+    "K10",
+    "L03",
+    "L01"
+   ],
+   "depth": 14,
+   "addedByAudit": true
+  }
+ ]
 }

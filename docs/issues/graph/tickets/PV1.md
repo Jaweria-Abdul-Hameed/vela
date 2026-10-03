@@ -36,10 +36,13 @@ None (no user-visible behavior).
 Parallel with S09.
 
 ## 11. Acceptance criteria
-- [ ] Provisioning runs confirmed commands only; an allowlisted file is copied without logging values; failure prevents worker start; untrusted repositories never provision.
+- [ ] Provisioning runs confirmed commands only, through the policy engine.
+- [ ] An allowlisted file is copied without its values appearing in any log (log-capture test).
+- [ ] A provisioning failure is a validation failure and prevents the worker from starting.
+- [ ] An untrusted repository never provisions.
 
 ## 12. Required unit tests
-- Not applicable beyond the acceptance criteria.
+- Plan validation (only confirmed commands); allowlist copy value non-disclosure; resource-key collision yields a serialization hint; cache declaration handling.
 
 ## 13. Required integration tests
 - Fixture with dependency install stand-in.

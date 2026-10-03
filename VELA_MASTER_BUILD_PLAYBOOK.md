@@ -10,7 +10,7 @@
 
 When starting Vela from the specification pack:
 
-1. Create `Desktop\Vela`.
+1. Create the `Vela` folder in a local, non-cloud-synced development directory; this is the recommended and reference development layout (on Windows, for example, `C:\Users\<username>\Projects\Vela`). Avoid developing directly inside folders that OneDrive, Dropbox, Google Drive, or a similar service actively synchronizes (on Windows the Desktop and Documents folders are often redirected into OneDrive), because Vela uses Git worktrees, concurrent workers, filesystem watching, and process orchestration, which a sync client can disturb. This is guidance, not a claim that a synced folder can never work: Vela's own preflight (`docs/operations/PREFLIGHT.md`) warns when the repository is under a known sync provider and blocks a worktree root there.
 2. Extract the contents of the Vela specification pack directly into that folder; do not keep an unnecessary wrapper directory.
 3. Place `VELA_MASTER_BUILD_PLAYBOOK.md` in the repository root.
 4. Initialize Git and commit the documentation baseline.

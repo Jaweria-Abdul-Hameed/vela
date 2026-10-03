@@ -11,8 +11,7 @@ issue graph. **v1 runtime: Google Antigravity on Windows. Strategy: Antigravity-
 
 ## Current Phase
 
-PROMPT_6_GRAPH_GENERATED — **Architecture frozen** (2026-10-02); **issue graph generated, audited once, and approved as the draft; GitHub
-publication intentionally deferred** pending the independent Prompt 7 audit.
+PROMPT_7_FINAL_AUDIT_COMPLETE / READY_FOR_CHECKPOINT (75 final checks passed; awaiting checkpoint commit/push) — **Architecture frozen** (2026-10-02); the issue graph was audited independently, corrected, and finally re-audited from the ticket files: **135 tickets, 274 published edges**. GitHub publication is still deferred pending the user's explicit confirmation. See `docs/issues/graph/AUDIT_PROMPT7.md` and `SHARED_SURFACE_PROTOCOL.md`.
 
 ## Last Completed Phase
 
@@ -22,14 +21,14 @@ ADR-020 and its scope clarification were added after the freeze.)
 
 ## Next Phase
 
-**Prompt 7 — Independent issue/DAG audit** (preferably a different model or at least a fresh context), then Prompt 8 (scheduler dry-run). GitHub publication
-happens only after Prompt 7's corrections and the user's explicit confirmation. Do not begin Prompt 7 in this session.
+**Close Prompt 7** (user review of the audit corrections and of the remaining human actions, then a user-approved commit and push), then Prompt 8 (scheduler dry-run). GitHub publication happens only after the user's explicit confirmation. Do not begin Prompt 8 in the Prompt 7 session.
 
 ## Canonical Branch and Commit
 
 - Branch: `main`; remote `origin`: `https://github.com/Jaweria-Abdul-Hameed/vela.git`.
 - Prior checkpoints: baseline `bbcecf7`; Prompt 3 `2d9a8fd`; Prompt 4 `1bbc38b`; Section S probes `27d2408`, `cd50b5a`, `f5dac49`; Prompt 5 `8b46b25`;
   ADR-020 `3cc25f7`, scope clarification `4e9f657`.
+- Current working location on this machine: `C:\Users\Jaweria\Projects\Vela`, a local directory outside any cloud-sync service (the project was moved out of OneDrive on 2026-10-03). This is this machine's current location only, not a portable architectural requirement; see the setup guidance in `VELA_MASTER_BUILD_PLAYBOOK.md`.
 - **This checkpoint is the commit that updates this file** (a file cannot contain its own SHA). Take current Git `HEAD` as canonical
   (`git log -1`) and verify it descends from the commits above and that `main` equals `origin/main`.
 
@@ -40,9 +39,9 @@ happens only after Prompt 7's corrections and the user's explicit confirmation. 
 | Specification | READY (audit findings resolved; Prompt 4/5 corrections applied; items below remain open but non-blocking) |
 | External verification | Documentation verified; Section S probes done; several capabilities remain unverified (see register) |
 | Architecture | **FROZEN** (`docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`, `COMPONENT_SPECIFICATIONS.md`, ADR-017/018/019) |
-| Issue graph | **DRAFTED_NOT_PUBLISHED**: 130 tickets, 238 published edges, in `docs/issues/graph/` (symbolic keys; no GitHub issues exist) |
+| Issue graph | **DRAFTED_NOT_PUBLISHED**, Prompt 7 final audit complete (uncommitted): 135 tickets, 274 published edges, in `docs/issues/graph/` (symbolic keys; no GitHub issues exist) |
 | Implementation | NOT_STARTED |
-| Next gate | Independent Prompt 7 audit, then user-confirmed publication |
+| Next gate | The user's explicit approval to checkpoint Prompt 7 (commit and push); then Prompt 8 |
 
 ## Frozen Architecture (summary; the documents are authoritative)
 
@@ -118,6 +117,16 @@ it is a required capability and spike, not an assumption.
   (`SCREEN_INVENTORY.md`) limited to what is verified; AT-026 fails if any conversation cannot be shown, rather than passing on Vela's own rendering.
 - **For Prompt 6:** the profile-isolation/adapter tickets depend on I100; FR-050/AT-026 tickets cannot be marked done on an unverified mechanism.
 
+## Canonical Reference Hardware (H03, resolved 2026-10-03)
+
+The user's current development laptop is Vela's canonical machine for performance measurement. The authoritative record is the **"Reference Hardware Profile" section of `docs/ui/PERFORMANCE_BUDGET.md`, profile `REF-HW-1`**. Performance agents (PF1, U17 measurement runs, the release validation report) must read that section and must capture the actual environment per run; do not copy numbers from this summary.
+
+- **Verified on the machine (read-only queries, 2026-10-03):** Acer Nitro ANV16S-71; Intel Core 9 270H (14 cores, 20 threads); one 16 GB Kingston DDR5-5600 module (single-channel); NVIDIA GeForce RTX 5070 Laptop GPU (8 GiB, driver 616.92) plus an Intel integrated GPU (driver 32.0.101.7079) that reports the display mode; 2560 x 1600 at 180 Hz, about 15.9 in, Windows scaling 150% (device pixel ratio 1.5); Windows 11 Home 25H2 build 10.0.26200.9550; power scheme "Acer"; WebView2 154.0.4258.53; 1 TB NVMe.
+- **Supplied by the user, not verified:** the name "Acer Nitro 5" (Windows reports Nitro ANV16S-71), the development-machine role, the intent about future RAM, and any GPU power limit or vendor performance mode (not queryable here).
+- **Policy:** 16 GB is the *current* reference configuration. A change to CPU, GPU, RAM (capacity, module count, or channel layout), the panel, or the machine creates a new profile (`REF-HW-2`, and so on) and never rewrites REF-HW-1 or results already recorded against it. Every benchmark records the profile ID and a per-run environment capture (power source and scheme, GPU that renders WebView2, graphics mode, reduced motion, window state, DPR and its cap, driver and WebView2 versions, display mode, machine exclusivity). Hybrid graphics means the rendering GPU must be captured per run.
+- **Reference-run conditions (approved 2026-10-03):** a result counts as release evidence only for a **reference run**: REF-HW-1 hardware as recorded, AC power connected, a stable Windows power scheme with its exact name and GUID recorded, no deliberate heavy competing workload, and the full environment capture (rendering GPU, Windows version and build, GPU driver versions, WebView2 runtime version, graphics mode, reduced-motion state, window state, effective DPR and its cap, display resolution and refresh rate, and any Acer or Nitro performance mode that can be reliably determined). **No Acer or Nitro performance mode is mandated**, because there is no reliable programmatic fact about which modes exist or which should be canonical; that is a future decision. Any other run is a **non-reference exploratory run**: it may use different conditions but must be labelled non-reference and must never be release evidence. The conditions live in `docs/ui/PERFORMANCE_BUDGET.md` (kept there, not in a separate document).
+- **Budgets are unchanged and not weakened.** Full, Balanced (default), and Efficiency are each measured; reduced motion, minimized and hidden, unfocused, the device-pixel-ratio cap, and adaptive suggestions remain in scope. No benchmark numbers exist yet and none were invented.
+
 ## Unresolved Compatibility Constraints
 
 1. **Autonomous mode stays blocked** until the Native Permission Posture probe passes against the installed version (ADR-009); Supervised needs acknowledgement.
@@ -129,12 +138,13 @@ it is a required capability and spike, not an assumption.
 
 ## Remaining Human Decisions and Actions
 
-1. **Does v1 create Desktop-hosted Antigravity sessions?** On the primary headless path no GUI card exists, so `vela-uia` is dormant unless such sessions exist
-   (ADR-018 section 5). Decide before tickets for the UIA adapter are prioritized (they are still specified and gated).
-2. Add the **Stitch reference image** under `docs/ui/reference/` (still missing).
-3. Confirm Google's position on external orchestration of the headless `agy` with the user's own account (release prerequisite).
-4. Record the **reference hardware** for the performance budgets before the performance pass.
-5. Untouched MINOR findings: SA-31 (full configuration schema), SA-33 (WCAG target, multi-monitor/DPI), SA-34 (log retention), SA-35 (boilerplate duplication),
+1. **H06: does v1 create Desktop-hosted Antigravity sessions for approval delivery (UI Automation path scope)?** On the primary headless path no GUI card exists, so `vela-uia` is dormant unless such sessions exist (ADR-018 section 5). This is **independent of ADR-020**: it does not decide FR-050, CAP-12, or AT-026, does not reinterpret ADR-020 decision 1a, and does not authorize Desktop GUI automation to create or host conversations (ADR-020 decision 2: last resort, separate explicit decision, only if SP08 proves no supported route satisfies ADR-020). Desktop-visible or openable does not mean Desktop-created or Desktop-hosted. Open until shortly before K07; blocks K07 and the real-Desktop approval-delivery scope of Z04 (AT-011, AT-017) only; depends on SP09, not SP08. **Provisional posture:** headless or programmatic `agy` is the primary orchestration path; the UIA approval adapter may be implemented and tested against the controlled fake approval window; real-Desktop approval-delivery acceptance scope is unresolved; none of this weakens or substitutes for ADR-020, FR-050, CAP-12, or AT-026.
+2. ~~Add the Stitch reference image~~ **RESOLVED (H02, 2026-10-02):** the actual user-supplied Stitch reference is in the repository at **`docs/ui/reference/vela-stitch-reference.png`** and was inspected directly (see `docs/ui/REFERENCE_BRIEF.md` for what it shows and the recorded differences from the written direction). **Future UI implementation and UI fidelity-review agents must inspect the actual image, not rely only on textual reconstruction or earlier conversation.** The image is a visual reference only; it never overrides the written specifications for non-visual behavior. H02 was removed from the issue graph because a resolved human action is not published as an issue.
+3. **H01 (OPEN, not resolved):** Google's position on external orchestration of the headless `agy` with the user's own account. Researched 2026-10-03 from primary sources; evidence state **PARTIALLY-DOCUMENTED** (the CLI and headless automation are officially documented; orchestration at Vela's level is not addressed by the Terms, FAQ, or docs; the one affirmative statement is an informal Google-flagged forum reply that is in tension with the literal Terms and FAQ wording). Full record: `docs/research/H01_google_position.md`. **Decisions of record (user, 2026-10-03):** (1) **release gate only**: H01 gates Z06 and nothing earlier, there is no H01 to A03 edge, and development, local integration, spikes, and validation of the Antigravity adapter proceed under documented uncertainty, which is **not** a conclusion that Google permits the pattern, and Vela v1 must not be represented as release-ready while H01 is open; (2) an **authoritative written answer from Google is wanted** (draft question in the record; nothing was sent; the forum reply does not resolve H01), and obtaining it is the remaining action; (3) the **Gemini API-key route is out of scope for v1** (possible future path only; ADR-016 unchanged; v1 stays Antigravity-first with Antigravity-owned authentication); (4) **provider-policy-block handling is required** and is specified by extending FR-024 and AT-007: a provider-neutral `PROVIDER_POLICY_BLOCK` is non-retryable, never worked around (no retry, account or profile switching, credential change, or API-key fallback), stops provider work safely with durable state preserved, is surfaced as a `NEEDS_HUMAN` intervention, survives restart without automatic retry, and clears only by an explicit user decision after a user-initiated access re-check (`docs/orchestration/CAPACITY_AND_PROFILES.md`). The Antigravity signal mapping is unverified `[U]`; never provoke a block to obtain evidence. Do not treat the forum reply or Vela's successful probes as policy approval.
+4. ~~Record the reference hardware~~ **RESOLVED (H03, 2026-10-03):** the user's development laptop is the canonical performance reference machine, recorded as profile **`REF-HW-1`** in the "Reference Hardware Profile" section of `docs/ui/PERFORMANCE_BUDGET.md` (see "Canonical Reference Hardware" below). H03 was removed from the issue graph because a resolved human action is not published as an issue.
+5. **H04 (OPEN; production-release prerequisite only, decisions of 2026-10-03):** production release signing. Development and testing use unsigned local builds, throwaway self-signed development certificates, and disposable test updater keypairs (Z01, Z02), which are never production trust material. **Tauri updater signing** (its own keypair, required by the updater) is separate from **Windows Authenticode** signing (the installer and Windows binaries; production route undecided). Deferred to the release-signing phase and the user's: the production Authenticode provider or route, any purchase or spend, the identity-validation route, production credentials, production updater private-key generation and custody and backup (a lost key can prevent updating installed copies), and the final updater hosting location. No vendor is chosen, nothing is purchased, no key has been generated. H04 gates Z06 directly (the production release-signing gate); it does not block Z01 or Z02. Research and cost labels (verified, unverified or illustrative, unknown): `docs/research/H04_signing_research_2026-10-03.md`. Smart App Control was observed ON on the current development machine and may affect unsigned or self-signed development artifacts; it was not changed and changing it is not a prerequisite for development (surface an actual blocker instead of weakening it).
+6. **H05 (OPEN; route DECIDED, environment NOT YET PROVISIONED; decisions of 2026-10-03):** the canonical clean-machine validation environment is a local **Windows 11 virtual machine under VMware Workstation Pro** on the development machine (not the only technically valid hypervisor; VirtualBox remains a possible alternative). The guest is the official Microsoft **Windows 11 Enterprise 90-day Evaluation**: an Enterprise guest, not Windows Home; time-limited; disposable; not a licensing route for permanent infrastructure; testing on Windows Home or another edition must be added deliberately. A spare physical machine is optional supplementary validation, not a v1 prerequisite. Initial configuration (configurable, not a performance requirement): 4 vCPU, about 4 to 6 GB RAM, a dynamic 60 to 100 GB disk, virtual TPM 2.0 and Secure Boot, no nested virtualization, no GPU passthrough; a quiet-machine workload that must not run concurrently with heavy Antigravity worker activity, performance benchmarking, or large WSL workloads on this 16 GB host. States (created only when a scenario needs them): S0 pristine baseline (no Rust, Node, Git, Antigravity, or Vela; VMware guest tools recorded as part of the baseline), S1 N-1 installed, S2 Git installed. WebView2: removal is not a prerequisite; a missing-runtime path that cannot be obtained by a supported method is recorded **NOT VERIFIED**, never passed. Smart App Control: not mandated on or off; record its state for every relevant run; a rejection of a development or self-signed artifact under an enforcing posture is expected evidence. Artifacts enter the guest by SHA-256 manifest and a read-only virtual disk or ISO, verified with built-in Windows facilities. Remaining human action: provision it when Z07 (the first environment-dependent ticket) is about to start; do not provision it during Prompt 7 (the evaluation guest is time-limited). H05 no longer blocks Z01; it gates Z07, which feeds Z05 and Z06. Z07 owns the install, first-launch, login auto-start, uninstall, development-signature, and N-1 to N evidence and waits only for the capabilities that evidence exercises (Z02, W01, K10, L03, L01); the full-product lifecycle checks (tray and background, reboot continuation of a real run, notifications) and the production-signed run belong to Z06. Nothing was installed, downloaded, or changed on the host. Research: `docs/research/H05_clean_machine_2026-10-03.md`.
+7. Untouched MINOR findings: SA-31 (full configuration schema), SA-33 (WCAG target, multi-monitor/DPI), SA-34 (log retention), SA-35 (boilerplate duplication),
    SA-37 (manual edge persistence, serialization override).
 
 ## Environment Side Effects of the Probe Work (outside the repository)
@@ -143,27 +153,23 @@ it is a required capability and spike, not an assumption.
 "CLI Project" and "wt1"; `C:\vela-probe` (throwaway repo, worktrees, isolated profile, logs) exists outside OneDrive; the IDE's Chromium accessibility was switched
 on by a UIA probe until it restarts. None of these are part of the Vela repository.
 
-## Issue Graph (Prompt 6 draft; GitHub publication deferred)
+## Issue Graph (Prompt 6 draft, Prompt 7 audit applied; GitHub publication deferred)
 
-The complete proposed implementation graph is persisted in `docs/issues/graph/` and approved by the user as the Prompt 6 draft (2026-10-02):
+The proposed implementation graph is persisted in `docs/issues/graph/`; the Prompt 7 audit corrections are in the working tree and **not yet committed**:
 
-- `docs/issues/graph/ISSUE_GRAPH.md`: counts, validation, the 238-edge DAG table, critical path, initial frontier, waves, spike gates, FR/AT traceability, and the publication plan.
-- `docs/issues/graph/ISSUE_GRAPH.json`: machine-readable graph (labels, requirements, reduced and unreduced blockers, depth, levels).
-- `docs/issues/graph/tickets/<KEY>.md`: 130 full ticket bodies (all 19 required items).
-- **130 tickets**; 283 direct edges authored; **238 published edges** after transitive reduction; no cycles; no unknown, self, or duplicate blockers; every
-  FR-001..FR-050 and AT-001..AT-026 has at least one ticket.
+- `ISSUE_GRAPH.md`: counts, validation, the DAG table, critical path, initial frontier, layers, spike gates, FR/AT traceability, publication plan.
+- `ISSUE_GRAPH.json`: machine-readable graph. `tickets/<KEY>.md`: 135 full ticket bodies.
+- `SHARED_SURFACE_PROTOCOL.md` (new, normative): module skeleton, lockfile rules, reserved migration blocks and table ownership, command registry, composition root and plugin ownership, fault points, resource keys, shared documents, Orchestrator extension points.
+- `AUDIT_PROMPT7.md` (new): findings, edge changes, safely parallel and serialized groups, coverage matrix, human decisions.
+- **135 tickets; 274 published edges** (347 authored before reduction); no cycles; every FR-001..FR-050 and AT-001..AT-026 has a ticket. Prompt 7 added F09, W01, X05, H04, H05, H06, and Z07 (clean-machine installer and lifecycle validation).
 - **Critical path (17 tickets):** F01 → F02 → F04 → F05 → F08 → S01 → S03 → S04 → S08 → S09 → S10 → S11 → S12 → S14 → Z03 → Z05 → Z06.
-- **Initial ready frontier (14):** F01, SP01, SP02, SP03, SP04, SP06, SP07, SP08, SP09, SP10, SP11, H01, H02, H03 (spikes SP04/SP08/SP09/SP11 and H01-H03 need user help).
-- **Added by the dependency audit:** O01 (Orchestrator skeleton), TK1 (fake `agy` executable), R08 (Stop All safe points for merge and push). The audit also
-  swapped 47 preference edges for 47 real blockers and relaxed U16; no existing ticket's earliest start got later.
-- **Spike gating:** every unverified [U] element has a spike ticket that blocks its consumers (mechanically checked). Everything downstream of SP08
-  (conversation visibility, ADR-020): A05, A06, A07, A12, A15, A16, K10, X04, Z04, Z05, Z06.
-- **GitHub publication is intentionally NOT done.** `gh` is authenticated with admin access to `Jaweria-Abdul-Hameed/vela`, which has no issues. Publication
-  follows the plan in `ISSUE_GRAPH.md` only after the Prompt 7 audit's corrections and the user's explicit confirmation.
-- The `to-tickets` skill is user-invoked only; its documented process (vertical slices, blocking edges, user approval, publish in dependency order with native
-  links and `ready-for-agent`) was followed manually and not invoked. `/setup-matt-pocock-skills` has not been run.
+- **Initial ready frontier (14):** F01, H01, SP01, SP02, SP03, SP04, SP06, SP07, SP08, SP09, SP10, SP11, H04, H05. Everything except F01 is a spike or a human action. H04 and H05 are in the frontier only because they have no blockers: H04 is a release-signing decision gating Z06, and H05 is provisioned when Z07 is about to start; H06 is not in the frontier (it depends on SP09).
+- **Spike gating:** SP08 (S-DESKTOP-VISIBILITY, ADR-020) directly gates A05 and A12 and transitively the isolated-profile and policy-enforcement path; it does not gate H06. H06 depends on SP09 only.
+- **GitHub publication is intentionally NOT done.** `gh` is authenticated with admin access to `Jaweria-Abdul-Hameed/vela`, which has no issues.
+- The `to-tickets` skill was followed manually and not invoked. `/setup-matt-pocock-skills` has not been run.
+- **Graph tooling is disposable.** The scripts that generated and patched the Prompt 6 and Prompt 7 graph were temporary scratch files kept outside the repository; they are not tracked, were not retained as project artifacts, and hard-coded a former machine path. They must not be used again. The Markdown and JSON files in `docs/issues/graph/` are the source of truth: edit them directly and re-validate independently (rebuild the DAG from the ticket files and compare it with `ISSUE_GRAPH.json`). Do not make any machine-specific absolute path canonical.
 
-## Instructions for the Next Model (beginning Prompt 7)
+## Instructions for the Next Model (Prompt 7 closure, then Prompt 8; the independent audit in items 1-3 has been performed and is awaiting review and commit)
 
 1. Run the **universal handoff prompt** in `VELA_MASTER_BUILD_PLAYBOOK.md` section 2. Read, in order: `AGENTS.md`, this file, `CONTEXT.md`, `README.md`,
    `DOCUMENTATION_INDEX.md` (precedence), `docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`, `docs/architecture/COMPONENT_SPECIFICATIONS.md`, ADR-007 and

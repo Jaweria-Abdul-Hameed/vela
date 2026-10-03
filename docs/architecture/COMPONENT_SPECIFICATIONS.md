@@ -64,7 +64,7 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 
 -   **INPUTS:** worker/reviewer task envelope (prompt, worktree, profile, rule table, timeouts, conversation id).
 -   **OUTPUTS:** a normalized event stream (`SessionStarted`, `StepObserved`, `ToolDenied`, `ApprovalBlocked`, `TurnFinished`,
-    `CapacityError`, `AuthRequired`) and final turn result with the parsed `conversation_id`; spool records from the hook.
+    `CapacityError`, `AuthRequired`, `ProviderPolicyBlock`) and final turn result with the parsed `conversation_id`; spool records from the hook.
 -   **STATE OWNED:** per-worker profile directory (settings, hook config, rule table, spool, transcript pointers); the child process.
 -   **DEPENDENCIES:** `vela-process` (spawn, Job Object), `vela-domain` (rule table types, events), the installed `agy` binary.
 -   **DESIGN (ADR-018):** one `agy -p ... --output-format stream-json --print-timeout N` per turn **[V]**; isolated profile via
@@ -74,7 +74,7 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 -   **CONVERSATION VISIBILITY (ADR-020, FR-050, CAP-12):** records the conversation id of each in-scope session (workers, authoritative reviewers, substantive analyst
     sessions; not incidental probes or deterministic computation, ADR-020 decision 1a) and must make it discoverable/openable in Desktop; **unverified**. The isolated profile above is provisional until S-DESKTOP-VISIBILITY closes.
 -   **FAILURE MODES:** `agy` missing or not authenticated (`CAPABILITY_MISSING`/`AUTH_REQUIRED`); soft-denial (blocked tool
-    surfaced, never treated as success); hook failure (tool blocked, worker informed); quota text (`CAPACITY`); background
+    surfaced, never treated as success); hook failure (tool blocked, worker informed); quota text (`CAPACITY`); a provider policy block signal (mapped to the neutral `ProviderPolicyBlock` only from documented or recorded evidence, **[U]**; an unclassifiable access failure is never retried and surfaces as `AUTH_REQUIRED` or `NEEDS_HUMAN`, `CAPACITY_AND_PROFILES.md`); background
     self-update changes version (divergence); timeout (explicit, never the default 0s); malformed events (turn failed with evidence).
 -   **TEST STRATEGY:** scripted fake `agy` replaying recorded Section S transcripts (soft-denial, deny, crash, resume);
     profile-isolation test (no write to the real `~/.gemini`); credential-access audit test (AT-025); the gated real suite
@@ -279,7 +279,7 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 | 021 kill switch | C01, C10, C19 | AT-006 |
 | 022 resume | C13, C01 | AT-005, AT-006 |
 | 023 execution history | C11, C20 | timeline tests |
-| 024 capacity handling | C05, C01 | AT-007 (text detection **[V]**) |
+| 024 capacity handling and provider policy block | C05, C01 | AT-007 (capacity text detection **[V]**; provider-policy-block signal mapping **[U]**) |
 | 025 spatial graph | C21, C20, C02 | AT-008; visual regression |
 | 026 reactive environment | C21 | AT-008; performance tests |
 | 027 efficiency | C21, C19 | AT-009 (budgets) |

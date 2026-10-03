@@ -33,11 +33,22 @@ implementation.
 During multiple workers, Stop All prevents new work, cancels safely,
 preserves worktrees/commits, and allows later resume.
 
-## AT-007 Capacity interruption
+## AT-007 Capacity interruption and provider policy block
 
 A worker receives a rate-limit/cooldown condition. Other safe work
 continues; blocked worker preserves state and resumes/migrates only
 through supported profile semantics.
+
+Provider policy block (FR-024). A scripted provider-neutral `PROVIDER_POLICY_BLOCK` condition (the provider
+indicates the account or service is blocked, suspended, disabled, or denied for terms or policy reasons) puts the
+affected profile in `POLICY_BLOCKED` and verifies: no retry, no backoff schedule, no profile or account switch, no API-key
+fallback, and no new conversation or agent process is started; in-flight provider work stops at a safe point with
+branches, worktrees, checkpoints, and the last safe commit preserved; the worker and the run become `NEEDS_HUMAN` with
+kind `PROVIDER_POLICY_BLOCK`; the intervention card states that Vela will not retry and what is preserved; a Vela restart
+and startup reconciliation leave the block in place and start no agent work; and only an explicit user action, after a
+user-initiated access re-check through the supported interface, clears it, whereupon work resumes at the recorded
+`resume_state` through recovery-resume. The Antigravity signal-to-block mapping is verified only against documented or
+recorded evidence; real detection stays `[U]` and is never claimed verified otherwise.
 
 ## AT-008 Visual identity
 

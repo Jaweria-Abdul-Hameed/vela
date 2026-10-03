@@ -220,6 +220,12 @@ tests use a throwaway repository and never the Vela repository.
 
 ## 12. Packaging and release
 
+Two distinct signatures apply and are never conflated: **Windows Authenticode** signs the installer, `vela-hook`, and other Windows
+binaries; the **Tauri updater signature** (its own keypair, which the updater cannot run without) verifies updater artifacts.
+Development and test builds use unsigned or throwaway self-signed Authenticode material and a disposable test updater keypair; none of it is
+ever production trust material. Production signing material, the production Authenticode route, the production updater keypair, and the
+updater hosting location are provisioned by H04 and verified by the Z06 release gate. ADR-017 is unchanged: its "signed" installer and
+updater signature keys are exactly these two mechanisms.
 Tauri bundler produces a signed NSIS per-user installer (default) with the WebView2 download bootstrapper; embedded
 bootstrapper or offline installer are release options; the updater uses signed manifests and the core refuses
 `update.can_apply` while a run is active, requiring explicit user action after quiescence and a pre-update state backup

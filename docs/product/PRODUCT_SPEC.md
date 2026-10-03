@@ -211,6 +211,17 @@ Vela shall model execution profile availability/cooldown without
 embedding password/2FA automation or circumventing provider
 restrictions.
 
+When the provider indicates, through a supported interface or its documented output, that the account
+or service has been blocked, suspended, disabled, or denied for terms or policy reasons, Vela shall
+classify the condition as the provider-neutral `PROVIDER_POLICY_BLOCK` and treat it as non-retryable.
+Work that requires that provider shall stop safely with durable state, checkpoints, branches, and
+worktrees preserved; the condition shall be surfaced clearly to the user; and it shall never be
+resumed automatically, including after restart or recovery. Vela shall not respond by retrying,
+switching or rotating accounts or profiles, extracting or replacing authentication, falling back to
+an API key, invoking another account to continue the same work, or otherwise circumventing the
+restriction. Work resumes only after an explicit user action that follows a legitimate resolution
+(`CAPACITY_AND_PROFILES.md`).
+
 ### FR-025 UI spatial graph
 
 Vela shall render the project DAG as an interactive spatial
@@ -408,7 +419,11 @@ migration without silently guessing, and never auto-resume from a reconstructed 
 
 Vela shall install on a clean Windows environment without development tooling, handle its web-view
 runtime dependency, ship signed installers and updates, back up its state before an upgrade, roll back
-a failed migration, and never apply an update during an active run (`RECOVERY.md`).
+a failed migration, and never apply an update during an active run (`RECOVERY.md`). "Signed" means two
+distinct mechanisms: Windows Authenticode signing of the installer and Windows binaries, and the Tauri
+updater signature on update artifacts. Development and test builds may use development or test signing
+material; a distributable release requires production material for both and never contains development
+or test material.
 
 ### FR-048 Renderer hardening
 
