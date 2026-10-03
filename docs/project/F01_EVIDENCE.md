@@ -82,6 +82,7 @@ Local gates after the fixes: checker tests 47 pass, 0 skipped (with `CI=1`); typ
 | 37143358949 | `71bf92a` (first implementation checkpoint) | success (Rust and TypeScript jobs) |
 | 37144098726 | `890a31a` (review iteration 1 fixes) | success; checker tests 47 pass, 0 skipped |
 | 37144479005 | `94c1563` (review iteration 2 fixes) | success (both jobs) |
+| 37144826649 | `867b9f7` (review iteration 3 fixes, head at the review stop) | success (both jobs) |
 
 Each run executed, on `windows-latest`: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo build --workspace --locked --all-targets`, `cargo test --workspace --locked`, `check-crate-deps`, `check-module-skeleton`; and `npm ci` plus `npm run verify:ts`. These are CI results; none of the Rust gates has run successfully on the development host (Smart App Control).
 
