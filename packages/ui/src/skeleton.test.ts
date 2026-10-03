@@ -14,8 +14,17 @@ const modules = import.meta.glob(
   { eager: true },
 );
 
+const expected = [
+  './design/index.ts',
+  './components/index.ts',
+  ...['ambient', 'graph', 'effects', 'focus', 'fallback'].map((n) => `./canvas/${n}/index.ts`),
+  './canvas/quality.ts',
+  './a11y/index.ts',
+  './safe-content/index.ts',
+];
+
 describe('ui module skeleton', () => {
-  it('loads every skeleton module', () => {
-    expect(Object.keys(modules).length).toBeGreaterThanOrEqual(10);
+  it('loads every skeleton module by name', () => {
+    expect(Object.keys(modules)).toEqual(expect.arrayContaining(expected));
   });
 });

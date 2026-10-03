@@ -153,6 +153,28 @@ describe('checkModuleSkeleton', () => {
   });
 });
 
+describe('open crate roots', () => {
+  const open = { ...skeleton, rust: { demo: { ...skeleton.rust.demo, closed: false } } };
+
+  it('allows extra modules at the root of an open crate', () => {
+    const root = tree((r, src) =>
+      write(
+        r,
+        `${src}/lib.rs`,
+        ['pub mod alpha;', 'pub mod beta;', 'pub mod gamma;', 'pub mod more;', ''].join('\n'),
+      ),
+    );
+    assert.deepEqual(checkModuleSkeleton(open, root), []);
+  });
+
+  it('still requires the listed modules', () => {
+    const root = tree((r, src) =>
+      write(r, `${src}/lib.rs`, ['pub mod alpha;', 'pub mod more;', ''].join('\n')),
+    );
+    assert.ok(checkModuleSkeleton(open, root).some((l) => /module beta is missing/.test(l)));
+  });
+});
+
 describe('the committed skeleton', () => {
   it('matches the repository', () => {
     const recorded = JSON.parse(fs.readFileSync(path.join(here, 'module-skeleton.json'), 'utf8'));

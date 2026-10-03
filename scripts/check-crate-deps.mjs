@@ -4,7 +4,6 @@
 // the machine-readable form of the section 3 rules; changing it is a specification change, not a ticket detail.
 
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 
 /** @typedef {{ name: string, kind: string | null, target: string | null, uses_default_features: boolean, features: string[] }} CargoDependency */
 /** @typedef {{ name: string, dependencies: CargoDependency[] }} CargoPackage */
@@ -146,15 +145,43 @@ function checkWindowsOnly(/** @type {CargoPackage} */ pkg, /** @type {string[]} 
   }
 }
 
+/** Crates that must never appear in the resolved dependency tree of the hook binary (rule 5). */
+const HOOK_FORBIDDEN = ['petgraph', 'ts-rs', 'rusqlite', 'libsqlite3-sys', 'wry'];
+
+/**
+ * Rule 5 against the resolved tree, not just the manifest shape: `cargo tree -p vela-hook --prefix none`
+ * output must contain no graph, SQLite, contract-generation or Tauri crate.
+ * @param {string} treeOutput
+ * @returns {string[]}
+ */
+export function checkHookTree(treeOutput) {
+  /** @type {Set<string>} */
+  const found = new Set();
+  for (const line of treeOutput.split(/\r?\n/)) {
+    const name = line.trim().split(' ')[0] ?? '';
+    if (HOOK_FORBIDDEN.includes(name) || isTauri(name)) found.add(name);
+  }
+  return [...found].map(
+    (name) =>
+      `[rule 5] the resolved dependency tree of ${HOOK} contains ${name} (no graph, SQLite, or Tauri code allowed)`,
+  );
+}
+
 /** @param {string[]} args */
 function main(args) {
   const manifestFlag = args.indexOf('--manifest-path');
   const cargoArgs = ['metadata', '--format-version', '1', '--no-deps'];
   if (manifestFlag !== -1) cargoArgs.push('--manifest-path', args[manifestFlag + 1] ?? '');
+  /** @type {CargoMetadata} */
   const metadata = JSON.parse(
     execFileSync('cargo', cargoArgs, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }),
   );
   const violations = checkDependencyDirection(metadata);
+  if (metadata.packages.some((p) => p.name === HOOK)) {
+    const treeArgs = ['tree', '-p', HOOK, '-e', 'normal', '--prefix', 'none'];
+    if (manifestFlag !== -1) treeArgs.push('--manifest-path', args[manifestFlag + 1] ?? '');
+    violations.push(...checkHookTree(execFileSync('cargo', treeArgs, { encoding: 'utf8' })));
+  }
   if (violations.length > 0) {
     console.error('crate dependency check FAILED:');
     for (const v of violations) console.error(`  - ${v}`);
@@ -163,4 +190,4 @@ function main(args) {
   console.log(`crate dependency check passed (${metadata.packages.length} workspace members)`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main(process.argv.slice(2));
+if (import.meta.main) main(process.argv.slice(2));

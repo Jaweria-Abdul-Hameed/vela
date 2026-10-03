@@ -7,8 +7,30 @@ const modules = import.meta.glob(
   { eager: true },
 );
 
+const expected = [
+  ...['home', 'universe', 'focus', 'completion'].map((n) => `./scenes/${n}.tsx`),
+  ...[
+    'projects',
+    'trust',
+    'preflight',
+    'analysis',
+    'buildready',
+    'inspector',
+    'timeline',
+    'evidence',
+    'intervention',
+    'runbar',
+    'settings',
+    'onboarding',
+    'palette',
+    'conflict',
+  ].map((n) => `./surfaces/${n}/index.ts`),
+  './state/index.ts',
+  './ipc/index.ts',
+];
+
 describe('renderer module skeleton', () => {
-  it('loads every skeleton module', () => {
-    expect(Object.keys(modules).length).toBeGreaterThanOrEqual(20);
+  it('loads every skeleton module by name', () => {
+    expect(Object.keys(modules)).toEqual(expect.arrayContaining(expected));
   });
 });

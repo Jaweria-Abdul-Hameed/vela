@@ -9,7 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** @typedef {null | { closed: boolean, modules: Record<string, SkeletonNode> }} SkeletonNode */
-/** @typedef {{ src: string, entry: string, modules: Record<string, SkeletonNode> }} CrateSkeleton */
+/** @typedef {{ src: string, entry: string, closed?: boolean, modules: Record<string, SkeletonNode> }} CrateSkeleton */
 /** @typedef {{ rust: Record<string, CrateSkeleton>, typescript: Record<string, string[]> }} Skeleton */
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -111,7 +111,7 @@ export function checkModuleSkeleton(skeleton, root = repoRoot) {
       );
       continue;
     }
-    checkModules(root, crate, entry, src, '', c.modules, true, violations);
+    checkModules(root, crate, entry, src, '', c.modules, c.closed !== false, violations);
   }
 
   for (const [pkg, files] of Object.entries(skeleton.typescript)) {
@@ -142,4 +142,4 @@ function main() {
   console.log(`module skeleton check passed (${rust} Rust crates, ${ts} TypeScript packages)`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (import.meta.main) main();

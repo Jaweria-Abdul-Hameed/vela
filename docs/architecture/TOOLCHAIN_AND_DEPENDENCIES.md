@@ -47,6 +47,7 @@ Vitest, Testing Library, Playwright; `packages/ui`: React, Motion, Three.js, Rea
 - `scripts/check-crate-deps.mjs` reads `cargo metadata --no-deps` and enforces `IMPLEMENTATION_ARCHITECTURE.md` section 3
   rules 1 to 6 plus the frozen member list (an unknown crate fails). Unit tests cover allowed and forbidden edges, and a test
   builds a throwaway Cargo workspace where `vela-core` depends on `vela-git` and asserts the CLI exits 1.
+  Rule 5 is also checked against the resolved build: `cargo tree -p vela-hook` must contain no `petgraph`, `ts-rs`, `rusqlite`, `libsqlite3-sys`, `wry` or Tauri crate.
   **Rule 7** (no Antigravity-specific API outside `vela-adapters::antigravity` and `vela-uia`) is not a dependency property and is
   left to review; it is not automated.
 - `scripts/check-module-skeleton.mjs` compares each `lib.rs`/`main.rs` and its nested module files with
@@ -73,7 +74,7 @@ Vitest, Testing Library, Playwright; `packages/ui`: React, Motion, Three.js, Rea
    and no barrel.
 6. **Stubs fail loudly.** `vela-hook` and `fake-approval-window` are binary stubs that exit non-zero with a "not implemented"
    message, so neither can be mistaken for a working hook (a hook must fail closed) or harness.
-7. **Files the layout lists but F04/F05 own.** `apps/desktop/index.html`, `vite.config.ts`, `src-tauri/main.rs`, `build.rs`,
+7. **Files the layout lists but F04/F05 own.** (`tests/fixtures/` is created empty, with a `.gitkeep`; F03 owns its content.) `apps/desktop/index.html`, `vite.config.ts`, `src-tauri/main.rs`, `build.rs`,
    `tauri.conf.json`, and the renderer shell are created by F04/F05; F01 creates only manifests, the skeleton modules and placeholder tests.
 8. **Added root files not in F01's write-surface list:** `.node-version`, `.npmrc`, `rustfmt.toml`, `.prettierrc.json`,
    `tsconfig.base.json`, `eslint.config.js`, `scripts/` (the two checkers, their tests and the skeleton manifest). All are required

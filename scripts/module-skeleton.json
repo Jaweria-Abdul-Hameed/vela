@@ -1,5 +1,5 @@
 {
-  "$comment": "Machine-readable form of docs/issues/graph/SHARED_SURFACE_PROTOCOL.md section 1 (owner: F01). `modules` at a crate root is closed: lib.rs/main.rs must declare exactly these. A nested object is `{ \"closed\": bool, \"modules\": {...} }`; a closed group is exact, an open group must contain at least its listed modules (the owning ticket may add more inside its own module). `null` means an empty leaf module. Changing this file is a specification change (a decision request), never a ticket detail.",
+  "$comment": "Machine-readable form of docs/issues/graph/SHARED_SURFACE_PROTOCOL.md section 1 (owner: F01). `modules` at a crate root is closed unless the crate sets `closed: false` (vela-hook: a binary whose owning ticket A04 owns the whole crate): lib.rs/main.rs must declare exactly these. A nested object is `{ \"closed\": bool, \"modules\": {...} }`; a closed group is exact, an open group must contain at least its listed modules (the owning ticket may add more inside its own module). `null` means an empty leaf module. Changing this file is a specification change (a decision request), never a ticket detail.",
   "rust": {
     "vela-domain": {
       "src": "crates/vela-domain/src",
@@ -34,7 +34,13 @@
     "vela-process": {
       "src": "crates/vela-process/src",
       "entry": "lib.rs",
-      "modules": { "runner": null, "tree": null, "power": null, "session": null, "redact": null }
+      "modules": {
+        "runner": null,
+        "tree": null,
+        "power": null,
+        "session": null,
+        "redact": null
+      }
     },
     "vela-git": {
       "src": "crates/vela-git/src",
@@ -77,11 +83,16 @@
     "vela-uia": {
       "src": "crates/vela-uia/src",
       "entry": "lib.rs",
-      "modules": { "discovery": null, "delivery": null, "visual": null }
+      "modules": {
+        "discovery": null,
+        "delivery": null,
+        "visual": null
+      }
     },
     "vela-hook": {
       "src": "crates/vela-hook/src",
       "entry": "main.rs",
+      "closed": false,
       "modules": {}
     },
     "vela-core": {
@@ -92,18 +103,32 @@
         "project": null,
         "settings": null,
         "trust": null,
-        "preflight": { "closed": false, "modules": { "antigravity": null } },
+        "preflight": {
+          "closed": false,
+          "modules": {
+            "antigravity": null
+          }
+        },
         "context": null,
         "analysis": {
           "closed": true,
-          "modules": { "ingest": null, "graph_build": null, "analyst": null }
+          "modules": {
+            "ingest": null,
+            "graph_build": null,
+            "analyst": null
+          }
         },
         "run": null,
         "scheduler": null,
         "provisioning": null,
         "worker": null,
         "review": null,
-        "merge_lane": { "closed": false, "modules": { "conflict": null } },
+        "merge_lane": {
+          "closed": false,
+          "modules": {
+            "conflict": null
+          }
+        },
         "finalize": null,
         "intervention": null,
         "capacity": null,
@@ -118,10 +143,19 @@
             "continuation": null
           }
         },
-        "stop": { "closed": false, "modules": { "safe_points": null } },
+        "stop": {
+          "closed": false,
+          "modules": {
+            "safe_points": null
+          }
+        },
         "broker": {
           "closed": false,
-          "modules": { "watchdog": null, "rules": null, "session": null }
+          "modules": {
+            "watchdog": null,
+            "rules": null,
+            "session": null
+          }
         },
         "remote_queue": null,
         "promotion": null,

@@ -9,6 +9,7 @@ import {
   ALLOWED_VELA_DEPS,
   HARNESS_VELA_DEPS,
   checkDependencyDirection,
+  checkHookTree,
 } from './check-crate-deps.mjs';
 
 const dep = (name, extra = {}) => ({
@@ -199,9 +200,35 @@ describe('forbidden edges', () => {
   }
 });
 
+describe('hook dependency tree (rule 5, resolved)', () => {
+  it('accepts serde-only trees', () => {
+    assert.deepEqual(
+      checkHookTree(
+        ['vela-hook v0.0.0', 'serde v1.0.229', 'serde_json v1.0.151', 'vela-domain v0.0.0'].join(
+          '\n',
+        ),
+      ),
+      [],
+    );
+  });
+
+  for (const crate of ['petgraph', 'rusqlite', 'ts-rs', 'tauri', 'tauri-plugin-updater']) {
+    it(`rejects ${crate} anywhere in the tree`, () => {
+      const v = checkHookTree(
+        ['vela-hook v0.0.0', 'vela-domain v0.0.0', `${crate} v1.0.0`].join('\n'),
+      );
+      assert.equal(v.length, 1);
+      assert.match(v[0], new RegExp(`contains ${crate}`));
+    });
+  }
+});
+
 describe('CLI against a real cargo workspace', () => {
   const script = path.join(path.dirname(fileURLToPath(import.meta.url)), 'check-crate-deps.mjs');
-  const cargoMissing = spawnSync('cargo', ['--version']).status !== 0 && 'cargo not on PATH';
+  // Skipping is allowed on a developer machine without cargo, never in CI (the illegal-edge demonstration is acceptance evidence).
+  const cargoFound = spawnSync('cargo', ['--version']).status === 0;
+  if (!cargoFound && process.env.CI) throw new Error('cargo must be available in CI');
+  const cargoMissing = !cargoFound && 'cargo not on PATH';
 
   /** Creates a throwaway workspace whose vela-core depends on `coreDeps`; returns its manifest path. */
   function workspace(coreDeps) {

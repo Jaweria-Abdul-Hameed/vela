@@ -56,3 +56,21 @@ was never run, `CURRENT_STATE.md`). No invocation was faked: the `AGENTS.md` imp
 - **TypeScript job (1m12s)**: `npm ci` from the committed lockfile (280 packages), then `npm run verify:ts`: Prettier, ESLint, `tsc` (4 packages + scripts), Vitest (4 packages, all pass), checker tests 39 pass, 0 fail, 0 skipped (the runner has `cargo`, so the real illegal-edge CLI tests ran).
 - Before pushing, the workflow was tightened (not weakened): `build:rust` gained `--all-targets`, and CI now also triggers on pushes to any branch and manually.
 - Not yet shown: a local clean-clone transcript (local Rust blocked). The CI checkout is a clean clone and is the equivalent evidence.
+
+## Review iteration 1 (`/code-review` skill, fixed point `532cf32...f01/bootstrap` at `1a92ec8`)
+
+The skill ran as a forked session (it carries no implementer conversation state but is not a separately started session), so independence is partial. It reported 9 findings (no crash bugs), all treated as actionable except the duplicate-run half of the last one:
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | rule 5 only checked as manifest shape | Fixed: `cargo tree -p vela-hook` check plus unit tests |
+| 2 | entry guard `argv[1] === import.meta.url` fails open | Fixed: `import.meta.main` in both scripts |
+| 3 | CLI illegal-edge tests skippable in CI | Fixed: tests throw when `cargo` is missing and `CI` is set |
+| 4 | `vela-hook` skeleton closed, would block A04 | Fixed: crate roots may set `closed: false`; `vela-hook` is open |
+| 5 | CURRENT_STATE stale and contradictory; no review section here | Fixed (this file and CURRENT_STATE rewritten) |
+| 6 | `tests/fixtures` missing from the frozen layout | Fixed: created with `.gitkeep` |
+| 7 | skeleton tests used weak count assertions | Fixed: exact module names must all load |
+| 8 | `@types/node` 26 vs Node 24 | Fixed: `@types/node` 24.19.1 |
+| 9 | CI `cancel-in-progress` on every ref; push and PR double runs | Partly fixed: cancellation off for `main`. Double runs on PR branches accepted (a work branch needs push CI, and the cost is bounded) |
+
+Local gates after the fixes: checker tests 47 pass, 0 skipped (with `CI=1`); typecheck, ESLint, Prettier, Vitest PASS; `check-crate-deps` and `check-module-skeleton` PASS on the real workspace. Rust gates for the fix commit: see the next section.
