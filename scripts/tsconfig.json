@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "types": ["node"],
+    "lib": ["ES2023"]
+  },
+  "include": ["check-crate-deps.mjs", "check-module-skeleton.mjs"]
+}

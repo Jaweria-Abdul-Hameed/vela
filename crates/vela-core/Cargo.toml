@@ -1,0 +1,21 @@
+[package]
+name = "vela-core"
+description = "Vela orchestration core: orchestrator, services, broker (no Tauri, no concrete adapters)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vela-domain.workspace = true
+vela-persistence.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+vela-testkit.workspace = true

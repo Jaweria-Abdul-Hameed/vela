@@ -1,0 +1,20 @@
+[package]
+name = "vela-integration-tests"
+description = "Rust integration tests across crates (placeholder at bootstrap)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vela-domain.workspace = true
+vela-persistence.workspace = true
+vela-process.workspace = true
+vela-git.workspace = true
+vela-adapters.workspace = true
+vela-core.workspace = true
+vela-testkit.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

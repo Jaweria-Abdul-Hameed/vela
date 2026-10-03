@@ -1,0 +1,29 @@
+[package]
+name = "vela-process"
+description = "Vela process runner, Job Objects, redaction, power, session probes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vela-domain.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process", "io-util"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Job Objects (tree kill, [U] mechanism), SetThreadExecutionState, session and desktop probes.
+[target.'cfg(windows)'.dependencies.windows]
+workspace = true
+features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_JobObjects",
+  "Win32_System_Threading",
+  "Win32_System_Power",
+  "Win32_System_RemoteDesktop",
+  "Win32_System_StationsAndDesktops",
+]

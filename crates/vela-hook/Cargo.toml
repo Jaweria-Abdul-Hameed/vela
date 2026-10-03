@@ -1,0 +1,21 @@
+[package]
+name = "vela-hook"
+description = "Vela PreToolUse hook helper binary (fail-closed; no I/O except stdin, stdout, spool)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "vela-hook"
+path = "src/main.rs"
+
+# Depends only on serde (plus serde_json for the hook's stdin/stdout JSON protocol) and the rule-table
+# types in vela-domain compiled under `hook-table` with default features off (rule 5).
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+vela-domain = { path = "../vela-domain", default-features = false, features = ["hook-table"] }

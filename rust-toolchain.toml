@@ -1,0 +1,5 @@
+# Pinned Rust toolchain (F01). Bump deliberately, together with `rust-version` in Cargo.toml.
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

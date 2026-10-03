@@ -1,0 +1,17 @@
+[package]
+name = "vela-testkit"
+description = "Vela dev-only test kit: fakes, fixture repositories, scripted agent, fault harness"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vela-domain.workspace = true
+vela-process.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process", "io-util"] }
+serde.workspace = true
+serde_json.workspace = true

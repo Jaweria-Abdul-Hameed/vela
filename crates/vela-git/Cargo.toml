@@ -1,0 +1,16 @@
+[package]
+name = "vela-git"
+description = "Vela GitAdapter: hardened git invocation, worktrees, checkpoints, merge lane primitives"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+vela-domain.workspace = true
+vela-process.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process", "io-util"] }
+tracing.workspace = true

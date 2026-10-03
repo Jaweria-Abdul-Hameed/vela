@@ -1,0 +1,16 @@
+{
+  "name": "@vela/test-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sample snapshots and event streams for UI tests, organized as streams/<surface>/",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  }
+}

@@ -1,0 +1,273 @@
+{
+  "$comment": "Machine-readable form of docs/issues/graph/SHARED_SURFACE_PROTOCOL.md section 1 (owner: F01). `modules` at a crate root is closed unless the crate sets `closed: false` (vela-hook: a binary whose owning ticket A04 owns the whole crate): lib.rs/main.rs must declare exactly these. A nested object is `{ \"closed\": bool, \"modules\": {...} }`; a closed group is exact, an open group must contain at least its listed modules (the owning ticket may add more inside its own module). `null` means an empty leaf module. Changing this file is a specification change (a decision request), never a ticket detail.",
+  "rust": {
+    "vela-domain": {
+      "src": "crates/vela-domain/src",
+      "entry": "lib.rs",
+      "modules": {
+        "ids": null,
+        "errors": null,
+        "events": null,
+        "ports": null,
+        "fault": null,
+        "state": null,
+        "graph": null,
+        "parallel": null,
+        "layout": null,
+        "policy": null,
+        "review": null,
+        "approval": null
+      }
+    },
+    "vela-persistence": {
+      "src": "crates/vela-persistence/src",
+      "entry": "lib.rs",
+      "modules": {
+        "writer": null,
+        "migrations": null,
+        "journal": null,
+        "integrity": null,
+        "recovery": null,
+        "repositories": null
+      }
+    },
+    "vela-process": {
+      "src": "crates/vela-process/src",
+      "entry": "lib.rs",
+      "modules": {
+        "runner": null,
+        "tree": null,
+        "power": null,
+        "session": null,
+        "redact": null
+      }
+    },
+    "vela-git": {
+      "src": "crates/vela-git/src",
+      "entry": "lib.rs",
+      "modules": {
+        "lock": null,
+        "read": null,
+        "worktree": null,
+        "checkpoint": null,
+        "merge": null,
+        "remote": null
+      }
+    },
+    "vela-adapters": {
+      "src": "crates/vela-adapters/src",
+      "entry": "lib.rs",
+      "modules": {
+        "antigravity": {
+          "closed": true,
+          "modules": {
+            "capability": null,
+            "events": null,
+            "session": null,
+            "profile": null,
+            "posture": null,
+            "ask": null,
+            "skills": null,
+            "prompts": null,
+            "review": null,
+            "analyst": null,
+            "capacity": null,
+            "drift": null
+          }
+        },
+        "tracker_local": null,
+        "tracker_github": null,
+        "notifier": null
+      }
+    },
+    "vela-uia": {
+      "src": "crates/vela-uia/src",
+      "entry": "lib.rs",
+      "modules": {
+        "discovery": null,
+        "delivery": null,
+        "visual": null
+      }
+    },
+    "vela-hook": {
+      "src": "crates/vela-hook/src",
+      "entry": "main.rs",
+      "closed": false,
+      "modules": {}
+    },
+    "vela-core": {
+      "src": "crates/vela-core/src",
+      "entry": "lib.rs",
+      "modules": {
+        "orchestrator": null,
+        "project": null,
+        "settings": null,
+        "trust": null,
+        "preflight": {
+          "closed": false,
+          "modules": {
+            "antigravity": null
+          }
+        },
+        "context": null,
+        "analysis": {
+          "closed": true,
+          "modules": {
+            "ingest": null,
+            "graph_build": null,
+            "analyst": null
+          }
+        },
+        "run": null,
+        "scheduler": null,
+        "provisioning": null,
+        "worker": null,
+        "review": null,
+        "merge_lane": {
+          "closed": false,
+          "modules": {
+            "conflict": null
+          }
+        },
+        "finalize": null,
+        "intervention": null,
+        "capacity": null,
+        "operations": null,
+        "recovery": {
+          "closed": true,
+          "modules": {
+            "reconcile": null,
+            "resume": null,
+            "inventory": null,
+            "environment": null,
+            "continuation": null
+          }
+        },
+        "stop": {
+          "closed": false,
+          "modules": {
+            "safe_points": null
+          }
+        },
+        "broker": {
+          "closed": false,
+          "modules": {
+            "watchdog": null,
+            "rules": null,
+            "session": null
+          }
+        },
+        "remote_queue": null,
+        "promotion": null,
+        "conversations": null,
+        "notifications": null,
+        "diagnostics": null
+      }
+    },
+    "vela-testkit": {
+      "src": "crates/vela-testkit/src",
+      "entry": "lib.rs",
+      "modules": {
+        "fixture_repo": null,
+        "fault_harness": null,
+        "fakes": null,
+        "fake_agy": null,
+        "fake_gh": null,
+        "recovery_matrix": null
+      }
+    },
+    "vela-desktop": {
+      "src": "apps/desktop/src-tauri/src",
+      "entry": "lib.rs",
+      "modules": {
+        "commands": {
+          "closed": true,
+          "modules": {
+            "project": null,
+            "settings": null,
+            "trust": null,
+            "preflight": null,
+            "graph": null,
+            "run": null,
+            "ticket": null,
+            "timeline": null,
+            "evidence": null,
+            "intervention": null,
+            "approval": null,
+            "policy": null,
+            "diagnostics": null,
+            "update": null,
+            "snapshot": null
+          }
+        },
+        "wiring": {
+          "closed": true,
+          "modules": {
+            "store": null,
+            "orchestrator": null,
+            "project": null,
+            "settings": null,
+            "adapters": null,
+            "approval": null,
+            "antigravity": null
+          }
+        },
+        "plugins": {
+          "closed": true,
+          "modules": {
+            "notification": null,
+            "tray": null,
+            "autostart": null,
+            "window_state": null,
+            "single_instance": null,
+            "updater": null,
+            "global_shortcut": null
+          }
+        },
+        "events": null,
+        "tray": null,
+        "lifecycle": null,
+        "window": null,
+        "notify": null,
+        "autostart": null,
+        "update": null
+      }
+    }
+  },
+  "typescript": {
+    "packages/ui": [
+      "src/design/index.ts",
+      "src/components/index.ts",
+      "src/canvas/ambient/index.ts",
+      "src/canvas/graph/index.ts",
+      "src/canvas/effects/index.ts",
+      "src/canvas/focus/index.ts",
+      "src/canvas/fallback/index.ts",
+      "src/canvas/quality.ts",
+      "src/a11y/index.ts",
+      "src/safe-content/index.ts"
+    ],
+    "apps/desktop": [
+      "src/scenes/home.tsx",
+      "src/scenes/universe.tsx",
+      "src/scenes/focus.tsx",
+      "src/scenes/completion.tsx",
+      "src/surfaces/projects/index.ts",
+      "src/surfaces/trust/index.ts",
+      "src/surfaces/preflight/index.ts",
+      "src/surfaces/analysis/index.ts",
+      "src/surfaces/buildready/index.ts",
+      "src/surfaces/inspector/index.ts",
+      "src/surfaces/timeline/index.ts",
+      "src/surfaces/evidence/index.ts",
+      "src/surfaces/intervention/index.ts",
+      "src/surfaces/runbar/index.ts",
+      "src/surfaces/settings/index.ts",
+      "src/surfaces/onboarding/index.ts",
+      "src/surfaces/palette/index.ts",
+      "src/surfaces/conflict/index.ts",
+      "src/state/index.ts",
+      "src/ipc/index.ts"
+    ]
+  }
+}

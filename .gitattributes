@@ -1,0 +1,17 @@
+# Normalize text to LF in the repository and the working tree.
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff2 binary
+
+# Generated lockfiles: never diff or merge by hand (SHARED_SURFACE_PROTOCOL.md section 2).
+Cargo.lock -diff linguist-generated
+package-lock.json -diff linguist-generated
