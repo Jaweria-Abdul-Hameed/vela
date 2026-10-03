@@ -117,3 +117,21 @@ No crash-level or high-severity findings. 8 findings:
 | 8 | structure checks ran last in `verify:rust` | Fixed: they now run right after the format check |
 
 **Status: REVIEW_STALLED by the letter of the protocol.** The review loop limit (3) is reached and the iteration 3 fixes (items 3, 4, 5, 8) have not been re-reviewed. Severity fell each iteration (no high findings in iterations 2 and 3). The user decides whether to accept this, authorize one more iteration, or resolve items 1, 2 and 6/7 differently. Nothing was merged to `main`.
+
+## Review iteration 4 (exceptional, authorized by the user; `/code-review`, head `0194027`, base `532cf32`)
+
+Authorized solely to verify the iteration 3 fixes. Scope held: accepted decisions not reopened, style-only findings not chased. The skill gives no severity scale; classification below is by `REVIEW_PROTOCOL.md`. 10 findings, **none blocking**, none re-raising an iteration 3 fix as broken:
+
+| # | Finding | Classification |
+|---|---|---|
+| 1, 2 | module checker ignores string/char literals (a `/*` or brace inside a literal) | Non-blocking, known and recorded in iteration 3. Only crate roots and declaration-list group modules are scanned, and those hold declarations, not code; no acceptance criterion depends on it. Follow-up |
+| 3 | CI never builds `vela-hook` alone, so the `hook-table`-only configuration is not compiled | Non-blocking for F01 (no hook code exists). **Follow-up for A04 (owner of the hook crate) and Z01:** add `cargo check/clippy/test -p vela-hook` to the gates when hook code lands |
+| 4 | hook tree check is a denylist, not an allowlist | Non-blocking hardening; follow-up with item 3 |
+| 5 | CURRENT_STATE contradictions (Next Phase, Last Completed Phase, a table row) | **Fixed** in this documentation commit |
+| 6 | nested `closed` defaults differ from the crate-root default | Non-blocking hardening (manifest is edited only by decision request) |
+| 7 | rule 6 substring test on `cfg(windows)` | Non-blocking, known (iteration 3) |
+| 8 | TypeScript job installs the pinned toolchain but the temp-workspace tests use the runner default cargo | Non-blocking: the step guarantees `cargo` exists for the CLI tests, which only need `cargo metadata`; wording is imprecise, not wrong |
+| 9 | `--manifest-path` with no value gives an opaque error | Non-blocking nit |
+| 10 | `tauri-build` declared without `build.rs` | Non-blocking: F01 requires declaring the inventory (the ticket and SHARED_SURFACE_PROTOCOL section 2); F04 adds `build.rs` |
+
+**Result:** zero blocking findings and zero high-severity findings; no unresolved medium correctness or specification finding is left open that affects F01's acceptance criteria; tests, typecheck and build green in CI. **Engineering exit policy: PASS** for the reviewed code (`0194027`; code unchanged since `867b9f7`). The REVIEW_STALLED state is cleared by this authorized verification review only; the 3-iteration limit was exceeded once by the user's explicit exception. Follow-ups above are not F01 work.
