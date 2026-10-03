@@ -15,20 +15,49 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
 
-/** Names declared with `mod x;` / `mod x {`, ignoring comments and `#[cfg(test)]` modules. */
+// Removes line and block comments in a single pass, so a block-comment opener inside a line comment is inert.
+function stripComments(/** @type {string} */ source) {
+  let out = '';
+  let i = 0;
+  while (i < source.length) {
+    const two = source.slice(i, i + 2);
+    if (two === '//') {
+      while (i < source.length && source[i] !== '\n') i++;
+    } else if (two === '/*') {
+      const end = source.indexOf('*/', i + 2);
+      i = end === -1 ? source.length : end + 2;
+    } else {
+      out += source[i];
+      i++;
+    }
+  }
+  return out;
+}
+
+/**
+ * Names declared by top-level `mod x;` / `mod x {` items, ignoring comments, `#[cfg(test)]` modules (also behind
+ * stacked or same-line attributes), and anything nested inside another item's braces.
+ */
 export function declaredModules(/** @type {string} */ source) {
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-  const lines = code.split('\n');
+  const lines = stripComments(source).split('\n');
   /** @type {string[]} */
   const names = [];
-  const decl = /^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*[;{]/;
+  const decl =
+    /^\s*((?:#\[[^\]]*\]\s*)*)(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*[;{]/;
+  let depth = 0;
   for (const [i, line] of lines.entries()) {
-    const match = decl.exec(line);
-    if (!match?.[1]) continue;
-    let prev = i - 1;
-    while (prev >= 0 && lines[prev]?.trim() === '') prev--;
-    if (prev >= 0 && lines[prev]?.trim() === '#[cfg(test)]') continue;
-    names.push(match[1]);
+    const match = depth === 0 ? decl.exec(line) : null;
+    if (match?.[2]) {
+      let attrs = match[1] ?? '';
+      for (let prev = i - 1; prev >= 0 && /^\s*(#\[|$)/.test(lines[prev] ?? ''); prev--) {
+        attrs += lines[prev];
+      }
+      if (!/#\[cfg\(test\)\]/.test(attrs)) names.push(match[2]);
+    }
+    for (const ch of line) {
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+    }
   }
   return names;
 }

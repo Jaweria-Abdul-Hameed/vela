@@ -83,6 +83,10 @@ export function checkDependencyDirection(metadata) {
       }
       if (!isVela) continue;
 
+      if (dep.name === UIA && !(dep.target ?? '').includes('cfg(windows)')) {
+        violations.push(`[rule 6] ${pkg.name} must depend on ${UIA} only under cfg(windows)`);
+      }
+
       if (dep.name === HOOK || dep.name === DESKTOP) {
         violations.push(
           `[rule 4/5] ${pkg.name} must not depend on ${dep.name} (a binary / the composition root)`,
@@ -178,7 +182,17 @@ function main(args) {
   );
   const violations = checkDependencyDirection(metadata);
   if (metadata.packages.some((p) => p.name === HOOK)) {
-    const treeArgs = ['tree', '-p', HOOK, '-e', 'normal', '--prefix', 'none'];
+    const treeArgs = [
+      'tree',
+      '-p',
+      HOOK,
+      '-e',
+      'normal,build',
+      '--target',
+      'all',
+      '--prefix',
+      'none',
+    ];
     if (manifestFlag !== -1) treeArgs.push('--manifest-path', args[manifestFlag + 1] ?? '');
     violations.push(...checkHookTree(execFileSync('cargo', treeArgs, { encoding: 'utf8' })));
   }

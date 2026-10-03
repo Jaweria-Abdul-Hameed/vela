@@ -52,6 +52,33 @@ describe('declaredModules', () => {
     assert.deepEqual(declaredModules('pub mod a;\nmod b;\npub(crate) mod c;\n'), ['a', 'b', 'c']);
   });
 
+  it('is not fooled by a block-comment opener inside a line comment', () => {
+    const src = [
+      '//! writes under commands/approval/**',
+      'pub mod kept;',
+      '/** doc */',
+      'pub mod also;',
+    ].join(String.fromCharCode(10));
+    assert.deepEqual(declaredModules(src), ['kept', 'also']);
+  });
+
+  it('ignores nested modules and stacked or same-line cfg(test) attributes', () => {
+    const src = [
+      'pub mod real;',
+      '#[cfg(test)]',
+      '#[allow(dead_code)]',
+      'mod stacked;',
+      '#[cfg(test)] mod inline;',
+      '#[cfg(test)]',
+      'mod tests {',
+      '    mod helpers;',
+      '    fn f() { mod inner {} }',
+      '}',
+      'pub mod after;',
+    ].join(String.fromCharCode(10));
+    assert.deepEqual(declaredModules(src), ['real', 'after']);
+  });
+
   it('ignores comments and cfg(test) modules', () => {
     const src =
       '// pub mod hidden;\n/* pub mod blocked; */\npub mod real;\n\n#[cfg(test)]\nmod tests {\n}\n';

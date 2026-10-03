@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 import {
   ALLOWED_VELA_DEPS,
   HARNESS_VELA_DEPS,
@@ -174,6 +174,11 @@ describe('forbidden edges', () => {
       /\[rule 5\].*hook-table/,
     ],
     [
+      'a vela-uia consumer outside cfg(windows)',
+      { 'vela-desktop': [dep('vela-uia'), dep('tauri')] },
+      /rule 6.*vela-desktop must depend on vela-uia only under cfg.windows/,
+    ],
+    [
       'vela-uia depending on windows outside cfg(windows)',
       { 'vela-uia': [dep('vela-domain'), dep('windows')] },
       /\[rule 6\]/,
@@ -231,8 +236,14 @@ describe('CLI against a real cargo workspace', () => {
   const cargoMissing = !cargoFound && 'cargo not on PATH';
 
   /** Creates a throwaway workspace whose vela-core depends on `coreDeps`; returns its manifest path. */
+  const roots = [];
+  after(() => {
+    for (const r of roots) fs.rmSync(r, { recursive: true, force: true });
+  });
+
   function workspace(coreDeps) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vela-depcheck-'));
+    roots.push(root);
     const names = ['vela-domain', 'vela-persistence', 'vela-process', 'vela-git', 'vela-core'];
     fs.writeFileSync(
       path.join(root, 'Cargo.toml'),

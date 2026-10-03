@@ -47,7 +47,7 @@ Vitest, Testing Library, Playwright; `packages/ui`: React, Motion, Three.js, Rea
 - `scripts/check-crate-deps.mjs` reads `cargo metadata --no-deps` and enforces `IMPLEMENTATION_ARCHITECTURE.md` section 3
   rules 1 to 6 plus the frozen member list (an unknown crate fails). Unit tests cover allowed and forbidden edges, and a test
   builds a throwaway Cargo workspace where `vela-core` depends on `vela-git` and asserts the CLI exits 1.
-  Rule 5 is also checked against the resolved build: `cargo tree -p vela-hook` must contain no `petgraph`, `ts-rs`, `rusqlite`, `libsqlite3-sys`, `wry` or Tauri crate.
+  Rule 5 is also checked against the hook's own resolved tree (`cargo tree -p vela-hook -e normal,build --target all`, features resolved for the hook package alone, not unified across the whole workspace build): it must contain no `petgraph`, `ts-rs`, `rusqlite`, `libsqlite3-sys`, `wry` or Tauri crate.
   **Rule 7** (no Antigravity-specific API outside `vela-adapters::antigravity` and `vela-uia`) is not a dependency property and is
   left to review; it is not automated.
 - `scripts/check-module-skeleton.mjs` compares each `lib.rs`/`main.rs` and its nested module files with
