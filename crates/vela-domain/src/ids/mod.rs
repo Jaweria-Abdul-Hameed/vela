@@ -4,6 +4,8 @@
 //! journal or received over IPC is a typed error rather than a silently accepted value. Everything here is pure: no I/O,
 //! no clock, no randomness (identifier generation is the `IdGenerator` port).
 
+#![warn(missing_docs)]
+
 mod identifiers;
 mod values;
 

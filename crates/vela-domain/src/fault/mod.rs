@@ -9,6 +9,8 @@
 //! Arming: set [`ARMED_ENV_VAR`] to the point's [`FaultPoint::name`] in the process environment. When execution reaches
 //! that point the process aborts immediately, with no unwinding and no destructors, which is what a crash looks like.
 
+#![warn(missing_docs)]
+
 /// Environment variable that arms one fault point by name.
 pub const ARMED_ENV_VAR: &str = "VELA_FAULT_POINT";
 

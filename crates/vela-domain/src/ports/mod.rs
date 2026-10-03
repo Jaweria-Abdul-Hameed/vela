@@ -9,6 +9,8 @@
 //! typed [`VelaError`](crate::errors::VelaError), and `GitAdapter` and `AgentAdapter` are composed from capability traits
 //! so that each implementing ticket edits its own impl block.
 
+#![warn(missing_docs)]
+
 mod agent;
 mod approval;
 mod basic;

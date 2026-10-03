@@ -60,7 +60,7 @@ macro_rules! event_vocabulary {
         #[cfg_attr(feature = "full", derive(ts_rs::TS))]
         #[serde(tag = "kind", content = "payload")]
         pub enum Event {
-            $( $kind($payload) ),+
+            $( $(#[$kdoc])* $kind($payload) ),+
         }
 
         impl Event {

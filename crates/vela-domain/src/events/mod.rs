@@ -7,6 +7,8 @@
 //! - `contract_export` (tests only): generates the TypeScript contracts with `ts-rs` and checks them against the committed
 //!   files in `packages/contracts/src/generated`.
 
+#![warn(missing_docs)]
+
 pub mod command_registry;
 #[cfg(all(test, feature = "full"))]
 mod contract_export;

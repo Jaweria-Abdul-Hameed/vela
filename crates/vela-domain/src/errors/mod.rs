@@ -7,6 +7,8 @@
 //! The code-to-class mapping (`ErrorCode::class`) is the F02 interpretation of "each maps to the typed classes above":
 //! it is exhaustive (a new code does not compile until it has a class) and covered by tests.
 
+#![warn(missing_docs)]
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
