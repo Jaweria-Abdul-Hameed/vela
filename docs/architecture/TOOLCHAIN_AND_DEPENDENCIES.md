@@ -57,6 +57,14 @@ Vitest, Testing Library, Playwright; `packages/ui`: React, Motion, Three.js, Rea
   TypeScript skeleton files are checked for existence.
 - Every module is a directory `name/mod.rs`, matching the tickets' `name/**` write surfaces.
 
+## Accepted F01 decisions (user, 2026-10-03)
+
+Three interpretations below were accepted by the user and are decisions of record. Each is limited to its stated scope and does not authorize anything broader.
+
+1. **`vela-hook` may depend on `serde_json`** (interpretation 2), because its stdin/stdout protocol is JSON. Scope: that crate and that one crate; the allowlist stays exactly `serde` and `serde_json` plus `vela-domain` under `hook-table`. No graph, SQLite, or Tauri code.
+2. **`wiring/settings` belongs in the `SHARED_SURFACE_PROTOCOL.md` section 1 table** (interpretation 3), because section 5 of the same file already assigns `wiring/settings.rs` to S02. Scope: that one module name.
+3. **`tao` is acceptable for the fake approval-window harness** that `wry` requires (`tools/fake-approval-window`). Scope: that tool crate only; `tao` is not a product dependency.
+
 ## Interpretations (gaps and one correction, recorded for later tickets)
 
 1. **Optional `vela-domain` dependencies and empty features.** Rule 5 requires the hook binary to pull in no graph, SQLite, or Tauri

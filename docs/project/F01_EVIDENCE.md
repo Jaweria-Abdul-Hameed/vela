@@ -108,7 +108,7 @@ No crash-level or high-severity findings. 8 findings:
 | # | Finding | Disposition |
 |---|---|---|
 | 1 | rule 5 unified-build concern (hook linked with `full` in a workspace build) | Carried forward, not an F01 code defect. **Follow-up for the packaging ticket (Z01):** build and sign `vela-hook` with `cargo build -p vela-hook` (features resolved for the hook alone), never from the unified workspace build |
-| 2 | specification deviations (`serde_json` in the hook allowlist, `wiring/settings`, `tao`) encoded before a decision request | **Open, needs the user** (same as iteration 2 item 7). `tao` is also an inference: `wry` needs a window library |
+| 2 | specification deviations (`serde_json` in the hook allowlist, `wiring/settings`, `tao`) encoded before a decision request | **Resolved: accepted by the user (2026-10-03)** as F01 decisions of record, scoped as stated in `TOOLCHAIN_AND_DEPENDENCIES.md` "Accepted F01 decisions" (same resolution for iteration 2 item 7) |
 | 3 | `vela-testkit` allowed as a dev-dependency of `vela-process` (duplicate crate copies) | Fixed: forbidden for every crate testkit depends on, with test |
 | 4 | TypeScript CI job did not install the pinned Rust toolchain | Fixed: explicit `rustup toolchain install` step |
 | 5 | Prettier would format generated ts-rs output | Fixed: `.prettierignore` excludes `**/generated/` and the lockfile |
