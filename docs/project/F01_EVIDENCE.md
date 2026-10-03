@@ -1,7 +1,7 @@
 # F01 Bootstrap Evidence (Prompt 9, execution log)
 
 Ticket: `docs/issues/graph/tickets/F01.md`. Base: `532cf32890e6dd26169213390ce8a0c8a45caf70` (`main` equals `origin/main`, tree clean, verified from Git).
-Status of this record: implementation checkpointed on branch `f01/bootstrap` (`71bf92a`, not merged to `main`). **Rust gates: LOCAL NOT VERIFIED/BLOCKED on this host; CI PASS on `windows-latest`** (section "CI evidence"). Review: see the end of this file.
+Status of this record: **F01 is COMPLETE and merged to `main` at `26b1828c4d582c06d0e2e9980021daccb1df7487`** (plain merge commit of `f01/bootstrap` `4d31242`; user-approved 2026-10-04). **Rust gates: LOCAL NOT VERIFIED/BLOCKED on this host; CI PASS on `windows-latest`** (see "CI runs").
 
 ## Local limitation (environment-specific): Smart App Control blocks Cargo build scripts
 
@@ -137,3 +137,7 @@ Authorized solely to verify the iteration 3 fixes. Scope held: accepted decision
 | 10 | `tauri-build` declared without `build.rs` | Non-blocking: F01 requires declaring the inventory (the ticket and SHARED_SURFACE_PROTOCOL section 2); F04 adds `build.rs` |
 
 **Result:** zero blocking findings and zero high-severity findings; no unresolved medium correctness or specification finding is left open that affects F01's acceptance criteria; tests, typecheck and build green in CI. **Engineering exit policy: PASS** for the reviewed code (`0194027`; code unchanged since `867b9f7`). The REVIEW_STALLED state is cleared by this authorized verification review only; the 3-iteration limit was exceeded once by the user's explicit exception. Follow-ups above are not F01 work.
+
+## Merge
+
+2026-10-04, after the user's approval: preconditions verified (main `532cf32`, `f01/bootstrap` `4d31242`, origin heads matching, tree clean, CI green on `4d31242`, run 37146146082). `git merge --no-ff f01/bootstrap` produced `26b1828c4d582c06d0e2e9980021daccb1df7487`; no squash, rebase or force. Merge result equals the branch tree. Post-merge: `check-module-skeleton` and `check-crate-deps` PASS on `main`. The branch was kept.
