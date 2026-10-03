@@ -1,0 +1,29 @@
+[package]
+name = "vela-domain"
+description = "Vela pure domain types, ports, state machines, graph, policy, layout (no I/O)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# `full` (default) enables everything the core needs. The hook binary depends on this crate with
+# default features off and only `hook-table`, so it pulls in no graph, SQLite, or Tauri code
+# (IMPLEMENTATION_ARCHITECTURE.md section 3, rule 5). `hook-table` and `fault-injection` are declared
+# here as empty features so dependents can name them; their modules are added by F02/A04.
+[features]
+default = ["full"]
+full = ["dep:serde_json", "dep:petgraph", "dep:ts-rs"]
+hook-table = []
+fault-injection = []
+
+[dependencies]
+serde.workspace = true
+serde_json = { workspace = true, optional = true }
+petgraph = { workspace = true, optional = true }
+ts-rs = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest.workspace = true

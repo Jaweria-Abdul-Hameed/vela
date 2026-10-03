@@ -197,3 +197,27 @@ They do **not** mean v1 must implement Claude, Codex, Gemini CLI, or other codin
 Claude, Gemini, Codex, or other models/tools may be used **to build Vela**. That does not make them Vela v1 runtime targets.
 
 Unless an explicitly approved issue expands runtime scope, engineering effort must prefer deeper, safer, more reliable Antigravity integration over adding another provider.
+
+# Development Commands (F01 bootstrap)
+
+Pinned toolchain: Rust **1.99.0** (`rust-toolchain.toml`), Node **24.19.0** (`.node-version`), npm **11.17.0**
+(`packageManager`), TypeScript **6.0.3**. The full pin list, the per-crate dependency assignment and the
+structure rules are in `docs/architecture/TOOLCHAIN_AND_DEPENDENCIES.md`. Prerequisites on Windows: the MSVC
+build tools with a Windows SDK, `rustup` (with `%USERPROFILE%\.cargo\bin` on `PATH`), Node, and Git.
+
+| Purpose | Command |
+|---|---|
+| Install (from the committed lockfile) | `npm ci` |
+| Verify everything (what CI runs) | `npm run verify` |
+| Verify TypeScript only | `npm run verify:ts` (format check, ESLint, typecheck, Vitest, checker tests) |
+| Verify Rust only | `npm run verify:rust` (rustfmt, clippy, build, test, structure checks) |
+| Format | `npm run fmt` (Prettier and `cargo fmt`); check only: `npm run fmt:check` |
+| Lint | `npm run lint:ts` (ESLint); `npm run lint:rust` (clippy, warnings are errors) |
+| Typecheck | `npm run typecheck` |
+| Test | `npm run test:ts`; `npm run test:rust` (`cargo test --workspace --locked`) |
+| Build | `npm run build:rust` (`cargo build --workspace --locked --all-targets`) |
+| Crate dependency direction and module skeleton | `npm run check:structure` |
+
+Rust builds and tests always use `--locked`; both lockfiles (`Cargo.lock`, `package-lock.json`) are committed and
+are never hand-merged (`docs/issues/graph/SHARED_SURFACE_PROTOCOL.md` section 2). There is no application to launch
+until the Tauri shell ticket (F04); the development command for the app is documented by that ticket.

@@ -22,6 +22,7 @@ affected specifications.
 -   `docs/architecture/DOMAIN_MODEL.md`
 -   `docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`
 -   `docs/architecture/SYSTEM_ARCHITECTURE.md`
+-   `docs/architecture/TOOLCHAIN_AND_DEPENDENCIES.md`
 -   `docs/config/CONFIGURATION.md`
 -   `docs/constraints/CONSTRAINTS.md`
 -   `docs/decisions/ADR-001-DESKTOP-TAURI.md`

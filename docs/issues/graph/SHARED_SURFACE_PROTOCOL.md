@@ -24,7 +24,7 @@ module that is not listed raises a follow-up and does not edit `lib.rs` opportun
 | `vela-hook` | binary only |
 | `vela-core` | `orchestrator`, `project`, `settings`, `trust`, `preflight` (+ `antigravity`), `context`, `analysis::{ingest, graph_build, analyst}`, `run`, `scheduler`, `provisioning`, `worker`, `review`, `merge_lane` (+ `conflict`), `finalize`, `intervention`, `capacity`, `operations`, `recovery::{reconcile, resume, inventory, environment, continuation}`, `stop` (+ `safe_points`), `broker` (+ `watchdog`, `rules`, `session`), `remote_queue`, `promotion`, `conversations`, `notifications`, `diagnostics` |
 | `vela-testkit` | `fixture_repo`, `fault_harness`, `fakes`, `fake_agy`, `fake_gh`, `recovery_matrix` |
-| `apps/desktop/src-tauri` | `commands/<group>.rs`, `wiring/{store,orchestrator,project,adapters,approval,antigravity}.rs`, `plugins/{notification,tray,autostart,window_state,single_instance,updater,global_shortcut}.rs`, `events.rs`, `tray.rs`, `lifecycle.rs`, `window.rs`, `notify.rs`, `autostart.rs`, `update.rs` |
+| `apps/desktop/src-tauri` | `commands/<group>.rs`, `wiring/{store,orchestrator,project,settings,adapters,approval,antigravity}.rs`, `plugins/{notification,tray,autostart,window_state,single_instance,updater,global_shortcut}.rs`, `events.rs`, `tray.rs`, `lifecycle.rs`, `window.rs`, `notify.rs`, `autostart.rs`, `update.rs` |
 | `packages/ui` | `design`, `components`, `canvas::{ambient, graph, effects, focus, fallback}` plus `canvas/quality.ts`, `a11y`, `safe-content` |
 | `apps/desktop/src` | `scenes/{home,universe,focus,completion}.tsx`, `surfaces/{projects,trust,preflight,analysis,buildready,inspector,timeline,evidence,intervention,runbar,settings,onboarding,palette,conflict}`, `state`, `ipc` |
 

@@ -1,0 +1,79 @@
+# Vela Cargo workspace (F01). Layout: docs/architecture/DIRECTORY_STRUCTURE.md.
+# Every member of the frozen layout is listed here so that no later ticket edits `members`.
+# Dependency inventory and per-crate assignment: docs/architecture/TOOLCHAIN_AND_DEPENDENCIES.md.
+[workspace]
+resolver = "3"
+members = [
+  "apps/desktop/src-tauri",
+  "crates/vela-domain",
+  "crates/vela-persistence",
+  "crates/vela-process",
+  "crates/vela-git",
+  "crates/vela-adapters",
+  "crates/vela-uia",
+  "crates/vela-hook",
+  "crates/vela-core",
+  "crates/vela-testkit",
+  "tests/integration",
+  "tests/e2e",
+  "tests/antigravity-compat",
+  "tools/fake-approval-window",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+# Exact versions (`=`): the inventory is pinned, and upgrades are deliberate.
+[workspace.dependencies]
+# Internal crates
+vela-domain = { path = "crates/vela-domain" }
+vela-persistence = { path = "crates/vela-persistence" }
+vela-process = { path = "crates/vela-process" }
+vela-git = { path = "crates/vela-git" }
+vela-adapters = { path = "crates/vela-adapters" }
+vela-uia = { path = "crates/vela-uia" }
+vela-core = { path = "crates/vela-core" }
+vela-testkit = { path = "crates/vela-testkit" }
+
+# Core runtime, serialization, persistence, graph, contracts, logging
+tokio = { version = "=1.53.2", default-features = false }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+rusqlite = { version = "=0.40.2", features = ["bundled"] }
+petgraph = "=0.8.3"
+ts-rs = "=12.0.1"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", default-features = false, features = [
+  "std",
+  "registry",
+  "fmt",
+  "json",
+] }
+tracing-appender = "=0.2.5"
+proptest = "=1.11.0"
+
+# Windows APIs. Feature sets are chosen per crate (default features are off).
+windows = { version = "=0.62.2", default-features = false }
+
+# Tauri shell and plugins (only apps/desktop/src-tauri may depend on these)
+tauri = { version = "=2.12.1", features = ["tray-icon"] }
+tauri-build = "=2.7.1"
+tauri-plugin-notification = "=2.5.1"
+tauri-plugin-autostart = "=2.7.0"
+tauri-plugin-updater = "=2.13.1"
+tauri-plugin-global-shortcut = "=2.4.0"
+tauri-plugin-single-instance = "=2.5.2"
+tauri-plugin-window-state = "=2.5.0"
+
+# Approval-window test harness
+wry = "=0.57.0"
+tao = "=0.37.1"

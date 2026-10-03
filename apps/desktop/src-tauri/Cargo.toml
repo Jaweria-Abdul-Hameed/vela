@@ -1,0 +1,49 @@
+[package]
+name = "vela-desktop"
+description = "Vela desktop composition root (Tauri shell): commands, wiring, plugins, tray, window"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# Library only at bootstrap: F04 adds main.rs, build.rs and tauri.conf.json (the Tauri walking skeleton).
+[lib]
+name = "vela_desktop"
+
+[features]
+global-shortcut = ["dep:tauri-plugin-global-shortcut"]
+
+# The only crate allowed to depend on Tauri and to wire concrete adapters (rule 4).
+[dependencies]
+vela-domain.workspace = true
+vela-persistence.workspace = true
+vela-process.workspace = true
+vela-git.workspace = true
+vela-adapters.workspace = true
+vela-core.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time", "macros"] }
+serde.workspace = true
+serde_json.workspace = true
+ts-rs.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+tauri.workspace = true
+tauri-plugin-notification.workspace = true
+tauri-plugin-autostart.workspace = true
+tauri-plugin-updater.workspace = true
+tauri-plugin-single-instance.workspace = true
+tauri-plugin-window-state.workspace = true
+tauri-plugin-global-shortcut = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+vela-uia.workspace = true
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dev-dependencies]
+vela-testkit.workspace = true

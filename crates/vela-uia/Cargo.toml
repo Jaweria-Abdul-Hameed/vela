@@ -1,0 +1,31 @@
+[package]
+name = "vela-uia"
+description = "Vela Windows UI Automation approval adapter and guarded visual module (Windows only)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+# The visual tier is feature-gated, consent-gated, and [U] (spike S-VISUAL).
+[features]
+visual = ["windows/Win32_Graphics_Gdi"]
+
+[dependencies]
+vela-domain.workspace = true
+vela-process.workspace = true
+tracing.workspace = true
+
+# UI Automation bindings are [U] until spike S-UIA-BINDINGS confirms the API surface.
+[target.'cfg(windows)'.dependencies.windows]
+workspace = true
+features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_System_Variant",
+  "Win32_System_Ole",
+  "Win32_UI_Accessibility",
+  "Win32_UI_WindowsAndMessaging",
+]

@@ -1,0 +1,47 @@
+{
+  "name": "vela",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vela: autonomous AI engineering control plane (Windows-first desktop application)",
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "npm": ">=11.17.0 <12"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "fmt": "npm run fmt:ts && npm run fmt:rust",
+    "fmt:ts": "prettier --write \"{apps,packages,scripts}/**/*.{ts,tsx,js,mjs,json}\" \"*.{json,js,mjs}\" \".github/**/*.yml\"",
+    "fmt:rust": "cargo fmt --all",
+    "fmt:check": "npm run fmt:check:ts && npm run fmt:check:rust",
+    "fmt:check:ts": "prettier --check \"{apps,packages,scripts}/**/*.{ts,tsx,js,mjs,json}\" \"*.{json,js,mjs}\" \".github/**/*.yml\"",
+    "fmt:check:rust": "cargo fmt --all --check",
+    "lint": "npm run lint:ts && npm run lint:rust",
+    "lint:ts": "eslint .",
+    "lint:rust": "cargo clippy --workspace --all-targets --locked -- -D warnings",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p scripts",
+    "test": "npm run test:ts && npm run test:rust",
+    "test:ts": "npm run test --workspaces --if-present && npm run test:scripts",
+    "test:scripts": "node --test \"scripts/*.test.mjs\"",
+    "test:rust": "cargo test --workspace --locked",
+    "build:rust": "cargo build --workspace --locked --all-targets",
+    "check:structure": "node scripts/check-crate-deps.mjs && node scripts/check-module-skeleton.mjs",
+    "verify:ts": "npm run fmt:check:ts && npm run lint:ts && npm run typecheck && npm run test:ts",
+    "verify:rust": "npm run fmt:check:rust && npm run lint:rust && npm run build:rust && npm run test:rust && npm run check:structure",
+    "verify": "npm run verify:ts && npm run verify:rust"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.4",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0"
+  }
+}

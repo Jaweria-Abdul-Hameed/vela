@@ -1,0 +1,18 @@
+[package]
+name = "fake-approval-window"
+description = "WebView2 window reproducing the verified Desktop approval-card roles (test harness; stub at bootstrap)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "fake-approval-window"
+path = "src/main.rs"
+
+[dependencies]
+wry.workspace = true
+tao.workspace = true

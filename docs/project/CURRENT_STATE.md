@@ -11,7 +11,7 @@ issue graph. **v1 runtime: Google Antigravity on Windows. Strategy: Antigravity-
 
 ## Current Phase
 
-PROMPT_8_SCHEDULER_DRY_RUN_COMPLETE / READY_FOR_CHECKPOINT (the corrected graph runs from the initial frontier to Z06 in 25 simulated rounds with no deadlock; awaiting the user's approval to checkpoint) — **Architecture frozen** (2026-10-02); the issue graph was audited (Prompt 7, checkpointed at `0f976d1bb67d50c094e729538643f7f7fb847958`) and then executed end to end in a scheduler dry-run (Prompt 8, 2026-10-03), which made small contract-safety corrections: **135 tickets, 356 authored edges, 277 published edges, critical path 18 tickets, initial frontier 14**. **The planning graph is READY FOR IMPLEMENTATION.** GitHub publication is still deferred pending the user's explicit confirmation. See `docs/issues/graph/SCHEDULER_DRY_RUN.md`, `AUDIT_PROMPT7.md`, and `SHARED_SURFACE_PROTOCOL.md`.
+**PROMPT_9_F01_BOOTSTRAP: NEEDS_HUMAN (blocked by an environment limitation, see "Prompt 9 / F01 Status" below).** Prompt 8 is complete and checkpointed at `532cf32890e6dd26169213390ce8a0c8a45caf70` (the corrected graph runs from the initial frontier to Z06 in 25 simulated rounds with no deadlock) — **Architecture frozen** (2026-10-02); the issue graph was audited (Prompt 7, checkpointed at `0f976d1bb67d50c094e729538643f7f7fb847958`) and then executed end to end in a scheduler dry-run (Prompt 8, 2026-10-03), which made small contract-safety corrections: **135 tickets, 356 authored edges, 277 published edges, critical path 18 tickets, initial frontier 14**. **The planning graph is READY FOR IMPLEMENTATION.** GitHub publication is still deferred pending the user's explicit confirmation. See `docs/issues/graph/SCHEDULER_DRY_RUN.md`, `AUDIT_PROMPT7.md`, and `SHARED_SURFACE_PROTOCOL.md`.
 
 ## Last Completed Phase
 
@@ -38,8 +38,21 @@ Prompt 7 — independent issue-graph audit (checkpointed at `0f976d1bb67d50c094e
 | External verification | Documentation verified; Section S probes done; several capabilities remain unverified (see register) |
 | Architecture | **FROZEN** (`docs/architecture/IMPLEMENTATION_ARCHITECTURE.md`, `COMPONENT_SPECIFICATIONS.md`, ADR-017/018/019) |
 | Issue graph | **DRAFTED_NOT_PUBLISHED, READY FOR IMPLEMENTATION**: Prompt 7 audited it; the Prompt 8 dry-run (uncommitted until approved) scheduled all 135 tickets in 25 rounds and corrected it to 356 authored and 277 published edges (symbolic keys in `docs/issues/graph/`; no GitHub issues exist) |
-| Implementation | NOT_STARTED |
-| Next gate | The user's explicit approval to checkpoint Prompt 8 (commit and push); then Prompt 9 (F01 bootstrap), run from the canonical local ticket `docs/issues/graph/tickets/F01.md` |
+| Implementation | **F01 BLOCKED, NOT COMPLETE**: written in the working tree, uncommitted, Rust gates unverified (Smart App Control blocks Cargo build scripts); no ticket is complete |
+| Next gate | The user's decision on how Rust gates will run (see "Prompt 9 / F01 Status"); then finish F01 (rerun the gates, checkpoint, `/code-review`), still from the canonical local ticket `docs/issues/graph/tickets/F01.md`. Prompt 10 has not begun |
+
+## Prompt 9 / F01 Status (2026-10-03): NEEDS_HUMAN
+
+- **Base:** Prompt 8 checkpoint `532cf32890e6dd26169213390ce8a0c8a45caf70`; at the start `main` equalled `origin/main` with a clean tree. **No F01 commit exists; no push occurred.**
+- **Written (uncommitted working tree):** Cargo workspace (all 14 members) and npm workspaces, pinned toolchains, `Cargo.lock` (550 packages) and `package-lock.json`, per-crate dependency declarations with the `windows` feature sets,
+  every module skeleton, the dependency-direction checker and module-skeleton checker with tests, CI workflow, `.editorconfig`/`.gitattributes`/`.gitignore`, README "Development Commands",
+  `docs/architecture/TOOLCHAIN_AND_DEPENDENCIES.md` (pins, assignment, interpretations), `docs/project/F01_EVIDENCE.md` (commands and results). One protocol correction: `wiring/settings` added to the section 1 table of `SHARED_SURFACE_PROTOCOL.md` (S02 owns it per section 5).
+- **Green locally:** `npm run typecheck`, `test:ts`, `lint:ts`, `fmt:check:ts`, `cargo fmt --check`, both structure checks (39 checker tests, including the illegal `vela-core -> vela-git` edge failing against a real Cargo workspace).
+- **BLOCKER:** Smart App Control is in enforcement on this machine and blocks the unsigned build scripts that `cargo` compiles (`os error 4551`), so `cargo build`, `clippy` and `test` do not run here, for F01 and for every later Rust ticket. Nothing in the policy was changed. Details: `docs/project/F01_EVIDENCE.md`.
+- **Not verified:** `cargo build --locked`, clippy, `cargo test`, clean-clone `npm ci` and build transcript, CI on a clean checkout. The authoritative `/code-review` and the checkpoint commit were not started because the gates are not green. `/implement` and the Matt Pocock skills are not installed; the `AGENTS.md` loop was followed manually.
+- **Human decision needed (smallest):** choose how Rust gates run: (a) the user turns Smart App Control off (one-way in Windows; their decision alone); (b) run the Rust gates on a clean Windows machine or the CI runner, which needs the user's approval to push a work branch (and H05 stays unprovisioned until Z07); (c) another route the user prefers. Do not weaken Smart App Control without the user's explicit instruction.
+- **Unchanged:** architecture FROZEN; graph READY FOR IMPLEMENTATION; GitHub issues NOT published; H01, H04, H06 OPEN; H05 NOT provisioned.
+- **Environment:** Rust 1.99.0 was installed per-user via `rustup` (`PATH` not modified).
 
 ## Frozen Architecture (summary; the documents are authoritative)
 

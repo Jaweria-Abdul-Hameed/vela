@@ -1,0 +1,25 @@
+# Build output
+/target/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Test output
+playwright-report/
+test-results/
+
+# Local state and secrets (never commit)
+.env
+.env.*
+*.pem
+*.pfx
+*.key
+
+# Logs and OS junk
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
