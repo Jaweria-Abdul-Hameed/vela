@@ -95,8 +95,7 @@ list is edited.
 
 The `FaultPoint` enum and `fault_point!` macro live in `vela-domain::fault` (compiled to nothing unless the `fault-injection` feature is on). Each ticket
 that owns a non-idempotent external action or a persisted transition (S08, S10, S11, S12, S13, S14, R08, G03, G05, K01, R01) declares and places its own points as it
-implements them. R03 owns the crash matrix and a standing completeness test that fails when a declared point has no matrix entry; S13, S14, and R08 add
-their entries as they land and Z03 runs the completeness test last. R03 does not retrofit points. This keeps recovery testable as each slice lands.
+implements them. R03 owns the crash matrix and a standing completeness test that fails when a declared point has no matrix entry; S13, S14, and R08 declare and place their own points and test them with the F03 harness, and R03 (which depends on S13, S14, and R08 since Prompt 8) adds their matrix entries, so no declaring ticket writes into the matrix directories and entry order never depends on merge order. Z03 runs the completeness test last. R03 does not retrofit points. This keeps recovery testable as each slice lands.
 
 ## 7. Frontend shared files (owners: F05, U01)
 

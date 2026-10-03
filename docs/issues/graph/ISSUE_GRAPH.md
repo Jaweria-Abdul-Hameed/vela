@@ -1,6 +1,6 @@
-# Issue Graph (Prompt 6 draft, audited by Prompt 7; GitHub publication deferred)
+# Issue Graph (Prompt 6 draft, audited by Prompt 7, dry-run by Prompt 8; GitHub publication deferred)
 
-**Status:** the complete proposed implementation issue graph for Vela v1 was generated and approved as the Prompt 6 draft (2026-10-02) and then **independently audited and corrected by Prompt 7** (2026-10-02). **No GitHub issues have been created.** Publication is intentionally deferred until the user confirms it (`docs/project/CURRENT_STATE.md`).
+**Status:** the complete proposed implementation issue graph for Vela v1 was generated and approved as the Prompt 6 draft (2026-10-02) then **independently audited and corrected by Prompt 7** (2026-10-02), and finally **executed end to end in a scheduler dry-run by Prompt 8** (2026-10-03), which made four small corrections (see below). **No GitHub issues have been created.** Publication is intentionally deferred until the user confirms it (`docs/project/CURRENT_STATE.md`).
 
 This is a planning artifact. The repository specifications remain authoritative. The files here are the durable source from which the later publication step creates issues.
 
@@ -10,6 +10,7 @@ This is a planning artifact. The repository specifications remain authoritative.
 -   `docs/issues/graph/ISSUE_GRAPH.json`: machine-readable graph (tickets, labels, requirements, reduced and unreduced blockers, depth, levels, critical path, frontier).
 -   `docs/issues/graph/SHARED_SURFACE_PROTOCOL.md`: **normative** rules for the shared files, migrations, command registry, composition root, resource keys, and shared documents that parallel tickets rely on (Prompt 7).
 -   `docs/issues/graph/AUDIT_PROMPT7.md`: the audit report: findings, corrections, dependency changes, parallel and serialized groups, coverage matrix, and remaining human decisions.
+-   `docs/issues/graph/SCHEDULER_DRY_RUN.md`: the Prompt 8 scheduler dry-run: rules, graph re-verification, contract-consumption audit, corrections, the complete round-by-round schedule of all 135 tickets, resource-key and human-gate behavior, integration-lane behavior, failure-state analysis, and validation (Prompt 8).
 -   This file: counts, validation, DAG table, critical path, initial frontier, waves, spike gates, traceability, and the publication plan.
 
 Symbolic keys (for example `F02`, `S10`) are used instead of issue numbers because nothing is published. At publication each key is mapped to a real issue number and the blockers become native GitHub blocked-by links; that mapping will be recorded in this directory.
@@ -19,23 +20,23 @@ Symbolic keys (for example `F02`, `S10`) are used instead of issue numbers becau
 | Measure | Value |
 |---|---|
 | Tickets | **135** (130 in the Prompt 6 draft plus 6 added by the Prompt 7 audit: F09, W01, X05, H04, H05, H06, minus H02 and H03, which were resolved before publication, plus Z07 added by the H05 follow-up) |
-| Direct edges as authored | 347 |
-| Published edges (transitively reduced) | **274** |
+| Direct edges as authored | **356** (347 at the Prompt 7 checkpoint plus 9 Prompt 8 contract-safety edges) |
+| Published edges (transitively reduced) | **277** (274 at the Prompt 7 checkpoint; see the Prompt 8 bullet below for the net change) |
 | Cycles | none (independently recomputed from the ticket files) |
 | Unknown, self, or duplicate blockers | none |
 | Ticket header, body section 7, and JSON blockers agree | yes (all 135) |
 | FR-001..FR-050 without a ticket | none |
 | AT-001..AT-026 without a ticket | none |
 | Tickets with no dependent (release gate leaves) | none other than Z06 (18 tickets had none in the Prompt 6 draft; 10 gained real dependents and 8 now block Z05: A13, A14, K09, L01, R06, S07, U09, U13) |
-| Critical path | **17 tickets** (14 distinct longest chains tie at this length) |
+| Critical path | **18 tickets** (8 distinct longest chains tie at this length; it was 17 at the Prompt 7 checkpoint, and the Prompt 7 count of 14 tied chains was recounted as 16 by Prompt 8) |
 | Initial ready frontier | **14 tickets** |
 | Widest parallel wave | 16 tickets (a topological layer, not a safe-to-run-together set; see AUDIT_PROMPT7.md) |
 
-## Critical path (17 tickets, counted by tickets, not effort)
+## Critical path (18 tickets, counted by tickets, not effort)
 
-F01 → F02 → F04 → F05 → F08 → S01 → S03 → S04 → S08 → S09 → S10 → S11 → S12 → S14 → Z03 → Z05 → Z06
+F01 → F02 → F04 → F05 → F08 → S01 → S03 → S04 → S08 → S09 → S10 → S11 → S12 → S14 → R03 → Z03 → Z05 → Z06
 
-The Prompt 7 corrections add edges but leave this chain and its length unchanged. Several other chains tie at the same length because Z03 waits on nine tickets at depth 13 (S14, S13, R03, R08, L02, and others), so schedule slack is thin everywhere on the S, R, and L chains.
+The Prompt 7 corrections left the 17-ticket chain unchanged. Prompt 8 lengthened it by one ticket: R03 (crash-injection matrix) now waits for S13, S14, and R08, so R03 sits between S14 and Z03. Several chains tie because R03 waits on five tickets (R02, K01, S13, S14, R08) and Z03 on R03, so schedule slack is thin everywhere on the S, R, and L chains.
 
 ## Initial ready frontier (14)
 
@@ -60,10 +61,11 @@ A layer is an upper bound on what could run together. Which members are actually
 -   **Wave 10** (3): K10, U17, S10
 -   **Wave 11** (5): PF1, U18, S11, R02, W01
 -   **Wave 12** (9): S16, R04, A12, U19, S12, R06, R07, A14, K07
--   **Wave 13** (9): A13, L02, U09, Z02, S13, S14, R03, A16, R08
--   **Wave 14** (3): Z04, Z03, Z07
--   **Wave 15** (1): Z05
--   **Wave 16** (1): Z06
+-   **Wave 13** (8): A13, L02, U09, Z02, S13, S14, A16, R08
+-   **Wave 14** (3): Z04, Z07, R03
+-   **Wave 15** (1): Z03
+-   **Wave 16** (1): Z05
+-   **Wave 17** (1): Z06
 
 ## Added or changed by earlier audits
 
@@ -75,6 +77,8 @@ A layer is an upper bound on what could run together. Which members are actually
 -   **H04 follow-up (2026-10-03):** production signing is a release prerequisite, not a development prerequisite. The edge H04 to Z02 was removed (Z02 verifies the updater with a disposable test keypair) and the edge H04 to Z06 was added (Z06 owns the production release-signing gate, so a release cannot complete while H04 is open): one edge removed, one added, no depth, critical-path, or frontier change. Tauri updater signing and Windows Authenticode are separate mechanisms in every ticket. Details in AUDIT_PROMPT7.md and docs/research/H04_signing_research_2026-10-03.md.
 
 -   **H05 follow-up (2026-10-03):** the clean-machine route is decided (a local Windows 11 virtual machine under VMware Workstation Pro, Windows 11 Enterprise 90-day Evaluation guest) but not provisioned. H05 no longer blocks Z01: Z01 builds and development-signs the installer without a VM. The environment-dependent evidence moved to the new ticket Z07 (blocked by H05, Z02, and the lifecycle features it exercises), which feeds Z05 and therefore Z06. Edges and counts in AUDIT_PROMPT7.md.
+
+-   **Prompt 8 scheduler dry-run (2026-10-03):** the audited graph was re-derived from the ticket Markdown, matched exactly, and then executed round by round with dependency, write-surface, contract, integration, resource-key, and human-gate rules. It never deadlocked, but a contract-consumption audit and the simulated integration lane found ordering defects that the graph let a valid schedule violate. Smallest corrections: **R01 to K01** (K01 registers its recovery recipe with R01); **S15 to R02** (R02 restores and raises interventions through the S15 model, and the published S15 to S16 edge became implied through R02); **P02, G04 (implying G03), and Z01 to W01** (the real composition root must wire tree-kill, every Git capability, and the installed `vela-hook` path, and nothing else owns `wiring/adapters.rs`); **S13, S14, and R08 to R03** (nothing owned the crash-matrix entries for their fault points and all four ran in the same round; the published S12 to R03 edge and the S13, S14, and R08 edges into Z03 became implied through R03); and text only, F09 no longer consumes the A02 parser and S13, S14, and R08 now declare their FaultPoints. Authored edges 347 to 356, published 274 to 277; R03, Z03, Z05, and Z06 each moved one layer deeper; the critical path grew from 17 to 18 tickets; the initial frontier (14), requirement coverage, and write surfaces are unchanged. The full simulation was rerun on the corrected graph. Details and the complete schedule: `SCHEDULER_DRY_RUN.md`.
 
 ## Resolved before publication
 
@@ -192,7 +196,7 @@ foundation: 5 · domain: 6 · ui: 19 · orchestration: 16 · security: 8 · spik
 | K08 | Guarded visual fallback module (only if the spike says it is needed) | 6 | K06, SP13 |
 | S07 | GitHub issue ingestion into the same graph pipeline | 4 | S06, T02 |
 | U05 | Project universe: dependency constellation rendering, camera, and fit view | 5 | U02, S06 |
-| K01 | Approval Broker core: classification pipeline, evidence tiers, decisions, rules, interventions | 2 | D07, S15 |
+| K01 | Approval Broker core: classification pipeline, evidence tiers, decisions, rules, interventions | 2 | D07, S15, R01 |
 | U10 | Intervention sheet for every intervention kind | 5 | S15, U01, X02 |
 | A09 | Worker task envelope and prompts: implement invocation, recovery envelope, untrusted-text handling | 2 | A03, A08, S05 |
 | A15 | Real-environment compatibility suite gated by VELA_REAL_ANTIGRAVITY | 2 | A06 |
@@ -219,9 +223,9 @@ foundation: 5 · domain: 6 · ui: 19 · orchestration: 16 · security: 8 · spik
 | PF1 | Performance harness and budget measurement on the reference hardware | 6 | U17 |
 | U18 | Visual regression suite and fixtures for the key states | 5 | U08, U10, U12, U16, U04, U17 |
 | S11 | Checkpoint and review loop with a fake reviewer: fixed point, findings, fix loop, cap | 1 | S10, G03, D06 |
-| R02 | Startup reconciliation and recovery-resume | 3 | S10 |
-| W01 (Prompt 7) | Production composition root: real adapter wiring and a fixture run in the real window | 2 | S10, S17, P03, T04 |
-| S16 | Execution profiles and capacity model with simulated capacity events | 2 | R02, SP11, S15 |
+| R02 | Startup reconciliation and recovery-resume | 3 | S10, S15 |
+| W01 (Prompt 7) | Production composition root: real adapter wiring and a fixture run in the real window | 2 | S10, S17, P03, T04, P02, G04, Z01 |
+| S16 | Execution profiles and capacity model with simulated capacity events | 2 | R02, SP11 |
 | R04 | Stop All, pause, and resume for running workers | 3 | P02, S11 |
 | A12 | Conversation visibility in Antigravity Desktop: read model, Open in Antigravity action, and the AT-026 harness | 5 | SP08, U07, S11, A10, A11 |
 | U19 | UI fidelity review gate against the Stitch reference | 5 | U18 |
@@ -236,11 +240,11 @@ foundation: 5 · domain: 6 · ui: 19 · orchestration: 16 · security: 8 · spik
 | Z02 | Updater: signed updates, deferral during runs, pre-update backup, rollback | 7 | Z01, R05, R04 |
 | S13 | Conflict resolution attempt and MERGE_CONFLICT escalation | 2 | S12 |
 | S14 | Finalization: final review, push by Vela, promotion, cleanup, and completion | 4 | S12, T04 |
-| R03 | Crash-injection recovery matrix across every worker transition | 3 | R02, S12, K01 |
+| R03 | Crash-injection recovery matrix across every worker transition | 3 | R02, K01, S13, S14, R08 |
 | A16 | Antigravity-backed single-ticket run end to end (AT-001 with the real agent) | 2 | A10, S12, W01, A07 |
 | R08 (added) | Stop All safe points for the merge lane and push; integration health UNKNOWN handling | 3 | R04, S12 |
 | Z04 | Antigravity release gate: real-environment acceptance for AT-001, 011, 013, 015, 017, 025, 026 | 7 | A16, K10, A12, A15, K07 |
-| Z03 | End-to-end fixture suite with fakes: AT-001 to AT-007, AT-010, and AT-018 to AT-022 | 7 | S14, S13, R03, R08, R05, S16, L02, R07, W01 |
+| Z03 | End-to-end fixture suite with fakes: AT-001 to AT-007, AT-010, and AT-018 to AT-022 | 7 | R03, R05, S16, L02, R07, W01 |
 | Z05 | Requirements traceability report: every FR and AT with implementation and evidence | 7 | Z03, Z04, PF1, X04, U19, X01, X03, A13, A14, K09, R06, S07, U09, U13, Z07 |
 | Z06 | Release candidate validation against the release checklist | 7 | Z05, H01, L04, K08, H04, X05 |
 | Z07 | Clean-machine installer and lifecycle validation on the H05 environment | 7 | Z02, H05, W01, K10, L03, L01 |

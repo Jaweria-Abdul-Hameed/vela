@@ -1,10 +1,10 @@
 {
  "generated": "2026-10-02",
  "status": "DRAFT_NOT_PUBLISHED",
- "audit": "Prompt 7 independent audit applied (see AUDIT_PROMPT7.md and SHARED_SURFACE_PROTOCOL.md)",
+ "audit": "Prompt 7 independent audit applied (see AUDIT_PROMPT7.md and SHARED_SURFACE_PROTOCOL.md); Prompt 8 scheduler dry-run corrections applied (see SCHEDULER_DRY_RUN.md)",
  "tickets": 135,
- "rawDirectEdges": 347,
- "reducedEdges": 274,
+ "rawDirectEdges": 356,
+ "reducedEdges": 277,
  "criticalPath": [
   "F01",
   "F02",
@@ -20,6 +20,7 @@
   "S11",
   "S12",
   "S14",
+  "R03",
   "Z03",
   "Z05",
   "Z06"
@@ -195,19 +196,21 @@
    "Z02",
    "S13",
    "S14",
-   "R03",
    "A16",
    "R08"
   ],
   "14": [
    "Z04",
-   "Z03",
-   "Z07"
+   "Z07",
+   "R03"
   ],
   "15": [
-   "Z05"
+   "Z03"
   ],
   "16": [
+   "Z05"
+  ],
+  "17": [
    "Z06"
   ]
  },
@@ -1333,7 +1336,8 @@
    ],
    "depth": 3,
    "addedByAudit": false,
-   "addedByPrompt7Audit": true
+   "addedByPrompt7Audit": true,
+   "correctedByPrompt8": "text only: transcript replay through the A02 parser removed from scope (belongs to TK1)"
   },
   {
    "key": "Z01",
@@ -1362,7 +1366,8 @@
     "A04"
    ],
    "depth": 4,
-   "addedByAudit": false
+   "addedByAudit": false,
+   "correctedByPrompt8": "text only: names the stable installed vela-hook path that W01 resolves"
   },
   {
    "key": "TK1",
@@ -2653,16 +2658,19 @@
    ],
    "blockedBy": [
     "D07",
-    "S15"
+    "S15",
+    "R01"
    ],
    "directBlockersBeforeReduction": [
     "D05",
     "D07",
     "S15",
-    "F06"
+    "F06",
+    "R01"
    ],
    "depth": 7,
-   "addedByAudit": false
+   "addedByAudit": false,
+   "correctedByPrompt8": "R01 added: registers the approval reconciliation recipe with the R01 framework"
   },
   {
    "key": "U10",
@@ -3518,15 +3526,18 @@
     "AT-005"
    ],
    "blockedBy": [
-    "S10"
+    "S10",
+    "S15"
    ],
    "directBlockersBeforeReduction": [
     "R01",
     "G01",
-    "S10"
+    "S10",
+    "S15"
    ],
    "depth": 11,
-   "addedByAudit": false
+   "addedByAudit": false,
+   "correctedByPrompt8": "S15 added: restores and raises interventions through the S15 model"
   },
   {
    "key": "W01",
@@ -3553,17 +3564,25 @@
     "S10",
     "S17",
     "P03",
-    "T04"
+    "T04",
+    "G04",
+    "P02",
+    "Z01"
    ],
    "directBlockersBeforeReduction": [
     "S10",
     "S17",
     "P03",
-    "T04"
+    "T04",
+    "P02",
+    "G03",
+    "G04",
+    "Z01"
    ],
    "depth": 11,
    "addedByAudit": false,
-   "addedByPrompt7Audit": true
+   "addedByPrompt7Audit": true,
+   "correctedByPrompt8": "P02, G04 (implying G03) and Z01 added: wire tree-kill ProcessRunner and every GitAdapter capability, and resolve an installed vela-hook path that Z01 has already fixed"
   },
   {
    "key": "S16",
@@ -3586,8 +3605,7 @@
    ],
    "blockedBy": [
     "R02",
-    "SP11",
-    "S15"
+    "SP11"
    ],
    "directBlockersBeforeReduction": [
     "S10",
@@ -3596,7 +3614,8 @@
     "S15"
    ],
    "depth": 12,
-   "addedByAudit": false
+   "addedByAudit": false,
+   "correctedByPrompt8": "S15 edge now implied through R02 (published list reduced)"
   },
   {
    "key": "R04",
@@ -4014,7 +4033,8 @@
     "S12"
    ],
    "depth": 13,
-   "addedByAudit": false
+   "addedByAudit": false,
+   "correctedByPrompt8": "text only: declares FaultPoints per SHARED_SURFACE_PROTOCOL.md section 6; R03 adds the matrix entries"
   },
   {
    "key": "S14",
@@ -4047,7 +4067,8 @@
     "D06"
    ],
    "depth": 13,
-   "addedByAudit": false
+   "addedByAudit": false,
+   "correctedByPrompt8": "text only: declares FaultPoints per SHARED_SURFACE_PROTOCOL.md section 6; R03 adds the matrix entries"
   },
   {
    "key": "R03",
@@ -4071,17 +4092,23 @@
    ],
    "blockedBy": [
     "R02",
-    "S12",
-    "K01"
+    "K01",
+    "S13",
+    "R08",
+    "S14"
    ],
    "directBlockersBeforeReduction": [
     "R02",
     "S11",
     "S12",
-    "K01"
+    "K01",
+    "S13",
+    "S14",
+    "R08"
    ],
-   "depth": 13,
-   "addedByAudit": false
+   "depth": 14,
+   "addedByAudit": false,
+   "correctedByPrompt8": "S13, S14, R08 added (S12 now implied): R03 owns every crash-matrix entry, including the points those tickets declare"
   },
   {
    "key": "A16",
@@ -4150,7 +4177,8 @@
     "S12"
    ],
    "depth": 13,
-   "addedByAudit": true
+   "addedByAudit": true,
+   "correctedByPrompt8": "text only: declares FaultPoints per SHARED_SURFACE_PROTOCOL.md section 6; R03 adds the matrix entries"
   },
   {
    "key": "Z04",
@@ -4226,10 +4254,7 @@
     "AT-022"
    ],
    "blockedBy": [
-    "S14",
-    "S13",
     "R03",
-    "R08",
     "R05",
     "S16",
     "L02",
@@ -4249,7 +4274,7 @@
     "S15",
     "W01"
    ],
-   "depth": 14,
+   "depth": 15,
    "addedByAudit": false
   },
   {
@@ -4308,7 +4333,7 @@
     "U13",
     "Z07"
    ],
-   "depth": 15,
+   "depth": 16,
    "addedByAudit": false
   },
   {
@@ -4347,7 +4372,7 @@
     "H04",
     "X05"
    ],
-   "depth": 16,
+   "depth": 17,
    "addedByAudit": false
   },
   {

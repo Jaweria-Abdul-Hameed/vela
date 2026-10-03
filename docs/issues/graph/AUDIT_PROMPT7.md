@@ -1,5 +1,7 @@
 # Prompt 7 Independent Audit Record
 
+> **Historical record.** Its counts (347 authored and 274 published edges, a 17-ticket critical path) describe the Prompt 7 checkpoint `0f976d1`. The Prompt 8 scheduler dry-run made small contract-safety corrections (now 356 authored, 277 published, 18-ticket critical path); see `SCHEDULER_DRY_RUN.md` and `ISSUE_GRAPH.md` for current numbers.
+
 Date: 2026-10-02. Scope: all 130 Prompt 6 tickets, audited against the specifications. Nothing was published to GitHub and no code was written.
 
 ## Result

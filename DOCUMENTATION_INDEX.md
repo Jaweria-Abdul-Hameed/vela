@@ -39,6 +39,7 @@ affected specifications.
 -   `docs/issues/graph/ISSUE_GRAPH.json`
 -   `docs/issues/graph/SHARED_SURFACE_PROTOCOL.md` (normative: shared files, reserved migration blocks, resource keys)
 -   `docs/issues/graph/AUDIT_PROMPT7.md` (the Prompt 7 audit record)
+-   `docs/issues/graph/SCHEDULER_DRY_RUN.md` (the Prompt 8 scheduler dry-run: rules, corrections, the complete 25-round schedule of all 135 tickets, resource-key and human-gate behavior, failure states, validation)
 -   `docs/issues/graph/tickets/` (135 ticket bodies, one file per symbolic key, `<KEY>.md`; listed in `ISSUE_GRAPH.md`)
 -   `docs/operations/AUTONOMY_MODES.md`
 -   `docs/operations/ERROR_HANDLING.md`
