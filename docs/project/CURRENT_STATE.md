@@ -41,7 +41,9 @@ Prompt 7 — independent issue-graph audit (checkpointed at `0f976d1bb67d50c094e
 | Implementation | **F01 BLOCKED, NOT COMPLETE**: written in the working tree, uncommitted, Rust gates unverified (Smart App Control blocks Cargo build scripts); no ticket is complete |
 | Next gate | The user's decision on how Rust gates will run (see "Prompt 9 / F01 Status"); then finish F01 (rerun the gates, checkpoint, `/code-review`), still from the canonical local ticket `docs/issues/graph/tickets/F01.md`. Prompt 10 has not begun |
 
-## Prompt 9 / F01 Status (2026-10-03): NEEDS_HUMAN
+## Prompt 9 / F01 Status (2026-10-03): IN PROGRESS on branch `f01/bootstrap` (not merged to `main`)
+
+- **Update:** the user chose CI for the Rust gates. Branch `f01/bootstrap` at `71bf92a` (pushed, parent `532cf32`) passed CI run 37143358949 (Rust: fmt, clippy `-D warnings`, build `--all-targets`, test, structure checks; TypeScript: `npm ci`, verify). Local Rust remains **BLOCKED/NOT VERIFIED** (Smart App Control); this is a host limitation, not an implementation defect. Authoritative review and final merge to `main` are pending the user's approval. The bullets below describe the state before this update.
 
 - **Base:** Prompt 8 checkpoint `532cf32890e6dd26169213390ce8a0c8a45caf70`; at the start `main` equalled `origin/main` with a clean tree. **No F01 commit exists; no push occurred.**
 - **Written (uncommitted working tree):** Cargo workspace (all 14 members) and npm workspaces, pinned toolchains, `Cargo.lock` (550 packages) and `package-lock.json`, per-crate dependency declarations with the `windows` feature sets,

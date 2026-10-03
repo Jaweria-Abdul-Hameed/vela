@@ -1,9 +1,11 @@
 # F01 Bootstrap Evidence (Prompt 9, execution log)
 
 Ticket: `docs/issues/graph/tickets/F01.md`. Base: `532cf32890e6dd26169213390ce8a0c8a45caf70` (`main` equals `origin/main`, tree clean, verified from Git).
-Status of this record: **F01 is NOT complete.** The implementation is written but uncommitted, and the Rust gates could not run on this machine (blocker below).
+Status of this record: implementation checkpointed on branch `f01/bootstrap` (`71bf92a`, not merged to `main`). **Rust gates: LOCAL NOT VERIFIED/BLOCKED on this host; CI PASS on `windows-latest`** (section "CI evidence"). Review: see the end of this file.
 
-## Blocker: Smart App Control blocks Cargo build scripts
+## Local limitation (environment-specific): Smart App Control blocks Cargo build scripts
+
+This is a property of the development host, not evidence that the Rust implementation is broken: the identical commit builds and tests green in CI. `cargo build` has **not** run successfully on this host.
 
 - `HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy\VerifiedAndReputablePolicyState` = `1` (Smart App Control in **enforcement**), read only.
 - `cargo build` fails on the first dependency that has a build script:
@@ -11,7 +13,7 @@ Status of this record: **F01 is NOT complete.** The implementation is written bu
   `An Application Control policy has blocked this file. (os error 4551)`. Reproduced twice, and again with `CARGO_TARGET_DIR` outside the
   repository (`thiserror` build script), so it is not a path problem. A freshly compiled trivial executable did run, so the policy is a
   reputation decision on the generated binaries, not a blanket block.
-- Consequence: `cargo build`, `clippy`, `test` cannot run locally on this machine for any crate, not only F01. This affects every later Rust ticket.
+- Consequence: `cargo build`, `clippy`, `test` cannot run locally on this machine for any crate, not only F01. This affects every later Rust ticket; CI is the accepted evidence path for Rust gates (user decision, 2026-10-03, option b).
 - Nothing was changed: Smart App Control, Defender, and policies are untouched (`CURRENT_STATE.md`: surface an actual blocker instead of weakening it).
   Turning Smart App Control off is a one-way change in Windows (it cannot be re-enabled without resetting or reinstalling Windows), so it is a user decision.
 
@@ -36,11 +38,9 @@ Status of this record: **F01 is NOT complete.** The implementation is written bu
 | `npm run lint:ts` | ESLint (typescript-eslint type-checked, react-hooks) | PASS |
 | `npm run fmt:check:ts` | Prettier | PASS |
 | `cargo fmt --all --check` | rustfmt | PASS |
-| `cargo build --workspace --locked` | Rust build | **FAIL (environment)**: os error 4551 above |
-| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Rust lint | **NOT VERIFIED** (needs build) |
-| `cargo test --workspace --locked` | Rust tests | **NOT VERIFIED** (needs build) |
-| `cargo build --locked` / `npm ci` from a clean clone | acceptance criterion, clean-clone transcript | **NOT VERIFIED** (`npm ci` not yet run from a clean clone; Rust blocked) |
-| CI run on a clean checkout | required integration test | **NOT VERIFIED** (no push; workflow written, never executed) |
+| `cargo build --workspace --locked` (local) | Rust build | **LOCAL BLOCKED** (environment): os error 4551 above |
+| clippy, `cargo test` (local) | Rust lint and tests | **LOCAL NOT VERIFIED** (need a build); see CI evidence |
+| `npm ci` + `cargo build --locked` from a clean clone (local) | clean-clone transcript | **LOCAL NOT VERIFIED**; CI performs both from a clean checkout |
 | Tauri build, frontend production build, app launch | not in F01 scope | NOT APPLICABLE (F04/F05; F01 non-goal: no Tauri app) |
 
 ## Skills
@@ -48,3 +48,11 @@ Status of this record: **F01 is NOT complete.** The implementation is written bu
 `/implement` and the Matt Pocock skills are not installed in this environment (no `.claude/` directory; `/setup-matt-pocock-skills`
 was never run, `CURRENT_STATE.md`). No invocation was faked: the `AGENTS.md` implementation loop was followed manually. The
 `/code-review` step was not run because the required gates are not green and no checkpoint commit exists.
+
+## CI evidence (accepted path for Rust gates)
+
+- Branch `f01/bootstrap`, commit `71bf92a` (parent: base `532cf32890e6dd26169213390ce8a0c8a45caf70`); workflow `.github/workflows/ci.yml`; run **37143358949**, trigger push, runner `windows-latest`. Result: **PASS** (both jobs, first attempt, no fixes needed).
+- **Rust job (5m15s)**, toolchain from `rust-toolchain.toml` (1.99.0), in this order: `cargo fmt --all --check`; `cargo clippy --workspace --all-targets --locked -- -D warnings` (no warnings); `cargo build --workspace --locked --all-targets`; `cargo test --workspace --locked` (all `test result: ok`, 0 failed; the placeholder and gate-logic tests ran); `node scripts/check-crate-deps.mjs` ("passed (14 workspace members)"); `node scripts/check-module-skeleton.mjs` ("passed (10 Rust crates, 2 TypeScript packages)").
+- **TypeScript job (1m12s)**: `npm ci` from the committed lockfile (280 packages), then `npm run verify:ts`: Prettier, ESLint, `tsc` (4 packages + scripts), Vitest (4 packages, all pass), checker tests 39 pass, 0 fail, 0 skipped (the runner has `cargo`, so the real illegal-edge CLI tests ran).
+- Before pushing, the workflow was tightened (not weakened): `build:rust` gained `--all-targets`, and CI now also triggers on pushes to any branch and manually.
+- Not yet shown: a local clean-clone transcript (local Rust blocked). The CI checkout is a clean clone and is the equivalent evidence.
