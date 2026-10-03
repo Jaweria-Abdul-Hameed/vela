@@ -57,3 +57,22 @@ CI evidence (workflow `ci.yml`, trigger push, branch `f02/domain-primitives`):
 ## Scope
 
 Only the F02 surfaces were touched (`crates/vela-domain/src/**`, `packages/contracts/src/**`) plus this record. No manifest, lockfile, CI, F01 checker or skeleton file changed. No other ticket, spike or human gate was started.
+
+## Review record (authoritative `/code-review`, fixed point `3e5aafe745ef11887380e0ec9a5dad76fdb3d41d`)
+
+| Iteration | Reviewed head | Findings | Action |
+|---|---|---|---|
+| 1 | `5ed93c4` | 10 | Fixed in `4d64660`: every approval error is never retried; `VelaError::may_retry` derives retry from invariants (a forged `PROVIDER_POLICY_BLOCK` is never retried). Escalated, not fixed: missing `onboarding` command group (spec lists `onboarding.set`, the protocol's 15 groups omit it); golden-file export vs "cargo test exports bindings"; feature-on configurations not runnable in the standard CI. |
+| 2 | `4d64660` | 12 | Fixed in `89173bc`: `GateResult::is_pass` rejects a non-zero exit code; identifiers reject `/ \ :` and `..`; `Display` uses wire names for codes. |
+| 3 | `89173bc` | 8 | **Not fixed: the iteration limit (3) is reached.** |
+
+CI for the reviewed heads: `4d64660` run on that SHA PASS; `89173bc` PASS (clippy `-D warnings`, build, `vela-domain` tests, TypeScript job). Verdict: **REVIEW_STALLED**. Open items from iteration 3 (the identifier item is classified medium and keeps the policy from passing):
+
+1. Identifiers are still not Windows path-safe: `.`, trailing `.`, device names (`CON`, `NUL`, ...), `< > | " * ?`, leading `-`, and case-collisions are accepted (medium).
+2. `Display` still prints the class with `Debug` spelling (low).
+3. `GateResult` status/exit-code contradiction is guarded only in `is_pass`, not at construction/deserialization (low-medium).
+4. `parse_wrapper_names` and the wrapper scan are brittle (type-annotated declarations, comments, non-group `.ts` files) (low, scaffold).
+5. `MergeOutcome::Conflicted` leaves a mid-merge worktree and the port has no abort operation (design; port signature).
+6. Dead code in the `hook-table`-only test configuration (not run by CI).
+7. This evidence record was stale for the final head (corrected here).
+Earlier accepted-as-design items: reviewer session identity, trust/operation-id/`RemoteName` types on the Git port, string-typed closed-set payload fields.
