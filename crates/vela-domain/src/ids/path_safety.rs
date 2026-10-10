@@ -433,10 +433,10 @@ mod tests {
             // 2. Deterministic.
             assert_eq!(encoded, PathComponent::encode(&original));
             // 3. Safe, in-limit input is its own component (identity), and nothing else is.
-            if let Ok(already) = PathComponent::new(original.as_str()) {
-                if !original.contains('~') {
-                    assert_eq!(encoded, already, "{original:?}");
-                }
+            if let Ok(already) = PathComponent::new(original.as_str())
+                && !original.contains('~')
+            {
+                assert_eq!(encoded, already, "{original:?}");
             }
             // 4. Distinct originals never share a component, not even case-insensitively.
             let key = encoded.as_str().to_ascii_lowercase();
