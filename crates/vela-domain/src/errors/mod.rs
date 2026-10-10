@@ -49,6 +49,20 @@ impl ErrorClass {
         Self::InternalBug,
     ];
 
+    /// The specification name (also the wire form).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::UserActionRequired => "USER_ACTION_REQUIRED",
+            Self::ExternalTemporary => "EXTERNAL_TEMPORARY",
+            Self::ExternalAuth => "EXTERNAL_AUTH",
+            Self::PolicyBlock => "POLICY_BLOCK",
+            Self::RepositoryConflict => "REPOSITORY_CONFLICT",
+            Self::ValidationFailure => "VALIDATION_FAILURE",
+            Self::AgentFailure => "AGENT_FAILURE",
+            Self::InternalBug => "INTERNAL_BUG",
+        }
+    }
+
     /// Only transient external failures are candidates for automatic retry (and then only for idempotent actions).
     pub fn is_retryable(self) -> bool {
         self == Self::ExternalTemporary
@@ -325,12 +339,12 @@ impl fmt::Display for VelaError {
         match self.code {
             Some(code) => write!(
                 f,
-                "{} ({:?}): {}",
+                "{} ({}): {}",
                 code.as_str(),
-                self.class,
+                self.class.as_str(),
                 self.what_failed
             ),
-            None => write!(f, "{:?}: {}", self.class, self.what_failed),
+            None => write!(f, "{}: {}", self.class.as_str(), self.what_failed),
         }
     }
 }
@@ -436,11 +450,25 @@ mod tests {
         assert_eq!(err.retry, RetryDisposition::Never);
         assert_eq!(err.user_action, "trust the project");
         assert!(err.to_string().contains("TRUST_REQUIRED"));
+        assert_eq!(
+            err.to_string(),
+            "TRUST_REQUIRED (USER_ACTION_REQUIRED): build refused"
+        );
+        assert_eq!(
+            VelaError::of_class(ErrorClass::InternalBug, "oops").to_string(),
+            "INTERNAL_BUG: oops"
+        );
     }
 
     #[cfg(feature = "full")]
     #[test]
     fn wire_names_are_the_specification_names() {
+        for class in ErrorClass::ALL {
+            assert_eq!(
+                serde_json::to_string(&class).unwrap(),
+                format!("\"{}\"", class.as_str())
+            );
+        }
         for code in ErrorCode::ALL {
             assert_eq!(
                 serde_json::to_string(&code).unwrap(),

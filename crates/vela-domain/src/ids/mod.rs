@@ -7,7 +7,14 @@
 #![warn(missing_docs)]
 
 mod identifiers;
+mod path_safety;
 mod values;
 
-pub use identifiers::{BranchName, CommitSha, IdError, RunId, TicketId, WorkerId, WorktreePath};
-pub use values::{DependencyEdge, EdgeOrigin, GateResult, GateStatus, ReviewSeverity, RiskClass};
+pub use identifiers::{
+    BranchName, CommitSha, IdError, OperationId, RunId, TicketId, WorkerId, WorktreePath,
+    case_fold_key,
+};
+pub use path_safety::{ComponentError, MAX_COMPONENT_LEN, PathComponent, is_windows_reserved_name};
+pub use values::{
+    DependencyEdge, EdgeOrigin, GateResult, GateResultError, GateStatus, ReviewSeverity, RiskClass,
+};

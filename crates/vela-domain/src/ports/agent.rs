@@ -9,6 +9,44 @@ use crate::ids::{CommitSha, WorkerId, WorktreePath};
 
 use super::PortFuture;
 
+/// Which kind of session a [`SessionRef`] names. Workers and authoritative reviewers run in separate sessions with
+/// separate profiles (C05: "reviewer in a separate profile"), so every operation that targets a session names both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SessionRole {
+    /// The ticket worker's implementation session.
+    Worker,
+    /// The fresh authoritative-reviewer session for the worker's ticket.
+    Reviewer,
+}
+
+/// Identifies one session Vela created: the worker it belongs to and its role. Stop All, cancellation, status and
+/// profile provisioning address sessions through it, so a running review can be cancelled like any other session.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SessionRef {
+    /// The worker (one ticket execution attempt) the session belongs to.
+    pub worker: WorkerId,
+    /// Which of the worker's sessions.
+    pub role: SessionRole,
+}
+
+impl SessionRef {
+    /// The worker's implementation session.
+    pub fn worker(worker: WorkerId) -> Self {
+        Self {
+            worker,
+            role: SessionRole::Worker,
+        }
+    }
+
+    /// The worker's reviewer session.
+    pub fn reviewer(worker: WorkerId) -> Self {
+        Self {
+            worker,
+            role: SessionRole::Reviewer,
+        }
+    }
+}
+
 /// Opaque identifier of a provider conversation (recorded for visibility and resume, ADR-020).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConversationId(pub String);
@@ -161,6 +199,8 @@ pub enum SessionStatus {
 /// A request for an authoritative review in a fresh reviewer session.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewRequest {
+    /// The worker whose work is reviewed; the review runs as that worker's [`SessionRole::Reviewer`] session.
+    pub worker: WorkerId,
     /// The worktree under review.
     pub worktree: WorktreePath,
     /// The fixed point the diff is taken against.
@@ -190,10 +230,10 @@ pub trait AgentSession: Send + Sync {
         request: &'a TurnRequest,
         sink: &'a dyn AgentEventSink,
     ) -> PortFuture<'a, TurnResult>;
-    /// Cancels the session of `worker`. Cancelling an idle or unknown session succeeds.
-    fn cancel<'a>(&'a self, worker: &'a WorkerId) -> PortFuture<'a, ()>;
-    /// Status of the session of `worker`.
-    fn status<'a>(&'a self, worker: &'a WorkerId) -> PortFuture<'a, SessionStatus>;
+    /// Cancels `session` (a worker or reviewer session). Cancelling an idle or unknown session succeeds.
+    fn cancel<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, ()>;
+    /// Status of `session`.
+    fn status<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, SessionStatus>;
 }
 
 /// Capability discovery and the per-worker profile.
@@ -202,8 +242,9 @@ pub trait AgentProfile: Send + Sync {
     fn capabilities(&self) -> PortFuture<'_, AgentCapabilities>;
     /// Checks the native permission posture.
     fn permission_posture(&self) -> PortFuture<'_, PermissionPosture>;
-    /// Prepares the isolated profile for `worker` (settings, rules, hook configuration).
-    fn provision_profile<'a>(&'a self, worker: &'a WorkerId) -> PortFuture<'a, ()>;
+    /// Prepares the isolated profile for `session` (settings, rules, hook configuration); worker and reviewer
+    /// sessions have separate profiles.
+    fn provision_profile<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, ()>;
 }
 
 /// Authoritative reviews in a separate, fresh session.

@@ -12,7 +12,7 @@
 pub mod command_registry;
 #[cfg(all(test, feature = "full"))]
 mod contract_export;
-#[cfg(test)]
+#[cfg(all(test, feature = "full"))]
 mod sample;
 mod vocabulary;
 

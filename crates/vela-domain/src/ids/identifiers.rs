@@ -4,6 +4,10 @@ use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+use super::path_safety::{
+    PathComponent, is_windows_illegal_name_char, is_windows_reserved_name,
+};
+
 /// Why a candidate identifier was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IdError {
@@ -38,7 +42,13 @@ impl std::error::Error for IdError {}
 
 const MAX_ID_LEN: usize = 128;
 
-/// Identifiers are opaque tokens: visible ASCII only, no whitespace or control characters.
+/// Logical identifiers (`RunId`, `TicketId`, `WorkerId`) are opaque tokens drawn from `[A-Za-z0-9._#-]`.
+///
+/// They are strict enough that every one of them can be encoded into a Windows-safe path component
+/// ([`PathComponent::encode`]) and used inside a branch name: the first character is a letter or digit (no leading `-`,
+/// `.` or `#`), there is no trailing `.` and no `..`, `~` is excluded (it marks encoded path components), and Windows
+/// reserved device names are rejected. Letter case is preserved in the id and is significant, so ids that differ only in
+/// case are distinct ids; they are kept apart on disk by [`PathComponent::encode`] (see [`case_fold_key`]).
 fn validate_token(value: &str) -> Result<(), IdError> {
     if value.is_empty() {
         return Err(IdError::Empty);
@@ -46,17 +56,35 @@ fn validate_token(value: &str) -> Result<(), IdError> {
     if value.len() > MAX_ID_LEN {
         return Err(IdError::TooLong { max: MAX_ID_LEN });
     }
-    // Identifiers become directory and branch-name components, so path separators, drive colons and `..` are rejected.
     if let Some(found) = value
         .chars()
-        .find(|c| !c.is_ascii_graphic() || matches!(c, '/' | '\\' | ':'))
+        .find(|c| !(c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '#' | '-')))
     {
         return Err(IdError::InvalidCharacter { found });
+    }
+    if !value.starts_with(|c: char| c.is_ascii_alphanumeric()) {
+        return Err(IdError::Malformed(
+            "an identifier must start with a letter or digit",
+        ));
+    }
+    if value.ends_with('.') {
+        return Err(IdError::Malformed("an identifier cannot end with `.`"));
     }
     if value.contains("..") {
         return Err(IdError::Malformed("an identifier cannot contain `..`"));
     }
+    if is_windows_reserved_name(value) {
+        return Err(IdError::Malformed(
+            "an identifier cannot be a Windows reserved device name",
+        ));
+    }
     Ok(())
+}
+
+/// The case-folded form of an identifier, branch or path. Two values with the same fold key name the same thing on a
+/// case-insensitive filesystem (NTFS), so adapters compare fold keys to detect collisions between distinct ids.
+pub fn case_fold_key(value: &str) -> String {
+    value.to_ascii_lowercase()
 }
 
 macro_rules! validated_string {
@@ -123,6 +151,12 @@ validated_string! {
 }
 
 validated_string! {
+    /// Identifies one persisted operation (a Git operation record and its per-worktree lock, a merge-lane step).
+    OperationId,
+    |v| validate_token(v).map(|()| v.to_owned())
+}
+
+validated_string! {
     /// A full Git object id: 40 (SHA-1) or 64 (SHA-256) hexadecimal digits, normalized to lowercase.
     ///
     /// Abbreviated ids are rejected on purpose: a fixed point or base recorded as an abbreviation can become ambiguous.
@@ -166,10 +200,13 @@ fn validate_branch_name(value: &str) -> Result<String, IdError> {
     if value.is_empty() {
         return Err(IdError::Empty);
     }
-    if let Some(found) = value
-        .chars()
-        .find(|c| c.is_control() || c.is_whitespace() || "~^:?*[\\".contains(*c))
-    {
+    // Besides the `git check-ref-format` characters, reject what Windows forbids in a file name: loose refs are files.
+    if let Some(found) = value.chars().find(|c| {
+        c.is_control()
+            || c.is_whitespace()
+            || "~^?*[\\<>|\"".contains(*c)
+            || *c == ':'
+    }) {
         return Err(IdError::InvalidCharacter { found });
     }
     if value == "@" || value.contains("@{") {
@@ -190,13 +227,22 @@ fn validate_branch_name(value: &str) -> Result<String, IdError> {
     if value.ends_with('.') {
         return Err(IdError::Malformed("a branch name cannot end with `.`"));
     }
-    if value
-        .split('/')
-        .any(|part| part.starts_with('.') || part.ends_with(".lock"))
-    {
-        return Err(IdError::Malformed(
-            "a branch name component cannot start with `.` or end with `.lock`",
-        ));
+    for part in value.split('/') {
+        if part.starts_with('.') || part.ends_with(".lock") {
+            return Err(IdError::Malformed(
+                "a branch name component cannot start with `.` or end with `.lock`",
+            ));
+        }
+        if part.ends_with('.') {
+            return Err(IdError::Malformed(
+                "a branch name component cannot end with `.` (Windows strips it)",
+            ));
+        }
+        if is_windows_reserved_name(part) {
+            return Err(IdError::Malformed(
+                "a branch name component cannot be a Windows reserved device name",
+            ));
+        }
     }
     Ok(value.to_owned())
 }
@@ -205,11 +251,64 @@ fn validate_worktree_path(value: &str) -> Result<String, IdError> {
     if value.trim().is_empty() {
         return Err(IdError::Empty);
     }
-    if value.contains('\0') {
-        return Err(IdError::InvalidCharacter { found: '\0' });
+    if let Some(found) = value.chars().find(|c| c.is_control()) {
+        return Err(IdError::InvalidCharacter { found });
+    }
+    // An optional `\\?\` or `\\.\` verbatim prefix and an optional drive (`C:`) may precede the components; any other
+    // colon, and the other Windows-illegal characters, are rejected.
+    let rest = value
+        .strip_prefix(r"\\?\")
+        .or_else(|| value.strip_prefix(r"\\.\"))
+        .unwrap_or(value);
+    let rest = match rest.as_bytes() {
+        [drive, b':', ..] if drive.is_ascii_alphabetic() => &rest[2..],
+        _ => rest,
+    };
+    if let Some(found) = rest
+        .chars()
+        .find(|c| is_windows_illegal_name_char(*c) && !matches!(c, '/' | '\\'))
+    {
+        return Err(IdError::InvalidCharacter { found });
+    }
+    for component in rest.split(['/', '\\']) {
+        if component == ".." {
+            return Err(IdError::Malformed(
+                "a worktree path cannot contain a `..` component",
+            ));
+        }
+        if component != "." && (component.ends_with('.') || component.ends_with(' ')) {
+            return Err(IdError::Malformed(
+                "a worktree path component cannot end with `.` or a space (Windows strips it)",
+            ));
+        }
+        if is_windows_reserved_name(component) {
+            return Err(IdError::Malformed(
+                "a worktree path component cannot be a Windows reserved device name",
+            ));
+        }
     }
     Ok(value.to_owned())
 }
+
+/// Path-component and case-collision helpers for the logical identifiers.
+macro_rules! path_safe_id {
+    ($($name:ident),+) => {$(
+        impl $name {
+            /// The Windows-safe directory name for this identifier ([`PathComponent::encode`]): lowercase, never a
+            /// reserved name, bounded in length, and distinct for distinct ids even when they differ only in case.
+            pub fn path_component(&self) -> PathComponent {
+                PathComponent::encode(&self.0)
+            }
+
+            /// Case-folded form; equal fold keys mean a collision on a case-insensitive filesystem.
+            pub fn case_fold_key(&self) -> String {
+                case_fold_key(&self.0)
+            }
+        }
+    )+};
+}
+
+path_safe_id!(RunId, TicketId, WorkerId, OperationId, BranchName);
 
 impl CommitSha {
     /// The first `len` digits (at most the full id), for display only.
@@ -223,21 +322,69 @@ mod tests {
     use super::*;
 
     #[test]
-    fn token_ids_accept_visible_ascii_and_reject_the_rest() {
+    fn token_ids_accept_the_logical_alphabet_and_reject_the_rest() {
         assert_eq!(RunId::new("run-01H").unwrap().as_str(), "run-01H");
         assert_eq!(TicketId::new("F02").unwrap().to_string(), "F02");
+        assert!(TicketId::new("gh#42").is_ok());
         assert_eq!(WorkerId::new(""), Err(IdError::Empty));
         assert_eq!(
             WorkerId::new("a b"),
             Err(IdError::InvalidCharacter { found: ' ' })
         );
-        for unsafe_id in ["a/b", "a\\b", "C:", "..", "a..b"] {
-            assert!(RunId::new(unsafe_id).is_err(), "{unsafe_id:?}");
-        }
         assert_eq!(
             TicketId::new("x".repeat(129)),
             Err(IdError::TooLong { max: 128 })
         );
+    }
+
+    #[test]
+    fn token_ids_reject_windows_unsafe_values() {
+        let unsafe_ids = [
+            "a/b", "a\\b", "C:", "a:b", "..", "a..b", ".", "-rf", "-", ".hidden", "#x", "run-1.", "a.", "a<b", "a>b",
+            "a|b", "a\"b", "a*b", "a?b", "a~b", "a b", "a\tb", "a\0b", "é", "名前", "CON", "con", "Nul", "aux.txt",
+            "COM1", "lpt9", "com1.log",
+        ];
+        for id in unsafe_ids {
+            assert!(RunId::new(id).is_err(), "RunId accepted {id:?}");
+            assert!(TicketId::new(id).is_err(), "TicketId accepted {id:?}");
+            assert!(WorkerId::new(id).is_err(), "WorkerId accepted {id:?}");
+        }
+        for fine in ["console", "com10", "lpt", "a.b", "a_b", "9", "x-"] {
+            assert!(RunId::new(fine).is_ok(), "{fine:?}");
+        }
+    }
+
+    #[test]
+    fn every_accepted_id_encodes_to_a_valid_path_component() {
+        for id in ["F02", "Run-1", "run-1", "gh#42", "a.b", "A", "x".repeat(128).as_str()] {
+            let run = RunId::new(id).unwrap();
+            assert!(PathComponent::new(run.path_component().as_str()).is_ok(), "{id}");
+        }
+    }
+
+    #[test]
+    fn ids_differing_only_in_case_are_distinct_ids_with_distinct_path_components() {
+        let lower = RunId::new("run-1").unwrap();
+        let upper = RunId::new("Run-1").unwrap();
+        assert_ne!(lower, upper);
+        assert_eq!(lower.case_fold_key(), upper.case_fold_key());
+        assert_ne!(lower.path_component(), upper.path_component());
+        assert_ne!(
+            lower.path_component().as_str().to_ascii_lowercase(),
+            upper.path_component().as_str().to_ascii_lowercase()
+        );
+        // An already-canonical id is its own component, so existing layouts are stable.
+        assert_eq!(lower.path_component().as_str(), "run-1");
+        // `#` is allowed in an id but never in a directory name.
+        assert!(!TicketId::new("gh#42").unwrap().path_component().as_str().contains('#'));
+    }
+
+    #[test]
+    fn worker_ids_whose_names_alias_on_ntfs_do_not_share_a_directory() {
+        // "f02" and "F02" are the same directory on NTFS; their components must differ.
+        let a = WorkerId::new("F02").unwrap().path_component();
+        let b = WorkerId::new("f02").unwrap().path_component();
+        assert_ne!(a.as_str().to_ascii_lowercase(), b.as_str().to_ascii_lowercase());
     }
 
     #[test]
@@ -275,16 +422,70 @@ mod tests {
             "a@{b",
             "a/.hidden",
             "a/b.lock",
+            "a<b",
+            "a>b",
+            "a|b",
+            "a\"b",
+            "con",
+            "f02/CON",
+            "a/nul.txt",
+            "x/aux",
+            "a./b",
+            "a/b.",
         ] {
             assert!(BranchName::new(bad).is_err(), "{bad:?} must be rejected");
         }
     }
 
     #[test]
-    fn worktree_path_rejects_empty_and_nul() {
-        assert!(WorktreePath::new(r"C:\Users\x\Vela\worktrees\f02").is_ok());
+    fn branch_names_that_differ_only_in_case_collide_by_fold_key_but_not_as_path_components() {
+        let a = BranchName::new("F02/Domain").unwrap();
+        let b = BranchName::new("f02/domain").unwrap();
+        assert_ne!(a, b);
+        assert_eq!(a.case_fold_key(), b.case_fold_key());
+        assert_ne!(
+            a.path_component().as_str().to_ascii_lowercase(),
+            b.path_component().as_str().to_ascii_lowercase()
+        );
+    }
+
+    #[test]
+    fn worktree_path_accepts_normal_windows_and_posix_paths() {
+        for ok in [
+            r"C:\Users\x\Vela\worktrees\f02",
+            r"c:/Users/x/Vela",
+            r"\\?\C:\Users\x\Vela",
+            r"\\server\share\vela",
+            "/repo",
+            "relative/path",
+            "./here",
+        ] {
+            assert!(WorktreePath::new(ok).is_ok(), "{ok:?}");
+        }
+    }
+
+    #[test]
+    fn worktree_path_rejects_traversal_reserved_names_and_illegal_characters() {
         assert_eq!(WorktreePath::new("  "), Err(IdError::Empty));
-        assert!(WorktreePath::new("a\0b").is_err());
+        for bad in [
+            "a\0b",
+            r"C:\x\..\y",
+            "../x",
+            "a/../b",
+            r"C:\x\CON",
+            r"C:\x\nul.txt",
+            r"C:\x\aux\y",
+            r"C:\x\a.",
+            r"C:\x\a ",
+            r"C:\x\a?b",
+            r"C:\x\a*b",
+            r"C:\x\a<b",
+            r"C:\x\a|b",
+            "a:b/c",
+            "x\ny",
+        ] {
+            assert!(WorktreePath::new(bad).is_err(), "{bad:?} must be rejected");
+        }
     }
 
     #[cfg(feature = "full")]

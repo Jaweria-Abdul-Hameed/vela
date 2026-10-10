@@ -89,6 +89,9 @@ macro_rules! fault_point {
 }
 
 #[cfg(test)]
+mod feature_matrix;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::process::Command;
@@ -140,10 +143,12 @@ mod tests {
         if std::env::var(CHILD_ENV).is_err() {
             return;
         }
-        // The armed macro body in every build; the public macro (which forwards to it) when the feature is on.
-        crate::__fault_point_armed!(FaultPoint::SelfTest);
+        // The public macro when the feature is on; otherwise the armed macro body it forwards to, so the default build
+        // still exercises the abort path.
         #[cfg(feature = "fault-injection")]
         crate::fault_point!(FaultPoint::SelfTest);
+        #[cfg(not(feature = "fault-injection"))]
+        crate::__fault_point_armed!(FaultPoint::SelfTest);
         println!("SURVIVED-THE-FAULT-POINT");
     }
 

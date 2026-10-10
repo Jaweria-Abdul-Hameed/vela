@@ -28,7 +28,7 @@ macro_rules! event_vocabulary {
                 $( $(#[$fm])* pub $field: $ty ),*
             }
 
-            #[cfg(test)]
+            #[cfg(all(test, feature = "full"))]
             impl $payload {
                 pub(crate) fn sample() -> Self {
                     Self { $( $field: <$ty as super::sample::Sample>::sample() ),* }
@@ -73,7 +73,7 @@ macro_rules! event_vocabulary {
         }
 
         /// One sample event per kind, in specification order.
-        #[cfg(test)]
+        #[cfg(all(test, feature = "full"))]
         pub(crate) fn sample_events() -> Vec<Event> {
             vec![ $( Event::$kind($payload::sample()) ),+ ]
         }
