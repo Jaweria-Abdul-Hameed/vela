@@ -3,8 +3,12 @@
 //! A stream writes to `<stem>.log`. When that file is full it becomes `<stem>.1.log`, the previous `<stem>.1.log`
 //! becomes `<stem>.2.log`, and so on; the oldest file is deleted. No file ever exceeds
 //! [`RotationLimits::max_file_bytes`], and at most [`RotationLimits::max_files`] rotated files are kept, so the stream
-//! never occupies more than [`RotationLimits::total_bytes`]. The cap wins over history: when a file cannot be rotated
-//! it is emptied instead, and files left by an earlier, larger configuration are deleted when the stream is opened.
+//! never occupies more than [`RotationLimits::total_bytes`].
+//!
+//! The cap is the invariant; when it cannot be kept by renaming, the oldest history is given up first and the newest
+//! records last. A rotated file that cannot be moved (another program holds it open) is overwritten by the next one.
+//! An active file that cannot be renamed is copied to `<stem>.1.log` and then emptied; only when that copy fails too
+//! is it emptied without one. Files left by an earlier, larger configuration are deleted when the stream is opened.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
@@ -162,23 +166,31 @@ impl Rotating {
     fn rotate(&mut self) -> io::Result<()> {
         // Close the active file first: Windows does not rename an open file.
         self.file = None;
-        if self.shift_files().is_err() {
-            // The cap is the invariant, history is not: empty the active file rather than let it grow.
-            File::create(self.active_path())?;
-        }
+        self.shift_files()?;
         self.open_active()
     }
 
+    /// Moves every file one place along. Afterwards the active file is missing or empty, whatever failed on the way.
     fn shift_files(&self) -> io::Result<()> {
+        let active = self.active_path();
         let keep = self.limits.max_files;
         if keep == 0 {
-            return remove_if_present(&self.active_path());
+            return remove_if_present(&active).or_else(|_| empty(&active));
         }
-        remove_if_present(&self.rotated_path(keep))?;
+        // Best effort from the oldest file down: a file that cannot be deleted or moved stays where it is and is
+        // overwritten by the file that follows it, so a failure here costs old history, not new.
+        let _ = remove_if_present(&self.rotated_path(keep));
         for index in (1..keep).rev() {
-            rename_if_present(&self.rotated_path(index), &self.rotated_path(index + 1))?;
+            let _ = rename_if_present(&self.rotated_path(index), &self.rotated_path(index + 1));
         }
-        rename_if_present(&self.active_path(), &self.rotated_path(1))
+        let newest = self.rotated_path(1);
+        if rename_if_present(&active, &newest).is_ok() {
+            return Ok(());
+        }
+        // The active file cannot be renamed (on Windows: another program has it open without sharing deletion). Keep
+        // its records by copying them, then empty it in place; the copy is no larger than one file.
+        let _ = fs::copy(&active, &newest);
+        empty(&active)
     }
 
     fn write_record(&mut self, record: &[u8]) -> io::Result<()> {
@@ -227,6 +239,15 @@ fn remove_if_present(path: &Path) -> io::Result<()> {
         Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),
         _ => Ok(()),
     }
+}
+
+/// Truncates `path` in place, which works where renaming and deleting do not.
+fn empty(path: &Path) -> io::Result<()> {
+    OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .map(drop)
 }
 
 fn rename_if_present(from: &Path, to: &Path) -> io::Result<()> {
@@ -518,6 +539,68 @@ mod tests {
         );
         assert_eq!(dir.read("vela-core.log"), "");
         assert_eq!(dir.read("vela-core.x.log"), "not ours");
+    }
+
+    /// Another program holds the active file open without sharing deletion, so it cannot be renamed: the newest
+    /// records must survive (copied to the first rotated file) and the cap must hold.
+    #[cfg(windows)]
+    #[test]
+    fn an_active_file_that_cannot_be_renamed_is_copied_and_emptied() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        const FILE_SHARE_READ_WRITE: u32 = 0x1 | 0x2;
+
+        let dir = TempDir::new("held");
+        let limits = limits(20, 2);
+        let mut log = LogFile::open(&dir.0, LogStream::Core, limits).unwrap();
+        log.write_all(b"one 3456789\n").unwrap();
+        log.write_all(b"two 3456789\n").unwrap();
+        assert_eq!(dir.read("vela-core.1.log"), "one 3456789\n");
+
+        let holder = OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ_WRITE)
+            .open(log.path())
+            .unwrap();
+        assert!(fs::rename(log.path(), dir.0.join("elsewhere.log")).is_err());
+
+        log.write_all(b"three 56789\n").unwrap();
+        log.write_all(b"four 456789\n").unwrap();
+        drop(holder);
+
+        assert_eq!(dir.read("vela-core.log"), "four 456789\n");
+        assert_eq!(dir.read("vela-core.1.log"), "three 56789\n");
+        assert_eq!(dir.read("vela-core.2.log"), "two 3456789\n");
+        assert!(log.total_bytes().unwrap() <= limits.total_bytes());
+        assert_eq!(dir.files().len(), 3);
+    }
+
+    /// A rotated file that cannot be moved costs its own (old) records only.
+    #[cfg(windows)]
+    #[test]
+    fn a_rotated_file_that_cannot_be_moved_costs_only_old_history() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        const FILE_SHARE_READ_WRITE: u32 = 0x1 | 0x2;
+
+        let dir = TempDir::new("stuck");
+        let limits = limits(20, 2);
+        let mut log = LogFile::open(&dir.0, LogStream::Core, limits).unwrap();
+        for record in ["one 3456789\n", "two 3456789\n", "three 56789\n"] {
+            log.write_all(record.as_bytes()).unwrap();
+        }
+        let holder = OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ_WRITE)
+            .open(dir.0.join("vela-core.2.log"))
+            .unwrap();
+        log.write_all(b"four 456789\n").unwrap();
+        drop(holder);
+
+        assert_eq!(dir.read("vela-core.log"), "four 456789\n");
+        assert_eq!(dir.read("vela-core.1.log"), "three 56789\n");
+        assert!(log.total_bytes().unwrap() <= limits.total_bytes());
+        assert_eq!(dir.files().len(), 3);
     }
 
     #[test]

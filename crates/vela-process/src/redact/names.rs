@@ -86,7 +86,8 @@ const DESCRIPTIVE_SUFFIXES: [&[u8]; 20] = [
 /// and descriptive names (`token_url`) do not, while credential lists (`auth_tokens`, `api_keys`) do.
 pub fn is_credential_name(name: &str) -> bool {
     let bytes = name.as_bytes();
-    if bytes.is_empty() || bytes.len() > MAX_NAME_LEN {
+    // The shell's working directory variables hold paths; they are not the `pwd` of a connection string.
+    if bytes.is_empty() || bytes.len() > MAX_NAME_LEN || matches!(name, "PWD" | "OLDPWD") {
         return false;
     }
     // Normalized form: lower case, every separator and camel-case boundary becomes `_`. At most two bytes per input byte.
@@ -245,6 +246,8 @@ mod tests {
             "PASS",
             "passed",
             "compass",
+            "PWD",
+            "OLDPWD",
             "run_id",
             "session_id",
             "conversation_id",

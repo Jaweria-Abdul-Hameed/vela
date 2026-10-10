@@ -3,78 +3,100 @@
 //! Redacting JSON as plain text would either corrupt the document or stop at a quote that belongs to the secret. This
 //! module walks the document instead: every string is unescaped, redacted as free text (or as a named value when it is
 //! an object member) and written back escaped, so the output is still JSON with the same shape.
+//!
+//! Three things are known only from the structure, and are redacted because of it:
+//!
+//! - everything inside a container stored under a credential-like name (`"credentials": {"user": "..."}`);
+//! - the `value` of a name and value pair whose name is credential-like (`{"name": "Cookie", "value": "..."}`);
+//! - the array element after a bare credential flag (`["mysql", "--password", "..."]`).
+//!
+//! The walk is a single pass with an explicit stack. It never copies a member name per element or per level, so its
+//! cost is linear in the document whatever the document looks like.
 
 use std::borrow::Cow;
 use std::fmt::Write as _;
+use std::rc::Rc;
 
-use super::names::is_credential_name;
+use super::names::{MAX_NAME_LEN, is_credential_name};
 use super::{REDACTED, Redactor};
 
 /// Members that name the credential held by a sibling `value` member (`{"name": "DB_PASSWORD", "value": "..."}`).
 const PAIR_NAMES: [&str; 4] = ["name", "key", "header", "variable"];
 const PAIR_VALUES: [&str; 2] = ["value", "val"];
 
-enum Frame {
-    /// `credential_pair` is set once a [`PAIR_NAMES`] member of this object held a credential name.
-    Object { credential_pair: bool },
-    /// The member name the array is stored under; its elements are values of that name.
-    Array { key: Option<String> },
+/// Documents nested deeper than this are not walked; they are redacted as plain text instead.
+const MAX_DEPTH: usize = 128;
+
+/// One open container.
+struct Frame {
+    /// An object (`{`) rather than an array (`[`).
+    object: bool,
+    /// The member name the container is stored under. The elements of an array are values of that name, and an array
+    /// inside an array inherits it.
+    name: Option<Rc<str>>,
+    /// The container is stored, directly or through its ancestors, under a credential-like name: every string and
+    /// number in it is a credential.
+    credential: bool,
+    /// Object only: a [`PAIR_NAMES`] member held a credential name, so the [`PAIR_VALUES`] member holds the credential.
+    credential_pair: bool,
+    /// Array only: the previous element was a bare credential flag, so the next one is its value.
+    flag_value: bool,
 }
 
 /// Redacts every string and number of `text`, which must be one or more well-formed JSON containers.
 ///
-/// Returns `None` when `text` is not JSON (truncated, or not JSON at all); the caller then redacts it as plain text.
+/// Returns `None` when `text` is not JSON (truncated, nested too deeply, or not JSON at all); the caller then redacts
+/// it as plain text.
 pub(super) fn redact_document<'a>(text: &'a str, redactor: &dyn Redactor) -> Option<Cow<'a, str>> {
     let bytes = text.as_bytes();
     let mut out = String::new();
     let mut copied = 0;
     let mut stack: Vec<Frame> = Vec::new();
     // The name of the member whose value comes next.
-    let mut key: Option<String> = None;
+    let mut key: Option<Rc<str>> = None;
     let mut index = 0;
 
     while index < bytes.len() {
         match bytes[index] {
             b' ' | b'\t' | b'\n' | b'\r' | b',' => index += 1,
-            b'{' => {
-                key = None;
-                stack.push(Frame::Object {
+            open @ (b'{' | b'[') => {
+                if stack.len() >= MAX_DEPTH {
+                    return None;
+                }
+                let name = value_name(&mut key, &stack);
+                let credential = stack.last().is_some_and(|parent| parent.credential)
+                    || name.as_deref().is_some_and(is_credential_name);
+                if let Some(parent) = stack.last_mut() {
+                    parent.flag_value = false;
+                }
+                stack.push(Frame {
+                    object: open == b'{',
+                    name,
+                    credential,
                     credential_pair: false,
+                    flag_value: false,
                 });
                 index += 1;
             }
-            b'[' => {
-                let key = key.take().or_else(|| inherited_key(&stack));
-                stack.push(Frame::Array { key });
-                index += 1;
-            }
-            b'}' => {
-                if !matches!(stack.pop(), Some(Frame::Object { .. })) {
+            close @ (b'}' | b']') => {
+                if stack.pop()?.object != (close == b'}') {
                     return None;
                 }
                 key = None;
-                index += 1;
-            }
-            b']' => {
-                if !matches!(stack.pop(), Some(Frame::Array { .. })) {
-                    return None;
-                }
                 index += 1;
             }
             b'"' => {
                 let (content, end) = parse_string(text, index)?;
                 let after = end + blank_len(&bytes[end..]);
                 let is_key = key.is_none()
-                    && matches!(stack.last(), Some(Frame::Object { .. }))
+                    && stack.last().is_some_and(|frame| frame.object)
                     && bytes.get(after) == Some(&b':');
                 let replacement = if is_key {
                     changed(redactor.redact(&content), &content)
                 } else {
-                    let name = key.take().or_else(|| inherited_key(&stack));
-                    changed(
-                        leaf(redactor, stack.last_mut(), name.as_deref(), &content),
-                        &content,
-                    )
+                    let name = value_name(&mut key, &stack);
+                    let shown = leaf(redactor, stack.last_mut(), name.as_deref(), &content, true);
+                    changed(shown, &content)
                 };
                 if let Some(replacement) = replacement {
                     out.push_str(&text[copied..index]);
@@ -82,7 +104,7 @@ pub(super) fn redact_document<'a>(text: &'a str, redactor: &dyn Redactor) -> Opt
                     copied = end;
                 }
                 if is_key {
-                    key = Some(content.into_owned());
+                    key = Some(Rc::from(&*content));
                     index = after + 1;
                 } else {
                     index = end;
@@ -91,19 +113,20 @@ pub(super) fn redact_document<'a>(text: &'a str, redactor: &dyn Redactor) -> Opt
             _ => {
                 let end = index + scalar_len(&bytes[index..]);
                 let token = text.get(index..end)?;
-                let name = key.take().or_else(|| inherited_key(&stack));
+                let name = value_name(&mut key, &stack);
                 if is_number(token) {
                     // A redacted number becomes a string so the document stays valid.
-                    let shown = match &name {
-                        Some(name) => redactor.redact_value(name, token),
-                        None => redactor.redact(token),
-                    };
+                    let shown = leaf(redactor, stack.last_mut(), name.as_deref(), token, false);
                     if shown != token {
                         out.push_str(&text[copied..index]);
                         push_json_string(&mut out, &shown);
                         copied = end;
                     }
-                } else if !matches!(token, "true" | "false" | "null") {
+                } else if matches!(token, "true" | "false" | "null") {
+                    if let Some(frame) = stack.last_mut() {
+                        frame.flag_value = false;
+                    }
+                } else {
                     return None;
                 }
                 index = end;
@@ -125,31 +148,43 @@ fn changed(shown: Cow<'_, str>, original: &str) -> Option<String> {
     (shown != original).then(|| shown.into_owned())
 }
 
-fn inherited_key(stack: &[Frame]) -> Option<String> {
-    match stack.last() {
-        Some(Frame::Array { key }) => key.clone(),
+/// The name of the value that comes next: the pending member name, or the name the enclosing array is stored under.
+fn value_name(key: &mut Option<Rc<str>>, stack: &[Frame]) -> Option<Rc<str>> {
+    key.take().or_else(|| match stack.last() {
+        Some(frame) if !frame.object => frame.name.clone(),
         _ => None,
-    }
+    })
 }
 
+/// A command-line flag on its own that names a credential: `--password`, `-token`.
+fn is_bare_flag(content: &str) -> bool {
+    content.starts_with('-') && content.len() <= MAX_NAME_LEN && is_credential_name(content)
+}
+
+/// Redacts one string (`is_string`) or number, using what its container says about it.
 fn leaf<'c>(
     redactor: &dyn Redactor,
     frame: Option<&mut Frame>,
     name: Option<&str>,
     content: &'c str,
+    is_string: bool,
 ) -> Cow<'c, str> {
-    if let (Some(Frame::Object { credential_pair }), Some(name)) = (frame, name) {
-        if PAIR_NAMES
-            .iter()
-            .any(|pair| name.eq_ignore_ascii_case(pair))
-        {
-            *credential_pair = is_credential_name(content);
-        } else if *credential_pair
-            && !content.is_empty()
-            && PAIR_VALUES
-                .iter()
-                .any(|pair| name.eq_ignore_ascii_case(pair))
-        {
+    if let Some(frame) = frame {
+        let follows_flag =
+            std::mem::replace(&mut frame.flag_value, is_string && is_bare_flag(content));
+        let pair_member = |members: &[&str]| {
+            frame.object
+                && name.is_some_and(|name| members.iter().any(|m| name.eq_ignore_ascii_case(m)))
+        };
+        let is_pair_name = pair_member(&PAIR_NAMES);
+        let is_pair_value = pair_member(&PAIR_VALUES);
+        if is_pair_name && is_string {
+            frame.credential_pair = is_credential_name(content);
+        }
+        let credential = frame.credential
+            || (!frame.object && follows_flag)
+            || (is_pair_value && frame.credential_pair);
+        if credential && !content.is_empty() {
             return Cow::Borrowed(REDACTED);
         }
     }
@@ -348,6 +383,60 @@ mod tests {
             redact(text).unwrap(),
             r#"[{"name":"DB_PASSWORD","value":"[REDACTED]"},{"name":"PATH","value":"/usr/bin"}]"#
         );
+    }
+
+    #[test]
+    fn name_value_pairs_with_numbers_and_in_either_case() {
+        let text = r#"{"Name":"PIN_TOKEN","Value":1234,"other":5}"#;
+        assert_eq!(
+            redact(text).unwrap(),
+            r#"{"Name":"PIN_TOKEN","Value":"[REDACTED]","other":5}"#
+        );
+    }
+
+    #[test]
+    fn the_element_after_a_bare_credential_flag_is_its_value() {
+        let text = r#"{"args":["mysql","--password","tr0ub4dor","--host","db","-token",42,"--password"],"n":"x"}"#;
+        assert_eq!(
+            redact(text).unwrap(),
+            r#"{"args":["mysql","--password","[REDACTED]","--host","db","-token","[REDACTED]","--password"],"n":"x"}"#
+        );
+        // A flag is followed by its value only: a nested container or a literal resets it.
+        let text = r#"["--password",null,"plain",["--token"],"plain"]"#;
+        assert!(matches!(
+            redact_document(text, &PatternRedactor::new()),
+            Some(Cow::Borrowed(_))
+        ));
+    }
+
+    #[test]
+    fn everything_inside_a_credential_container_is_redacted() {
+        let text = r#"{"credentials":{"user":"ada","pass":"hunter2","port":5432,"tls":true,"extra":[{"k":"v"}]},"auth":{"value":"abc"},"user":"ada"}"#;
+        assert_eq!(
+            redact(text).unwrap(),
+            r#"{"credentials":{"user":"[REDACTED]","pass":"[REDACTED]","port":"[REDACTED]","tls":true,"extra":[{"k":"[REDACTED]"}]},"auth":{"value":"[REDACTED]"},"user":"ada"}"#
+        );
+    }
+
+    #[test]
+    fn hostile_nesting_is_cheap_and_bounded() {
+        // A long member name above a deep stack of arrays: the name is shared, never copied per level.
+        let name = "k".repeat(200_000);
+        let deep = format!("{{\"{name}\":{}", "[".repeat(MAX_DEPTH + 50));
+        assert!(redact(&deep).is_none());
+        // Within the depth limit the document is walked; unbalanced, it is still rejected.
+        let shallow = format!("{{\"{name}\":{}", "[".repeat(MAX_DEPTH - 2));
+        assert!(redact(&shallow).is_none());
+        // A long name above a very wide array: one shared name for 200 000 elements.
+        let wide = format!("{{\"{name}\":[{}1]}}", "1,".repeat(200_000));
+        assert!(matches!(
+            redact_document(&wide, &PatternRedactor::new()),
+            Some(Cow::Borrowed(_))
+        ));
+        // The plain-text fallback handles what the walk refuses.
+        let fallback = format!("{}{{\"password\":\"hunter2\"}}", "[".repeat(MAX_DEPTH + 1));
+        let shown = PatternRedactor::new().redact(&fallback).into_owned();
+        assert!(!shown.contains("hunter2"), "{}", &shown[shown.len() - 40..]);
     }
 
     #[test]

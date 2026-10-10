@@ -2,6 +2,9 @@
 //!
 //! A secret can be split across two reads, so chunks are never redacted on their own. Output is held until its line is
 //! complete and each line is redacted whole. The only state kept across lines is whether a private key block is open.
+//!
+//! Input is split at line feeds and decoded as UTF-8. Output in another encoding (UTF-16 from some Windows tools) must
+//! be transcoded by the caller first; undecoded, its text matches no pattern.
 
 use super::{REDACTED, SharedRedactor};
 
@@ -16,8 +19,9 @@ const PEM_END: &str = "-----END ";
 const PEM_DASHES: &str = "-----";
 const PRIVATE_KEY: &str = "PRIVATE KEY";
 
-/// Header lines that may appear inside a private key block.
-const KEY_HEADERS: [&str; 4] = ["Proc-Type:", "DEK-Info:", "Version:", "Comment:"];
+/// The most lines swallowed after a private key's BEGIN line when no END line arrives (a 16384-bit RSA key is about
+/// 200 lines). The bound keeps a stray BEGIN line from silencing the rest of the stream.
+const MAX_KEY_LINES: usize = 256;
 
 /// Redacts a stream line by line.
 ///
@@ -31,8 +35,9 @@ pub struct StreamRedactor {
     max_line_bytes: usize,
     /// The current line was cut at `max_line_bytes`; its remaining bytes are dropped.
     truncating: bool,
-    /// A private key block was opened on an earlier line and not closed yet.
-    in_private_key: bool,
+    /// How many more lines are swallowed as the body of a private key whose BEGIN line was seen. Zero when no key is
+    /// open.
+    key_lines_left: usize,
 }
 
 impl StreamRedactor {
@@ -43,7 +48,7 @@ impl StreamRedactor {
             pending: Vec::new(),
             max_line_bytes: DEFAULT_MAX_LINE_BYTES,
             truncating: false,
-            in_private_key: false,
+            key_lines_left: 0,
         }
     }
 
@@ -72,6 +77,14 @@ impl StreamRedactor {
                 let room = self.max_line_bytes - self.pending.len();
                 if piece.len() > room {
                     self.pending.extend_from_slice(&piece[..room]);
+                    // The word the cut falls in is dropped with the rest of the line: half a token or half a URL
+                    // is not recognizable as a secret, and must not be written out for that reason.
+                    let keep = self
+                        .pending
+                        .iter()
+                        .rposition(u8::is_ascii_whitespace)
+                        .map_or(0, |blank| blank + 1);
+                    self.pending.truncate(keep);
                     self.flush_line(&mut out);
                     out.push_str(TRUNCATED);
                     self.truncating = true;
@@ -90,14 +103,22 @@ impl StreamRedactor {
         out
     }
 
-    /// Ends the stream; returns the redacted form of the last, unterminated line.
-    pub fn finish(&mut self) -> String {
+    /// Releases the current, still incomplete line (a prompt that waits for input has no line break). What follows
+    /// continues the same line. Use it only when the stream has gone quiet: a secret that is still arriving is
+    /// redacted in two halves, and neither half may be recognizable.
+    pub fn flush_partial(&mut self) -> String {
         let mut out = String::new();
-        if !self.pending.is_empty() {
+        if !self.pending.is_empty() && !self.truncating {
             self.flush_line(&mut out);
         }
+        out
+    }
+
+    /// Ends the stream; returns the redacted form of the last, unterminated line.
+    pub fn finish(&mut self) -> String {
+        let out = self.flush_partial();
         self.truncating = false;
-        self.in_private_key = false;
+        self.key_lines_left = 0;
         out
     }
 
@@ -110,16 +131,19 @@ impl StreamRedactor {
 
     fn redact_line(&mut self, line: &str, out: &mut String) {
         let mut line = line;
-        if self.in_private_key {
-            if let Some(after) = after_key_end(line) {
+        if self.key_lines_left > 0 {
+            match after_key_end(line) {
                 // The key ends on this line; whatever follows it is ordinary output.
-                self.in_private_key = false;
-                line = after;
-            } else if is_key_material(line) {
-                return;
-            } else {
-                // Not key material: the block was never closed. Treat the line as ordinary output.
-                self.in_private_key = false;
+                Some(after) => {
+                    self.key_lines_left = 0;
+                    line = after;
+                }
+                // Every line of an open key is swallowed whatever it looks like: key lines arrive prefixed by
+                // `git diff`, `grep` and log collectors, and one unrecognized line must not release the rest.
+                None => {
+                    self.key_lines_left -= 1;
+                    return;
+                }
             }
         }
         out.push_str(&self.redactor.redact(line));
@@ -129,7 +153,7 @@ impl StreamRedactor {
             if !out.ends_with(REDACTED) {
                 out.push_str(REDACTED);
             }
-            self.in_private_key = true;
+            self.key_lines_left = MAX_KEY_LINES;
         }
     }
 }
@@ -158,14 +182,6 @@ fn after_key_end(line: &str) -> Option<&str> {
             .find(PEM_DASHES)
             .map_or("", |close| &label[close + PEM_DASHES.len()..]),
     )
-}
-
-fn is_key_material(line: &str) -> bool {
-    let line = line.trim();
-    KEY_HEADERS.iter().any(|header| line.starts_with(header))
-        || line
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'/' | b'='))
 }
 
 #[cfg(test)]
@@ -240,11 +256,45 @@ mod tests {
     }
 
     #[test]
-    fn an_unclosed_private_key_stops_swallowing_at_the_first_ordinary_line() {
-        let text = "-----BEGIN PRIVATE KEY-----\nMIIE\nerror: build failed\nMIIE\n";
+    fn prefixed_key_lines_are_swallowed_until_the_end_marker() {
+        // `git diff` of a removed key, and `grep -n` output: no line is plain base64.
+        let diff = "------BEGIN RSA PRIVATE KEY-----\n-MIIEow\n-IBAAKCAQ\n------END RSA PRIVATE KEY-----\n+ok\n";
         assert_eq!(
-            feed(&mut stream(), text.as_bytes(), 6),
-            "[REDACTED]\n\nerror: build failed\nMIIE\n"
+            feed(&mut stream(), diff.as_bytes(), 7),
+            "-[REDACTED]\n\n\n\n+ok\n"
+        );
+        let grep = "id_rsa:1:-----BEGIN OPENSSH PRIVATE KEY-----\nid_rsa:2:b3BlbnNz\nid_rsa:3:-----END OPENSSH PRIVATE KEY-----\n";
+        assert_eq!(
+            feed(&mut stream(), grep.as_bytes(), 5),
+            "id_rsa:1:[REDACTED]\n\n\n"
+        );
+    }
+
+    #[test]
+    fn an_unclosed_private_key_swallows_a_bounded_number_of_lines() {
+        let mut text = String::from("-----BEGIN PRIVATE KEY-----\n");
+        for line in 0..MAX_KEY_LINES + 2 {
+            text.push_str(&format!("line {line}\n"));
+        }
+        let shown = feed(&mut stream(), text.as_bytes(), 64);
+        let expected = format!(
+            "[REDACTED]\n{}line {}\nline {}\n",
+            "\n".repeat(MAX_KEY_LINES),
+            MAX_KEY_LINES,
+            MAX_KEY_LINES + 1
+        );
+        assert_eq!(shown, expected);
+    }
+
+    #[test]
+    fn a_partial_line_can_be_released_on_request() {
+        let mut stream = stream();
+        assert_eq!(stream.push("Continue? [y/N] "), "");
+        assert_eq!(stream.flush_partial(), "Continue? [y/N] ");
+        assert_eq!(stream.flush_partial(), "");
+        assert_eq!(
+            stream.push("y\nDB_PASSWORD=x\n"),
+            "y\nDB_PASSWORD=[REDACTED]\n"
         );
     }
 
@@ -263,13 +313,22 @@ mod tests {
         let text = "0123456789 token=abcdefghijklmnopqrstuvwxyz\nnext token=abc\n";
         assert_eq!(
             feed(&mut stream, text.as_bytes(), 5),
-            "0123456789 token[TRUNCATED]\nnext token=[REDACTED]\n"
+            "0123456789 [TRUNCATED]\nnext token=[REDACTED]\n"
         );
-        // The cut never exposes the tail of a value that started before it.
+        // Neither the tail of a value nor the head of an unfinished one is exposed by the cut.
         let mut stream = self::stream().with_max_line_bytes(12);
         assert_eq!(
             feed(&mut stream, b"password=abcdefghijklmnop\n", 3),
-            "password=[REDACTED][TRUNCATED]\n"
+            "[TRUNCATED]\n"
+        );
+        let mut stream = self::stream().with_max_line_bytes(24);
+        assert_eq!(
+            feed(
+                &mut stream,
+                b"see https://ada:s3cr3t@host/path and more\n",
+                4
+            ),
+            "see [TRUNCATED]\n"
         );
     }
 

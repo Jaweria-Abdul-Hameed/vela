@@ -154,8 +154,12 @@ mod tests {
         for line in lines {
             assert!(line.starts_with('{') && line.ends_with('}'), "{line}");
             assert!(line.contains("\"level\":\"INFO\""), "{line}");
-            // A document the structural redactor accepts is well formed, and redaction left nothing more to remove.
-            assert_eq!(PatternRedactor::new().redact(line), line);
+            // The structural redactor accepts only well-formed JSON, and a second pass must find nothing to do.
+            let again = crate::redact::json::redact_document(line, &PatternRedactor::new());
+            assert!(
+                matches!(again, Some(std::borrow::Cow::Borrowed(_))),
+                "{line}"
+            );
         }
     }
 

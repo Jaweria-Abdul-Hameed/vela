@@ -27,6 +27,9 @@ const PEM_END: &[u8] = b"-----END ";
 const PEM_DASHES: &[u8] = b"-----";
 const PRIVATE_KEY: &[u8] = b"PRIVATE KEY";
 
+/// How far past a URL's authority the `@` of its user information is looked for.
+const URL_LOOKAHEAD: usize = 256;
+
 /// The shortest run after `Bearer ` that is treated as a token rather than a word.
 const MIN_BEARER_LEN: usize = 16;
 
@@ -76,16 +79,22 @@ impl PatternRedactor {
         environment: impl IntoIterator<Item = (&'e str, &'e str)>,
     ) -> Self {
         for (name, value) in environment {
-            if is_credential_name(name) {
+            // A path is not a secret even under a credential-like name (`GOOGLE_APPLICATION_CREDENTIALS`), and
+            // registering one would redact every file name below it.
+            if is_credential_name(name) && !looks_like_path(value) {
                 self.add_secret(value);
             }
         }
         self
     }
 
-    /// Registers a known secret value. Returns whether it was accepted (long enough and not part of the marker).
+    /// Registers a known secret value. Returns whether it was accepted: long enough, not part of the marker, and not
+    /// a placeholder such as `undefined` (replacing every occurrence of one would only damage the output).
     pub fn add_secret(&mut self, value: &str) -> bool {
-        if value.len() < MIN_SECRET_LEN || REDACTED.contains(value) {
+        let placeholder = EMPTY_VALUES
+            .iter()
+            .any(|empty| value.as_bytes().eq_ignore_ascii_case(empty));
+        if value.len() < MIN_SECRET_LEN || REDACTED.contains(value) || placeholder {
             return false;
         }
         if !self.secrets.iter().any(|known| known == value) {
@@ -147,13 +156,63 @@ impl Hit {
     }
 }
 
+/// An absolute or explicitly relative file path: `/usr/lib/x`, `~/x`, `./x`, `C:\x`, `\\server\x`.
+fn looks_like_path(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let drive = bytes.len() > 2
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && matches!(bytes[2], b'\\' | b'/');
+    let rooted = bytes.first() == Some(&b'/')
+        && bytes[1..].contains(&b'/')
+        && !bytes.iter().any(|byte| matches!(byte, b'+' | b'='));
+    drive
+        || rooted
+        || ["~/", "./", "../", "\\\\"]
+            .iter()
+            .any(|prefix| value.starts_with(prefix))
+}
+
+/// What one scan has already learned, so that hostile input cannot make it look at the same bytes again and again.
+struct Memo {
+    /// No JSON Web Token starts before this index (a failed attempt covered everything up to it).
+    token_floor: usize,
+    /// The end of the line that contains every index in `line_start..=line_end`.
+    line_start: usize,
+    line_end: usize,
+}
+
+impl Memo {
+    fn new() -> Self {
+        Self {
+            token_floor: 0,
+            line_start: usize::MAX,
+            line_end: 0,
+        }
+    }
+
+    /// The index of the line break that ends the line containing `at` (or the end of the text).
+    fn line_end(&mut self, bytes: &[u8], at: usize) -> usize {
+        if at < self.line_start || at > self.line_end {
+            self.line_start = at;
+            self.line_end = at
+                + bytes[at..]
+                    .iter()
+                    .take_while(|byte| !matches!(**byte, b'\n' | b'\r'))
+                    .count();
+        }
+        self.line_end
+    }
+}
+
 fn scan(text: &str) -> Cow<'_, str> {
     let bytes = text.as_bytes();
+    let mut memo = Memo::new();
     let mut out = String::new();
     let mut copied = 0;
     let mut index = 0;
     while index < bytes.len() {
-        match hit_at(bytes, index) {
+        match hit_at(bytes, index, &mut memo) {
             // Every hit starts and ends next to an ASCII byte or at the end of the text, so the slices below are on
             // character boundaries.
             Some(hit) => {
@@ -172,7 +231,7 @@ fn scan(text: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-fn hit_at(bytes: &[u8], index: usize) -> Option<Hit> {
+fn hit_at(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
     let byte = bytes[index];
     if byte == b'-'
         && bytes[index..].starts_with(PEM_BEGIN)
@@ -183,13 +242,52 @@ fn hit_at(bytes: &[u8], index: usize) -> Option<Hit> {
     if byte == b':' {
         return url_credentials(bytes, index);
     }
-    let word_start = index == 0 || !is_word_byte(bytes[index - 1]);
-    if !word_start || !is_name_byte(byte) {
+    if !is_name_byte(byte) {
         return None;
     }
-    token(bytes, index)
-        .or_else(|| bearer(bytes, index))
-        .or_else(|| named_value(bytes, index))
+    let word_start = starts_word(bytes, index);
+    if let Some(hit) = token(bytes, index, word_start, memo) {
+        return Some(hit);
+    }
+    if !word_start {
+        return None;
+    }
+    bearer(bytes, index).or_else(|| named_value(bytes, index, memo))
+}
+
+/// Whether a word can start at `index`: at the start of the text, after a byte that is not part of a word, or after
+/// something that only looks like part of one: an escape (`\n` in a `Debug`-formatted string), a percent escape
+/// (`%3D`) or a terminal colour sequence (`ESC[1m`).
+fn starts_word(bytes: &[u8], index: usize) -> bool {
+    let Some(&previous) = index.checked_sub(1).and_then(|at| bytes.get(at)) else {
+        return true;
+    };
+    if !is_word_byte(previous) {
+        return true;
+    }
+    let escape = index >= 2
+        && bytes[index - 2] == b'\\'
+        && matches!(
+            previous,
+            b'n' | b'r' | b't' | b'b' | b'f' | b'v' | b'a' | b'e' | b'0'
+        );
+    let percent = index >= 3
+        && bytes[index - 3] == b'%'
+        && bytes[index - 2].is_ascii_hexdigit()
+        && previous.is_ascii_hexdigit();
+    if escape || percent {
+        return true;
+    }
+    // `ESC [ parameters letter`: walk back over the parameters (a short, bounded distance).
+    if previous.is_ascii_alphabetic() {
+        let floor = index.saturating_sub(16);
+        let mut at = index - 1;
+        while at > floor && matches!(bytes[at - 1], b'0'..=b'9' | b';' | b'?') {
+            at -= 1;
+        }
+        return at >= 2 && bytes[at - 1] == b'[' && bytes[at - 2] == 0x1b;
+    }
+    false
 }
 
 fn is_word_byte(byte: u8) -> bool {
@@ -303,20 +401,32 @@ const SHAPES: [Shape; 24] = [
     shape(b"npm_", 30, Charset::Alphanumeric),
 ];
 
-fn token(bytes: &[u8], index: usize) -> Option<Hit> {
+/// A token at `index`. Most prefixes identify a token wherever they appear, so they are recognized even in the middle
+/// of a word (after an escape, inside an encoded string); the two short, ambiguous ones need a word start.
+fn token(bytes: &[u8], index: usize, word_start: bool, memo: &mut Memo) -> Option<Hit> {
     let rest = &bytes[index..];
-    if let Some(len) = json_web_token(rest) {
-        return Some(Hit {
-            start: index,
-            end: index + len,
-        });
+    if index >= memo.token_floor && rest.starts_with(b"eyJ") {
+        match json_web_token(rest) {
+            Ok(len) => {
+                return Some(Hit {
+                    start: index,
+                    end: index + len,
+                });
+            }
+            // Nothing inside the bytes that attempt looked at can start a token either.
+            Err(examined) => memo.token_floor = index + examined,
+        }
     }
     for shape in &SHAPES {
         let Some(body) = rest.strip_prefix(shape.prefix) else {
             continue;
         };
+        if !word_start && matches!(shape.prefix, b"sk-" | b"1//") {
+            continue;
+        }
         let mut len = body
             .iter()
+            .take(shape.max.saturating_add(1))
             .take_while(|byte| shape.charset.contains(**byte))
             .count();
         // A sentence-ending dot is not part of the token.
@@ -333,11 +443,10 @@ fn token(bytes: &[u8], index: usize) -> Option<Hit> {
     None
 }
 
-/// Three base64url segments separated by dots, the first starting with `eyJ` (an encoded `{"`).
-fn json_web_token(rest: &[u8]) -> Option<usize> {
-    if !rest.starts_with(b"eyJ") {
-        return None;
-    }
+/// Three base64url segments separated by dots, the first starting with `eyJ` (an encoded `{"`). Returns the length of
+/// the token, or the number of bytes examined when `rest` (which starts with `eyJ`) is not one: a token starting
+/// anywhere inside those bytes would end at the same place and fail the same way.
+fn json_web_token(rest: &[u8]) -> Result<usize, usize> {
     let segment = |from: usize| {
         rest[from..]
             .iter()
@@ -346,14 +455,14 @@ fn json_web_token(rest: &[u8]) -> Option<usize> {
     };
     let header = segment(0);
     if header < 10 || rest.get(header) != Some(&b'.') {
-        return None;
+        return Err(header);
     }
     let payload = segment(header + 1);
     let signature_at = header + 1 + payload;
     if payload < 10 || rest.get(signature_at) != Some(&b'.') {
-        return None;
+        return Err(signature_at);
     }
-    Some(signature_at + 1 + segment(signature_at + 1))
+    Ok(signature_at + 1 + segment(signature_at + 1))
 }
 
 // ---- Bearer tokens ----
@@ -384,7 +493,38 @@ fn bearer(bytes: &[u8], index: usize) -> Option<Hit> {
 
 // ---- Named values ----
 
-fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
+/// Words that may stand between the start of a line and an assignment: `export NAME=value`, `$env:NAME = value`.
+const ASSIGNMENT_PREFIXES: [&[u8]; 8] = [
+    b"export",
+    b"set",
+    b"setx",
+    b"env",
+    b"local",
+    b"readonly",
+    b"declare -x",
+    b"$env:",
+];
+
+/// Whether the name at `index` is the first thing on its line (after an optional assignment keyword), as in the
+/// output of `env`, `set` and `printenv` and in a `.env` file. There the value is the whole rest of the line.
+fn starts_line(bytes: &[u8], index: usize) -> bool {
+    let window = &bytes[index.saturating_sub(16)..index];
+    let line = match window
+        .iter()
+        .rposition(|byte| matches!(byte, b'\n' | b'\r'))
+    {
+        Some(line_break) => &window[line_break + 1..],
+        None if window.len() == index => window,
+        None => return false,
+    };
+    let prefix = line.trim_ascii();
+    prefix.is_empty()
+        || ASSIGNMENT_PREFIXES
+            .iter()
+            .any(|keyword| prefix.eq_ignore_ascii_case(keyword))
+}
+
+fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
     let name_len = bytes[index..]
         .iter()
         .take(MAX_NAME_LEN + 1)
@@ -410,17 +550,23 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
     let gap = blank_len(&bytes[at..]);
     at += gap;
 
-    let separator = match bytes.get(at) {
-        // `==`, `=>` and `=~` are operators, not assignments.
-        Some(b'=') if !matches!(bytes.get(at + 1), Some(b'=' | b'>' | b'~')) => b'=',
+    let next = bytes.get(at + 1).copied();
+    // `a == b` and `a =~ b`, written with blanks on both sides, compare; they do not assign.
+    let comparison = gap > 0
+        && matches!(next, Some(b'=' | b'~'))
+        && matches!(bytes.get(at + 2), Some(b' ' | b'\t'));
+    let (separator, width) = match bytes.get(at) {
+        // `'password' => 'hunter2'` assigns.
+        Some(b'=') if next == Some(b'>') => (b'=', 2),
+        Some(b'=') if !comparison => (b'=', 1),
         // `::` is a path separator.
-        Some(b':') if bytes.get(at + 1) != Some(&b':') => b':',
+        Some(b':') if next != Some(b':') => (b':', 1),
         // A command-line flag: `--password hunter2`.
-        _ if bytes[index] == b'-' && !quoted_name && gap > 0 => b' ',
+        _ if bytes[index] == b'-' && !quoted_name && gap > 0 => (b' ', 0),
         _ => return None,
     };
-    if separator != b' ' {
-        at += 1;
+    at += width;
+    if width > 0 {
         at += blank_len(&bytes[at..]);
     }
 
@@ -428,11 +574,7 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
     if rest.is_empty() {
         return None;
     }
-    let line_end = at
-        + rest
-            .iter()
-            .take_while(|byte| !matches!(**byte, b'\n' | b'\r'))
-            .count();
+    let line_end = memo.line_end(bytes, at);
 
     // A quoted value ends at its closing quote, or at the end of the line when the quote is never closed.
     if rest.starts_with(b"\\\"") {
@@ -458,8 +600,11 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
         .then(|| bytes[index - 1])
         .filter(|byte| matches!(byte, b'"' | b'\''));
 
-    // An unquoted value: the rest of the line after `:` (headers, YAML), one word after `=` or a flag (shell).
-    let mut end = if separator == b':' {
+    // An unquoted value: the rest of the line after `:` (headers, YAML) and in an assignment that starts its line
+    // (environment dumps); otherwise one word after `=` or a flag (shell command lines).
+    let whole_line = separator == b':'
+        || (separator == b'=' && bytes[index] != b'-' && starts_line(bytes, index));
+    let mut end = if whole_line {
         line_end
     } else if let Some(quote) = wrapping_quote {
         at + bytes[at..line_end]
@@ -519,8 +664,27 @@ fn url_credentials(bytes: &[u8], index: usize) -> Option<Hit> {
         .take_while(|byte| !matches!(**byte, b'/' | b'?' | b'#') && !byte.is_ascii_whitespace())
         .count();
     let authority = &bytes[start..start + authority_len];
-    let at = authority.iter().rposition(|byte| *byte == b'@')?;
-    let user_info = &authority[..at];
+    let at = match authority.iter().rposition(|byte| *byte == b'@') {
+        Some(at) => at,
+        // `user:pa/ss@host`: an unencoded `/`, `?` or `#` in the password ended the authority early. What follows
+        // the colon is not a port, so look a little further along the same word for the `@`.
+        None => {
+            let colon = authority.iter().position(|byte| *byte == b':')?;
+            let after = &authority[colon + 1..];
+            if after.is_empty() || after.iter().all(u8::is_ascii_digit) {
+                return None;
+            }
+            let word_len = bytes[start..]
+                .iter()
+                .take(URL_LOOKAHEAD)
+                .take_while(|byte| !byte.is_ascii_whitespace())
+                .count();
+            bytes[start..start + word_len]
+                .iter()
+                .rposition(|byte| *byte == b'@')?
+        }
+    };
+    let user_info = &bytes[start..start + at];
     // `ssh://git@host/` carries no credential.
     if user_info.is_empty() || user_info == REDACTED.as_bytes() || user_info == b"git" {
         return None;
@@ -600,6 +764,7 @@ mod tests {
                     '"' => text.push_str("\\\""),
                     '\\' => text.push_str("\\\\"),
                     '\n' => text.push_str("\\n"),
+                    '\u{1b}' => text.push_str("\\u001b"),
                     other => text.push(other),
                 }
             }
@@ -675,8 +840,26 @@ mod tests {
     fn named_values_keep_their_surroundings() {
         for (text, expected) in [
             (
-                "DB_PASSWORD=hunter2 npm test",
-                "DB_PASSWORD=[REDACTED] npm test",
+                "run DB_PASSWORD=hunter2 npm test",
+                "run DB_PASSWORD=[REDACTED] npm test",
+            ),
+            // An assignment that starts its line is an environment dump: the value is the rest of the line.
+            ("DB_PASSWORD=hunter2 npm test", "DB_PASSWORD=[REDACTED]"),
+            (
+                "DB_PASSWORD=correct horse battery",
+                "DB_PASSWORD=[REDACTED]",
+            ),
+            ("export COOKIE=a=1; b=2", "export COOKIE=[REDACTED]"),
+            (
+                ".env\nAPI_KEY=a b\nNEXT=1",
+                ".env\nAPI_KEY=[REDACTED]\nNEXT=1",
+            ),
+            ("DB_PASSWORD=~Tr0ub4dor", "DB_PASSWORD=[REDACTED]"),
+            ("x DB_PASSWORD==abc y", "x DB_PASSWORD=[REDACTED] y"),
+            ("'password' => 'hunter2',", "'password' => '[REDACTED]',"),
+            (
+                "x password => hunter2 next",
+                "x password => [REDACTED] next",
             ),
             (
                 "export API_KEY='a b c' && run",
@@ -712,14 +895,14 @@ mod tests {
                 "Authorization: Basic dXNlcjpwYXNz\r\nHost: x",
                 "Authorization: [REDACTED]\r\nHost: x",
             ),
-            ("auth=Bearer abc next", "auth=[REDACTED] next"),
+            ("use auth=Bearer abc next", "use auth=[REDACTED] next"),
             (
                 "Set-Cookie: sid=abc; Path=/; HttpOnly",
                 "Set-Cookie: [REDACTED]",
             ),
             ("password='unterminated value", "password='[REDACTED]"),
             // A marker in front of a secret does not protect it.
-            ("password=[REDACTED]hunter2 x", "password=[REDACTED] x"),
+            ("a password=[REDACTED]hunter2 x", "a password=[REDACTED] x"),
             ("token: [REDACTED] and more", "token: [REDACTED]"),
             ("?access_token=abc&page=2", "?access_token=[REDACTED]"),
             (
@@ -731,8 +914,8 @@ mod tests {
                 "curl -d 'password=[REDACTED]' https://x",
             ),
             (
-                "auth_tokens=abc api_keys: k1, k2",
-                "auth_tokens=[REDACTED] api_keys: [REDACTED]",
+                "with auth_tokens=abc api_keys: k1, k2",
+                "with auth_tokens=[REDACTED] api_keys: [REDACTED]",
             ),
             // Source code is indistinguishable from configuration, so a type annotation is redacted too.
             (
@@ -745,7 +928,62 @@ mod tests {
     }
 
     #[test]
+    fn tokens_are_found_after_escapes_and_inside_words() {
+        let token = ["gh", "p_", "0123456789abcdefghijABCDEFGHIJ012345"].concat();
+        let jwt = [
+            "ey",
+            "JhbGciOiJIUzI1NiJ9.ey",
+            "JzdWIiOiIxMjM0NTYifQ.c2lnbmF0dXJl",
+        ]
+        .concat();
+        for (text, expected) in [
+            // A Debug-formatted string: the line break is a backslash and an `n`.
+            (
+                format!("stderr: \"remote: denied\\n{token}\\ncookie: sid=abc\""),
+                "stderr: \"remote: denied\\n[REDACTED]\\ncookie: [REDACTED]".to_owned(),
+            ),
+            (
+                format!("\\tapi_key=abc \\r{token}"),
+                "\\tapi_key=[REDACTED] \\r[REDACTED]".to_owned(),
+            ),
+            // Terminal colours.
+            (
+                format!("\u{1b}[1m{token}\u{1b}[0m \u{1b}[38;5;9mpassword=abc"),
+                "\u{1b}[1m[REDACTED]\u{1b}[0m \u{1b}[38;5;9mpassword=[REDACTED]".to_owned(),
+            ),
+            // Percent-encoded text.
+            (
+                format!("next=token%3D{token}%26x Bearer%20{jwt}"),
+                "next=token%3D[REDACTED]%26x Bearer%20[REDACTED]".to_owned(),
+            ),
+            // In the middle of a word.
+            (format!("prefix{token}"), "prefix[REDACTED]".to_owned()),
+            (format!("x{jwt} y"), "x[REDACTED] y".to_owned()),
+        ] {
+            assert_eq!(redact(&text), expected, "{text}");
+        }
+        // The two short prefixes still need a word start.
+        for text in [
+            "ask-aaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "v1//aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ] {
+            assert_eq!(redact(text), text);
+        }
+    }
+
+    #[test]
     fn url_credentials_and_private_keys() {
+        assert_eq!(
+            redact("DATABASE_URL=postgres://app:pa/ss#w0rd@db.internal/prod"),
+            "DATABASE_URL=postgres://[REDACTED]@db.internal/prod"
+        );
+        for text in [
+            "http://localhost:3000/@fs/x",
+            "https://example.com/@user",
+            "ftp://h:21/a@b",
+        ] {
+            assert_eq!(redact(text), text);
+        }
         assert_eq!(
             redact("git clone https://ada:s3cr3t@github.com/o/r.git"),
             "git clone https://[REDACTED]@github.com/o/r.git"
@@ -782,7 +1020,20 @@ mod tests {
         );
         let shown = format!("{redactor:?}");
         assert!(!shown.contains("horse") && shown.contains('3'), "{shown}");
+        // Paths and placeholders under credential-like names are not registered, and `PWD` is not one.
+        let redactor = PatternRedactor::new().with_environment([
+            ("PWD", "/c/Users/ada/worktrees/f07"),
+            ("GOOGLE_APPLICATION_CREDENTIALS", "C:\\Users\\ada\\key.json"),
+            ("SSH_KEY_PASSPHRASE", "~/secrets/passphrase"),
+            ("API_TOKEN", "undefined"),
+            ("AWS_SECRET_ACCESS_KEY", "/Abc+def/GhiJkl="),
+        ]);
+        assert_eq!(
+            redactor.redact("at /c/Users/ada/worktrees/f07/src C:\\Users\\ada\\key.json ~/secrets/passphrase undefined /Abc+def/GhiJkl="),
+            "at /c/Users/ada/worktrees/f07/src C:\\Users\\ada\\key.json ~/secrets/passphrase undefined [REDACTED]"
+        );
         let mut redactor = PatternRedactor::new();
+        assert!(!redactor.add_secret("undefined"));
         assert!(!redactor.add_secret("short"));
         assert!(!redactor.add_secret("REDACTED"));
         assert!(redactor.add_secret("long-enough"));
@@ -800,13 +1051,38 @@ mod tests {
         );
     }
 
+    /// Each input below made an earlier version look at the rest of the line once per occurrence. At these sizes
+    /// that is tens of billions of steps, so the test cannot finish unless the scan is linear.
     #[test]
-    fn hostile_input_stays_linear_and_on_character_boundaries() {
+    fn hostile_input_stays_linear() {
         let redactor = PatternRedactor::new();
-        let dashes = "-".repeat(200_000);
-        assert!(matches!(redactor.redact(&dashes), Cow::Borrowed(_)));
-        let dots = "-.".repeat(100_000);
-        assert!(matches!(redactor.redact(&dots), Cow::Borrowed(_)));
+        for unit in [
+            "-",
+            "-.",
+            "eyJ-",
+            "a://b:c/",
+            "x password=null ",
+            "token == x ",
+            "Bearer x ",
+        ] {
+            let text = unit.repeat(1_000_000 / unit.len());
+            assert!(matches!(redactor.redact(&text), Cow::Borrowed(_)), "{unit}");
+        }
+        // A run of token-shaped segments is a run of tokens, each found once.
+        let text = "eyJhbGciOiJIUzI1NiJ9.".repeat(50_000);
+        assert!(!redactor.redact(&text).contains("eyJ"));
+        // Only the last twenty bytes of this run have the shape of an access key id.
+        let text = "AKIA".repeat(250_000);
+        assert!(redactor.redact(&text).ends_with(REDACTED));
+        let text = " token=x".repeat(100_000).replacen(' ', "x ", 1);
+        assert_eq!(redactor.redact(&text).matches(REDACTED).count(), 100_000);
+        let text = format!("x {}", "password: p, ".repeat(100_000));
+        assert_eq!(redactor.redact(&text), "x password: [REDACTED], ");
+    }
+
+    #[test]
+    fn redaction_stays_on_character_boundaries() {
+        let redactor = PatternRedactor::new();
         assert_eq!(
             redactor.redact("пароль password=секрет✓ конец"),
             "пароль password=[REDACTED] конец"

@@ -214,6 +214,50 @@ pub(super) fn corpus() -> Vec<Case> {
             &["\"name\":\"Accept\",\"value\":\"*/*\""],
         ),
         case(
+            "json argument vector",
+            "{\"program\":\"mysql\",\"args\":[\"--user\",\"root\",\"--password\",\"tr0ub4dor\"],\"exit\":1}".to_owned(),
+            &["tr0ub4dor"],
+            &["\"program\":\"mysql\"", "\"--user\",\"root\"", "\"exit\":1"],
+        ),
+        case(
+            "json credential object",
+            "{\"credentials\":{\"user\":\"ada\",\"pass\":\"hunter2\"},\"ok\":true}".to_owned(),
+            &["hunter2"],
+            &["\"ok\":true"],
+        ),
+        // The same secrets where a word boundary is hidden: escapes, terminal colours, percent-encoding.
+        case(
+            "debug-formatted output",
+            format!("stderr: \"remote: denied\\n{github}\\ncookie: sid=31d4d96e407aad42\""),
+            &[&github, "31d4d96e407aad42"],
+            &["stderr: \"remote: denied"],
+        ),
+        case(
+            "terminal colours",
+            format!("\u{1b}[1m{github}\u{1b}[0m pushed, \u{1b}[31mpassword=hunter2\u{1b}[0m"),
+            &[&github, "hunter2"],
+            &["pushed, "],
+        ),
+        case(
+            "percent-encoded text",
+            format!("GET /callback?next=token%3D{github}%26state%3D1 HTTP/1.1"),
+            &[&github],
+            &["GET /callback?next=token%3D", "%26state%3D1 HTTP/1.1"],
+        ),
+        // Assignments in other notations, and environment values with blanks.
+        case(
+            "hash rocket and multi-word environment value",
+            "  'password' => 'hunter2',\nDB_PASSWORD=correct horse battery\nCOOKIE=a=1; b=2".to_owned(),
+            &["hunter2", "correct horse battery", "horse battery", "b=2"],
+            &["  'password' => '", "DB_PASSWORD=", "COOKIE="],
+        ),
+        case(
+            "url password with an unencoded slash",
+            "DATABASE_URL=postgres://app:pa/ss#w0rd@db.internal/prod".to_owned(),
+            &["pa/ss#w0rd", "ss#w0rd"],
+            &["DATABASE_URL=postgres://", "@db.internal/prod"],
+        ),
+        case(
             "truncated json",
             "{\"type\":\"tool_result\",\"api_key\":\"k-9f8e7d6c5b4a\",\"text\":\"DB_PASSWORD=hunter2".to_owned(),
             &["k-9f8e7d6c5b4a", "hunter2"],
