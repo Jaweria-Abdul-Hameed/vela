@@ -366,32 +366,33 @@ fn the_hostile_repository_really_contains_the_neutralizable_drivers_and_hooks() 
     assert_eq!(repo.fired_markers().unwrap(), Vec::<String>::new());
 }
 
-/// One step of the hostile workout: a Git command or a working-tree write.
+/// One step of the hostile workout.
 enum Step {
+    /// A Git command.
     Git(&'static [&'static str]),
-    Write(&'static str),
+    /// A diff-producing Git command; under neutralization it also gets `--no-ext-diff --no-textconv` (an empty
+    /// `diff.external` alone makes Git try to spawn an empty program, which is why P10 passes the flags).
+    Diff(&'static [&'static str]),
+    /// Writes a tracked-path file in the working tree.
+    Write(&'static str, &'static str),
 }
 
-/// Exercises every Git path that P10 found to execute repository-local code: status (fsmonitor, clean filter), diff
-/// (external diff), log -p (textconv), add (clean filter), commit (pre-commit, reference-transaction), checkout
-/// (post-checkout, smudge filter), and a real merge (post-merge).
+/// Exercises every Git path that P10 found to execute repository-local code: status (fsmonitor), diff (external
+/// diff), log -p (textconv), add (clean filter), commit (pre-commit, reference-transaction), checkout (post-checkout,
+/// smudge filter on a file that has to be written), and a real merge commit (post-merge).
 const WORKOUT: &[Step] = &[
-    Step::Write(
-        "payload v2
-",
-    ),
+    Step::Write(HOSTILE_PAYLOAD_PATH, "payload v2\n"),
     Step::Git(&["status", "--porcelain"]),
-    Step::Git(&["diff"]),
+    Step::Diff(&["diff"]),
     Step::Git(&["add", "-A"]),
-    Step::Git(&["commit", "-m", "second"]),
+    Step::Git(&["commit", "--allow-empty", "-m", "second"]),
     Step::Git(&["checkout", "-b", "other"]),
-    Step::Write(
-        "payload v3
-",
-    ),
+    Step::Write("data/extra.dat", "extra\n"),
     Step::Git(&["add", "-A"]),
-    Step::Git(&["commit", "-m", "third"]),
-    Step::Git(&["log", "-p", "-1"]),
+    Step::Git(&["commit", "--allow-empty", "-m", "third"]),
+    Step::Diff(&["log", "-p", "-1"]),
+    Step::Git(&["checkout", "main"]),
+    Step::Git(&["checkout", "other"]),
     Step::Git(&["checkout", "main"]),
     Step::Git(&["merge", "--no-ff", "--no-edit", "other"]),
 ];
@@ -399,19 +400,26 @@ const WORKOUT: &[Step] = &[
 fn run_workout(repo: &FixtureRepo, neutralized: bool) {
     for step in WORKOUT {
         match step {
-            Step::Write(text) => {
-                std::fs::write(repo.path().join(HOSTILE_PAYLOAD_PATH), text).unwrap();
+            Step::Write(path, text) => {
+                let target = repo.path().join(path);
+                std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+                std::fs::write(target, text).unwrap();
             }
-            Step::Git(args) if neutralized => {
-                repo.git(args).unwrap();
-            }
-            Step::Git(args) => {
-                let output = repo.git_unneutralized(args).unwrap();
-                assert!(
-                    output.status.success(),
-                    "git {args:?} failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
+            Step::Git(args) | Step::Diff(args) => {
+                let mut args: Vec<&str> = args.to_vec();
+                if neutralized && matches!(step, Step::Diff(_)) {
+                    args.extend(["--no-ext-diff", "--no-textconv"]);
+                }
+                if neutralized {
+                    repo.git(&args).unwrap();
+                } else {
+                    let output = repo.git_unneutralized(&args).unwrap();
+                    assert!(
+                        output.status.success(),
+                        "git {args:?} failed: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
             }
         }
     }
@@ -426,11 +434,16 @@ fn neutralized_git_never_runs_a_hostile_payload() {
         Vec::<String>::new(),
         "a payload ran under the neutralising configuration"
     );
-    // The workout really happened: main now holds the merge of the third payload version.
+    // The workout really happened (real content, not filtered): main holds the second payload and the merged file.
     assert_eq!(
         repo.git(&["show", &format!("main:{HOSTILE_PAYLOAD_PATH}")])
             .unwrap(),
-        "payload v3"
+        "payload v2"
+    );
+    assert_eq!(repo.git(&["show", "main:data/extra.dat"]).unwrap(), "extra");
+    assert_eq!(
+        repo.git(&["rev-list", "--merges", "--count", "main"]).unwrap(),
+        "1"
     );
 }
 

@@ -23,6 +23,9 @@ pub const fn null_device() -> &'static str {
 /// It disables the fsmonitor hook, points the hooks path at the null device, forces the `cat` pager, empties the
 /// external diff program, and empties the clean/smudge/textconv commands of the hostile fixture's driver. This is the
 /// test kit's own copy used to inspect fixtures safely; the production hardened invocation belongs to `vela-git`.
+///
+/// It is not sufficient on its own for diff-producing commands: those must also pass `--no-ext-diff --no-textconv`
+/// (an empty `diff.external` makes Git try to spawn an empty program and fail, which CI demonstrated).
 pub fn neutralizing_args() -> Vec<String> {
     let mut args: Vec<String> = vec!["--no-pager".to_owned()];
     for setting in [
