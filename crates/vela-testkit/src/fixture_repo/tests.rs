@@ -442,7 +442,8 @@ fn neutralized_git_never_runs_a_hostile_payload() {
     );
     assert_eq!(repo.git(&["show", "main:data/extra.dat"]).unwrap(), "extra");
     assert_eq!(
-        repo.git(&["rev-list", "--merges", "--count", "main"]).unwrap(),
+        repo.git(&["rev-list", "--merges", "--count", "main"])
+            .unwrap(),
         "1"
     );
 }
