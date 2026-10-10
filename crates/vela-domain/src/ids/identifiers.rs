@@ -381,9 +381,9 @@ mod tests {
             "gh#42",
             "Run-1",
             "a.lockx",
-            "z".repeat(60).as_str(),
         ];
-        for id in accepted {
+        let long = "z".repeat(60);
+        for id in accepted.into_iter().chain([long.as_str()]) {
             assert!(RunId::new(id).is_ok(), "{id}");
             let branch = format!("vela/{id}/{id}");
             assert!(BranchName::new(branch.as_str()).is_ok(), "{branch}");
