@@ -17,7 +17,7 @@ Worker: branch `d02/dependency-graph-engine`.
 ## Acceptance criteria
 
 1. Cycles reported with participating tickets; frontier never contains a ticket with an incomplete blocker: `cycle_detection_agrees_with_reachability_and_reports_real_cycles` (proptest vs. a brute-force reachability oracle; every reported cycle is a closed path over real edges), `layers_and_frontier_respect_every_edge_on_dags` (soundness and completeness of the frontier for arbitrary done sets), plus named cases (diamond, self-block, two cycles, component wider than the shortest cycle).
-2. 500-node graphs within a test-recorded time: `five_hundred_node_graph_is_processed_within_the_recorded_time` builds 500 tickets / 981 edges, computes layers, 50 frontier waves, a snapshot and a reload; it prints the elapsed time (about 70 ms in a debug build here) and fails above 5 s.
+2. 500-node graphs within a test-recorded time: `five_hundred_node_graph_is_processed_within_the_recorded_time` builds 500 tickets / 980 edges, computes layers, 50 frontier waves, a snapshot and a reload; it prints the elapsed time (about 70 ms in a debug build here) and fails above 5 s.
 
 ## Decisions
 
@@ -27,6 +27,10 @@ Three interpretations in `D02_DECISION_REQUESTS.md` (DR-D02-1 to DR-D02-3), all 
 
 - `cargo fmt --all --check`: pass. `npm run check:structure`: pass.
 - `cargo clippy --workspace --exclude vela-desktop --exclude fake-approval-window --all-targets --locked -- -D warnings`: pass.
-- `cargo build` (same scope) and `cargo test` (same scope, and `-p vela-domain --features fault-injection`): pass, `vela-domain` 149 tests including 17 graph tests (3 proptest properties).
+- `cargo build` (same scope) and `cargo test` (same scope, and `-p vela-domain --features fault-injection`): pass, `vela-domain` 150 tests including 18 graph tests (3 proptest properties).
 - `cargo check -p vela-domain --no-default-features --features hook-table`: pass (the graph module compiles to nothing).
 - `npm run verify:ts` (after `npm ci --engine-strict=false`; this host has Node 22 where the repo requires Node 24): pass.
+
+## Review (advisory `/code-review` run inside the implementing session; the authoritative fresh-session review is owned by Vela, `REVIEW_PROTOCOL.md`)
+
+- Iteration 1 (head `c674999`, fixed point `efc6ef3`): 9 findings, no severities supplied. Fixed: a hazard that closes a cycle or targets itself could invalidate a run (now refused at insertion, DR-D02-1); linear membership scan in cycle search (now a set); the cycle property test now checks one cycle per cyclic component and that `component` is exactly that component. Dispositioned non-blocking: `frontier` fails for the whole graph when any cycle exists (a cycle is `GRAPH_INVALID` for the run, `COMPONENT_SPECIFICATIONS.md` C02); `frontier` re-validates on each call (O(V+E), measured 70 ms for 50 waves of 500 tickets, no need shown); one reported cycle per component (documented, the `component` field names every participant); opaque `SnapshotMismatch` (safe, rejects); the 5 s bound is generous and records the time.

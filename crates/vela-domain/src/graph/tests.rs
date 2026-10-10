@@ -25,6 +25,21 @@ fn build(count: usize, edges: &[(usize, usize, EdgeKind)]) -> DependencyGraph {
     g
 }
 
+/// Adds edges in the given order, skipping hazards the graph refuses (as the graph builder does).
+fn build_tolerant(count: usize, edges: &[(usize, usize, EdgeKind)]) -> DependencyGraph {
+    let mut g = DependencyGraph::new();
+    for i in 0..count {
+        g.add_ticket(n(i)).unwrap();
+    }
+    for (a, b, kind) in edges {
+        match g.add_edge(&n(*a), &n(*b), *kind) {
+            Ok(()) | Err(GraphError::HazardClosesCycle(_)) => {}
+            Err(other) => panic!("{other}"),
+        }
+    }
+    g
+}
+
 fn done(ids: &[usize]) -> BTreeSet<TicketId> {
     ids.iter().map(|i| n(*i)).collect()
 }
@@ -72,9 +87,9 @@ fn a_cycle_is_reported_with_its_participants_in_edge_order() {
         5,
         &[
             (0, 1, EdgeKind::Explicit),
+            (3, 1, EdgeKind::InferredHazard),
             (1, 2, EdgeKind::Explicit),
             (2, 3, EdgeKind::Explicit),
-            (3, 1, EdgeKind::InferredHazard),
             (3, 4, EdgeKind::Explicit),
         ],
     );
@@ -138,6 +153,27 @@ fn separate_cycles_are_each_reported() {
         .map(|c| c.tickets.clone())
         .collect();
     assert_eq!(firsts, vec![vec![n(0), n(1)], vec![n(4), n(5)]]);
+}
+
+#[test]
+fn a_hazard_that_would_close_a_cycle_is_refused_and_changes_nothing() {
+    let mut g = build(3, &[(0, 1, EdgeKind::Explicit), (1, 2, EdgeKind::Explicit)]);
+    let before = g.snapshot().unwrap();
+    for (a, b) in [(2, 0), (1, 0), (1, 1)] {
+        let err = g
+            .add_edge(&n(a), &n(b), EdgeKind::InferredHazard)
+            .unwrap_err();
+        assert!(
+            matches!(err, GraphError::HazardClosesCycle(ref e) if e.blocker == n(a) && e.blocked == n(b))
+        );
+    }
+    assert_eq!(g.snapshot().unwrap(), before);
+    // A forward hazard is fine, and an explicit edge in the same direction as a hazard still wins.
+    g.add_edge(&n(0), &n(2), EdgeKind::InferredHazard).unwrap();
+    assert!(g.validate().is_ok());
+    // An explicit back edge is the user's, so it is accepted and reported rather than refused.
+    g.add_edge(&n(2), &n(0), EdgeKind::Explicit).unwrap();
+    assert!(g.validate().is_err());
 }
 
 #[test]
@@ -312,6 +348,10 @@ fn arbitrary_graph() -> impl Strategy<Value = (usize, Vec<(usize, usize, bool)>)
     })
 }
 
+fn index_of(ticket: &TicketId) -> usize {
+    ticket.as_str()[1..].parse().expect("generated id")
+}
+
 fn kind(explicit: bool) -> EdgeKind {
     if explicit {
         EdgeKind::Explicit
@@ -326,8 +366,12 @@ proptest! {
         (count, raw) in arbitrary_graph()
     ) {
         let typed: Vec<_> = raw.iter().map(|(a, b, e)| (*a, *b, kind(*e))).collect();
-        let g = build(count, &typed);
-        let pairs: Vec<_> = raw.iter().map(|(a, b, _)| (*a, *b)).collect();
+        let g = build_tolerant(count, &typed);
+        let pairs: Vec<_> = g
+            .edges()
+            .iter()
+            .map(|e| (index_of(&e.blocker), index_of(&e.blocked)))
+            .collect();
         let r = reaches(count, &pairs);
         let has_cycle = (0..count).any(|i| r[i][i]);
         let report = g.find_cycles();
@@ -346,14 +390,19 @@ proptest! {
                 prop_assert_eq!(&cycle.edges[i].blocked, next);
             }
         }
-        // Every ticket on a cycle is covered by some reported component: a cyclic ticket lies in a reported cycle's component.
-        let reported: BTreeSet<_> = report.cycles.iter().flat_map(|c| c.tickets.iter().cloned()).collect();
+        // Exactly one cycle per cyclic strongly connected component, and `component` is that component.
+        let mut expected: BTreeSet<Vec<TicketId>> = BTreeSet::new();
         for (i, row) in r.iter().enumerate() {
             if row[i] {
-                let component_reported =
-                    (0..count).any(|j| row[j] && r[j][i] && reported.contains(&n(j)));
-                prop_assert!(component_reported);
+                expected.insert((0..count).filter(|j| row[*j] && r[*j][i]).map(n).collect());
             }
+        }
+        let reported: Vec<_> = report.cycles.iter().map(|c| c.component.clone()).collect();
+        prop_assert_eq!(reported.len(), expected.len());
+        prop_assert_eq!(reported.into_iter().collect::<BTreeSet<_>>(), expected);
+        for cycle in &report.cycles {
+            prop_assert!(cycle.tickets.iter().all(|t| cycle.component.contains(t)));
+            prop_assert_eq!(&cycle.tickets[0], cycle.component.iter().min().unwrap());
         }
     }
 

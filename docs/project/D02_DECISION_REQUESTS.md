@@ -6,8 +6,9 @@ Interpretations D02 made where the frozen specification is silent. None blocks D
 
 - **Specification facts.** `IMPLEMENTATION_ARCHITECTURE.md` section 10 puts "typed `DependencyEdge`s (explicit, inferred-hazard)" in one `StableDiGraph`. `PARALLELIZATION.md` says analysis may only add hazards, never remove a hard blocker, and that when uncertain Vela serializes. FR-007 says inferred hazards never silently rewrite user-authored dependencies. No text says whether a hazard edge delays its target.
 - **What D02 did.** Edges of both kinds gate the frontier and the layers (the conservative, serializing reading). Cycles are detected over all edges, but each reported `Cycle` carries its edges, and `Cycle::is_explicit_only()` lets the caller tell a defect in the user's dependencies from a clash caused by a hazard. Adding a pair twice keeps the explicit kind, so a hazard never weakens a user edge.
+- **Review change.** A hazard that would close a cycle (or a self-hazard) is refused at insertion with `GraphError::HazardClosesCycle` and leaves the graph unchanged, so analysis can never turn a valid graph into `GRAPH_INVALID` (FR-007). The graph builder must add explicit edges first and treat a refused hazard as "sequential, unordered". An explicit edge added after a hazard can still close a cycle through it; that is reported, with `is_explicit_only() == false`.
 - **Alternative.** Gate only on explicit edges and treat hazards as a separate pairwise serialization (the `parallel` module, a later ticket). Consequence: hazard pairs would need to be serialized there instead, and cycles could never involve hazards.
-- **Decision needed from.** The owner of `parallel` (and S06/S07): confirm the reading, or have the graph builder drop a hazard edge whose `is_explicit_only()` is false before treating the graph as invalid.
+- **Decision needed from.** The owner of `parallel` (and S06/S07): confirm the reading, or have the graph builder drop a hazard edge in a cycle whose `is_explicit_only()` is false before treating the graph as invalid.
 
 ## DR-D02-2: Frontier input is a plain set of done tickets
 

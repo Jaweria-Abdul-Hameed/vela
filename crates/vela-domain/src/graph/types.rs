@@ -99,6 +99,10 @@ pub enum GraphError {
     DuplicateTicket(TicketId),
     /// The graph contains a cycle (`GRAPH_INVALID`).
     Cycle(CycleReport),
+    /// An inferred-hazard edge was refused because `blocked` already (transitively) blocks `blocker`, or the two are the same
+    /// ticket. A hazard only serializes a pair and never invalidates the graph (FR-007), so the caller treats the pair as
+    /// unordered-but-sequential instead of adding the edge. Add explicit edges first so they are never the ones refused.
+    HazardClosesCycle(DependencyEdge),
     /// A stored snapshot is not in canonical form (unsorted or duplicated entries, or layers that do not match its edges).
     SnapshotMismatch,
 }
@@ -109,6 +113,11 @@ impl fmt::Display for GraphError {
             Self::UnknownTicket(t) => write!(f, "unknown ticket {t}"),
             Self::DuplicateTicket(t) => write!(f, "ticket {t} is already in the graph"),
             Self::Cycle(report) => report.fmt(f),
+            Self::HazardClosesCycle(e) => write!(
+                f,
+                "hazard {} -> {} would close a dependency cycle",
+                e.blocker, e.blocked
+            ),
             Self::SnapshotMismatch => f.write_str("graph snapshot is not canonical"),
         }
     }

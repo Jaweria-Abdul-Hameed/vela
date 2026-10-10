@@ -1,6 +1,6 @@
 //! Cycle detection: strongly connected components, then one shortest concrete cycle per component.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use petgraph::Direction;
 use petgraph::algo::tarjan_scc;
@@ -39,13 +39,14 @@ fn shortest_cycle_through(
     start: NodeIndex,
     component: &[NodeIndex],
 ) -> Cycle {
+    let members: BTreeSet<NodeIndex> = component.iter().copied().collect();
     let mut parent: BTreeMap<NodeIndex, NodeIndex> = BTreeMap::new();
     let mut queue = VecDeque::from([start]);
     let mut last = start;
     'search: while let Some(node) = queue.pop_front() {
         let mut successors: Vec<NodeIndex> = graph
             .neighbors_directed(node, Direction::Outgoing)
-            .filter(|n| component.contains(n))
+            .filter(|n| members.contains(n))
             .collect();
         successors.sort_by(|a, b| graph[*a].cmp(&graph[*b]));
         for succ in successors {
@@ -80,11 +81,11 @@ fn shortest_cycle_through(
             }
         })
         .collect();
-    let mut members: Vec<TicketId> = component.iter().map(|n| graph[*n].clone()).collect();
-    members.sort();
+    let mut names: Vec<TicketId> = component.iter().map(|n| graph[*n].clone()).collect();
+    names.sort();
     Cycle {
         tickets: path.iter().map(|n| graph[*n].clone()).collect(),
         edges,
-        component: members,
+        component: names,
     }
 }

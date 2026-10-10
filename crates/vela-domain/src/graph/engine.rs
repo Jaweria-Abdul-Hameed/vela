@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use petgraph::Direction;
+use petgraph::algo::has_path_connecting;
 use petgraph::stable_graph::{NodeIndex, StableDiGraph};
 use petgraph::visit::{EdgeRef, IntoEdgeReferences};
 
@@ -66,7 +67,9 @@ impl DependencyGraph {
     /// Adds an edge: `blocker` must be done before `blocked` may start.
     ///
     /// One edge exists per ordered pair. Adding a pair again keeps the stronger kind, so an explicit edge is never weakened
-    /// or replaced by an inferred hazard (FR-007). A self-edge is accepted and reported as a one-ticket cycle.
+    /// or replaced by an inferred hazard (FR-007). An explicit self-edge is accepted and reported as a one-ticket cycle (a
+    /// defect in the user's dependencies). An inferred hazard that would close a cycle, including a self-hazard, is refused
+    /// with [`GraphError::HazardClosesCycle`] and leaves the graph unchanged, so analysis can never make a valid graph invalid.
     pub fn add_edge(
         &mut self,
         blocker: &TicketId,
@@ -75,6 +78,16 @@ impl DependencyGraph {
     ) -> Result<(), GraphError> {
         let from = self.node(blocker)?;
         let to = self.node(blocked)?;
+        if kind == EdgeKind::InferredHazard
+            && self.graph.find_edge(from, to).is_none()
+            && has_path_connecting(&self.graph, to, from, None)
+        {
+            return Err(GraphError::HazardClosesCycle(DependencyEdge {
+                blocker: blocker.clone(),
+                blocked: blocked.clone(),
+                kind,
+            }));
+        }
         match self.graph.find_edge(from, to) {
             Some(existing) => {
                 if kind == EdgeKind::Explicit {
