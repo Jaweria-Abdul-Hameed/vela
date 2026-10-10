@@ -147,10 +147,17 @@ impl fmt::Display for TransitionError {
                 "{machine:?} PROVIDER_POLICY_BLOCK exits only by resolve to resume_state or cancel, not to {to}"
             ),
             Self::ReasonNotAllowed { machine, reason } => {
-                write!(f, "{machine:?} pause reason {} not allowed here", reason.name())
+                write!(
+                    f,
+                    "{machine:?} pause reason {} not allowed here",
+                    reason.name()
+                )
             }
             Self::IntegrationNotHealthy { health } => {
-                write!(f, "integration health is {health}; RUNNING cannot advance to FINAL_REVIEW")
+                write!(
+                    f,
+                    "integration health is {health}; RUNNING cannot advance to FINAL_REVIEW"
+                )
             }
             Self::OverlayNotAllowed { state } => {
                 write!(f, "WAITING_APPROVAL cannot overlay {state}")

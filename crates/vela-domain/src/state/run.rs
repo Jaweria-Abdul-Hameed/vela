@@ -611,7 +611,9 @@ mod tests {
                 if resume && by_user.is_ok() && !automatic {
                     assert_eq!(
                         by_system,
-                        Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run }),
+                        Err(TransitionError::ExplicitDecisionRequired {
+                            machine: Machine::Run
+                        }),
                         "{from:?} -> {to:?}"
                     );
                 } else {
@@ -623,11 +625,17 @@ mod tests {
 
     #[test]
     fn stop_all_pauses_with_stop_all_only() {
-        let stopping = S::Stopping { resume_state: P::Running };
+        let stopping = S::Stopping {
+            resume_state: P::Running,
+        };
         for reason in PausedReason::ALL {
             let result = stopping.transition(paused(reason, P::Running), Cause::System);
-            let direct = S::Active(P::Running).transition(paused(reason, P::Running), Cause::System);
-            let rejected = Err(TransitionError::ReasonNotAllowed { machine: Machine::Run, reason });
+            let direct =
+                S::Active(P::Running).transition(paused(reason, P::Running), Cause::System);
+            let rejected = Err(TransitionError::ReasonNotAllowed {
+                machine: Machine::Run,
+                reason,
+            });
             if reason == PausedReason::StopAll {
                 assert!(result.is_ok());
                 assert_eq!(direct, rejected);
@@ -649,12 +657,20 @@ mod tests {
         for health in [IntegrationHealth::Unknown, IntegrationHealth::Unhealthy] {
             assert_eq!(
                 running.transition_with_health(review, Cause::System, health),
-                Err(TransitionError::IntegrationNotHealthy { health: health.name() })
+                Err(TransitionError::IntegrationNotHealthy {
+                    health: health.name()
+                })
             );
             // Other transitions are not gated by health.
-            assert!(running
-                .transition_with_health(paused(PausedReason::Manual, P::Running), Cause::System, health)
-                .is_ok());
+            assert!(
+                running
+                    .transition_with_health(
+                        paused(PausedReason::Manual, P::Running),
+                        Cause::System,
+                        health
+                    )
+                    .is_ok()
+            );
         }
     }
 
@@ -795,8 +811,18 @@ mod tests {
             exits,
             vec![
                 (S::Active(P::Running), Cause::UserDecision),
-                (S::StoppingProviderBlock { resume_state: P::Running }, Cause::System),
-                (S::StoppingProviderBlock { resume_state: P::Running }, Cause::UserDecision),
+                (
+                    S::StoppingProviderBlock {
+                        resume_state: P::Running
+                    },
+                    Cause::System
+                ),
+                (
+                    S::StoppingProviderBlock {
+                        resume_state: P::Running
+                    },
+                    Cause::UserDecision
+                ),
                 (S::Failed, Cause::System),
                 (S::Failed, Cause::UserDecision),
                 (S::Cancelled, Cause::System),
@@ -830,7 +856,9 @@ mod tests {
             );
         }
         // Stop All keeps the hold: STOPPING of a block returns only to the block (or fails), never to PAUSED or work.
-        let stopping_block = S::StoppingProviderBlock { resume_state: P::Running };
+        let stopping_block = S::StoppingProviderBlock {
+            resume_state: P::Running,
+        };
         for to in S::all() {
             for cause in [Cause::System, Cause::UserDecision] {
                 assert_eq!(

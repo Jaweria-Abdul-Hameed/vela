@@ -566,11 +566,16 @@ mod tests {
                     state,
                     S::Paused { reason, .. } if reason.resumes_automatically()
                 );
-                let resume = matches!((state, to), (S::Paused { .. } | S::NeedsHuman { .. }, S::Active(_)));
+                let resume = matches!(
+                    (state, to),
+                    (S::Paused { .. } | S::NeedsHuman { .. }, S::Active(_))
+                );
                 if resume && by_user.is_ok() && !automatic {
                     assert_eq!(
                         by_system,
-                        Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Worker }),
+                        Err(TransitionError::ExplicitDecisionRequired {
+                            machine: Machine::Worker
+                        }),
                         "{state:?} -> {to:?}"
                     );
                 } else {
@@ -583,7 +588,14 @@ mod tests {
     #[test]
     fn failed_integration_validation_returns_to_fixing() {
         let mut state = S::Active(P::IntegrationValidation);
-        for next in [P::Fixing, P::Validating, P::Checkpointing, P::Reviewing, P::ReadyToMerge, P::Merging] {
+        for next in [
+            P::Fixing,
+            P::Validating,
+            P::Checkpointing,
+            P::Reviewing,
+            P::ReadyToMerge,
+            P::Merging,
+        ] {
             state = state.transition(S::Active(next), Cause::System).unwrap();
         }
         assert_eq!(state, S::Active(P::Merging));
@@ -604,7 +616,11 @@ mod tests {
         let bad = r#"{"state":{"PAUSED":{"reason":"MANUAL","resume_state":"IMPLEMENTING"}},"waiting_approval":true}"#;
         assert!(serde_json::from_str::<WorkerStatus>(bad).is_err());
         let ok = r#"{"state":{"ACTIVE":"IMPLEMENTING"},"waiting_approval":true}"#;
-        assert!(serde_json::from_str::<WorkerStatus>(ok).unwrap().waiting_approval());
+        assert!(
+            serde_json::from_str::<WorkerStatus>(ok)
+                .unwrap()
+                .waiting_approval()
+        );
         assert!(WorkerStatus::from_parts(S::Active(P::Provisioning), true).is_err());
     }
 
