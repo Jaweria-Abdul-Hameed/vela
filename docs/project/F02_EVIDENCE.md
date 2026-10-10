@@ -93,3 +93,16 @@ Starting point: `f02/domain-primitives` at `e0aeddb` (verified), `main` untouche
 Not changed (recorded, not decided here): closed-set payload strings (DR-F02-2); the `FaultPoint::ALL` and `ErrorCode::ALL` arrays remain hand-maintained (each has a uniqueness and round-trip test and an exhaustive `match`).
 
 CI: run 38039110178 (`4c33642`) failed `cargo fmt --check` (rustfmt cannot run locally), run 38039320794 (`b145b5b`) failed three tests (drive-prefix parsing, a doc comment that changed `GateResult.ts`), run **38039547725** (`c8476e5`) PASSED both jobs: clippy `-D warnings`, build, `vela-domain` 69 tests, TypeScript job.
+
+## Review iteration 4 (exceptional, user-authorized; head `31a2b84`, CI run 38039690334 PASS)
+
+Nine findings. **Verdict: the Engineering exit policy does not pass; F02 stays REVIEW_STALLED and was not merged.** No further iteration is authorized. Blocking (medium correctness or security, classified here):
+
+1. **`GateResult` can be serialized but not read back.** Validation runs on construction and deserialize only; the fields are public and `Serialize` does not validate, so a contradictory record written to the append-only journal fails to deserialize on replay. Also `Fail` with `exit_code: Some(0)` is not rejected, and `WorkerCompleted.gates`/`IntegrationGateFailed.result` accept any status. Fix: private fields with accessors (or validate on serialize) and stricter status/exit-code pairing.
+2. **`VelaError::may_retry` ignores `side_effects`.** An `EXTERNAL_TEMPORARY` error that already committed, pushed or merged is reported retryable, contradicting "never retry non-idempotent actions blindly". Fix: return false when any side effect is recorded.
+3. **`PathComponent::encode` is not the identity for safe text of 54-64 bytes** (it truncates and hash-suffixes it), contradicting its documented guarantee and the stable-layout property. Fix: truncate only above `MAX_COMPONENT_LEN`.
+4. **`ConversationId` is an unvalidated `pub String`** fed back into `TurnRequest` (option-injection risk in the adapter), unlike the validated Git inputs.
+
+Non-blocking (low or design): `CheckpointMessage` fields are public so its subject validation can be bypassed; `compare_contract` matches names only and drops the group, and the directory scan is test-only; the feature-matrix test costs two cold nested builds per `cargo test --workspace` and overrides `RUSTFLAGS`; the `WorktreePath` doc comment and generated `WorktreePath.ts` describe the old rules; `GitMerges::merge` takes a branch, not the reviewed commit, and does not report the merged source; `case_fold_key` folds ASCII only; whitespace-only trailer values and the `commandNames` prefix match in the wrapper parser.
+
+To pass: fix items 1-4 (small, local changes, all inside F02's surfaces), regenerate `WorktreePath.ts` if its doc changes, and obtain a further authoritative review.
