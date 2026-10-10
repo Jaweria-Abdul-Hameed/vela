@@ -11,6 +11,6 @@ export type WorkerCompletedPayload = {
  */
 head: CommitSha, 
 /**
- * The gates that passed for it.
+ * The gate results recorded for it (callers use `GateResult::is_pass` to decide).
  */
 gates: Array<GateResult>, };

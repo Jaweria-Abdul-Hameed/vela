@@ -15,4 +15,9 @@ pushed: boolean,
 /**
  * A merge was completed.
  */
-merged: boolean, };
+merged: boolean, 
+/**
+ * The action may have taken effect but Vela cannot tell (for example a timeout or a crash after the request was
+ * sent). Such an outcome must be reconciled against the real state before anything is retried.
+ */
+uncertain: boolean, };

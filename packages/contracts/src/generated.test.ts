@@ -37,7 +37,7 @@ describe('generated contracts', () => {
       origin: 'provider',
       what_failed: 'blocked',
       state_preserved: '',
-      side_effects: { committed: false, pushed: false, merged: false },
+      side_effects: { committed: false, pushed: false, merged: false, uncertain: false },
       retry: 'never',
       user_action: '',
     } satisfies VelaError;

@@ -4,9 +4,15 @@ import type { GateStatus } from "./GateStatus";
 /**
  * The recorded result of one gate (`AGENTS.md`: command, exit code, duration, summary).
  *
- * A `Pass` with a non-zero exit code is a contradiction: it is rejected by [`GateResult::new`] and when deserializing
- * (so a journaled record cannot claim it), and [`GateResult::is_pass`] never treats such a value as a pass even if the
- * public fields were assigned directly.
+ * Every value of this type is internally consistent, so everything that can be serialized into the journal can be read
+ * back during replay. The fields are private; the only ways to obtain a value are [`GateResult::new`] and
+ * deserialization, and both apply the same rules:
+ *
+ * - the gate name is not empty;
+ * - `Pass` has exit code 0 or none (a pass with a failing exit code is a contradiction);
+ * - `Fail` has a non-zero exit code or none (a failure with exit code 0 is a contradiction);
+ * - `NotApplicable` ran nothing, so it has no exit code and no duration;
+ * - `Blocked` may carry whatever exit code the blocked tool reported.
  */
 export type GateResult = { 
 /**
