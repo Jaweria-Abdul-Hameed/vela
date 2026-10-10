@@ -493,8 +493,9 @@ fn bearer(bytes: &[u8], index: usize) -> Option<Hit> {
 
 // ---- Named values ----
 
-/// Words that may stand between the start of a line and an assignment: `export NAME=value`, `$env:NAME = value`.
-const ASSIGNMENT_PREFIXES: [&[u8]; 8] = [
+/// What may stand between the start of a line and an assignment: `export NAME=value`, `$env:NAME = value`, and the
+/// markers of a diff or a quotation.
+const ASSIGNMENT_PREFIXES: [&[u8]; 10] = [
     b"export",
     b"set",
     b"setx",
@@ -503,6 +504,8 @@ const ASSIGNMENT_PREFIXES: [&[u8]; 8] = [
     b"readonly",
     b"declare -x",
     b"$env:",
+    b"+",
+    b">",
 ];
 
 /// Whether the name at `index` is the first thing on its line (after an optional assignment keyword), as in the
@@ -603,7 +606,8 @@ fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
     // An unquoted value: the rest of the line after `:` (headers, YAML) and in an assignment that starts its line
     // (environment dumps); otherwise one word after `=` or a flag (shell command lines).
     let whole_line = separator == b':'
-        || (separator == b'=' && bytes[index] != b'-' && starts_line(bytes, index));
+        // (a single leading dash is the removed line of a diff, two are a command-line flag)
+        || (separator == b'=' && !bytes[index..].starts_with(b"--") && starts_line(bytes, index));
     let mut end = if whole_line {
         line_end
     } else if let Some(quote) = wrapping_quote {
@@ -855,6 +859,15 @@ mod tests {
                 ".env\nAPI_KEY=[REDACTED]\nNEXT=1",
             ),
             ("DB_PASSWORD=~Tr0ub4dor", "DB_PASSWORD=[REDACTED]"),
+            (
+                "+API_KEY=a b
+-API_KEY=c d
+ API_KEY=e f",
+                "+API_KEY=[REDACTED]
+-API_KEY=[REDACTED]
+ API_KEY=[REDACTED]",
+            ),
+            ("--password=a b", "--password=[REDACTED] b"),
             ("x DB_PASSWORD==abc y", "x DB_PASSWORD=[REDACTED] y"),
             ("'password' => 'hunter2',", "'password' => '[REDACTED]',"),
             (

@@ -27,7 +27,7 @@ No dependency, manifest, lockfile or `lib.rs` change. Every file is inside the t
 | `json.rs` | Structure-preserving redaction of serialized JSON (journal payloads, JSON log records, stream-json): strings are unescaped, redacted and re-escaped; a redacted document is still JSON of the same shape. |
 | `stream.rs` | `StreamRedactor`: chunked process output redacted line by line (a secret split across reads is still found), multi-line private keys, a line limit. |
 | `log.rs` | `RedactingWriter`, `RedactingMakeWriter` and `json_layer`: the JSON `tracing` layer whose records, with the fields of every enclosing span, are redacted before they are written. |
-| `corpus.rs` | The redaction corpus (test only): 30 cases covering the five classes of `OBSERVABILITY.md`. |
+| `corpus.rs` | The redaction corpus (test only): 37 cases covering the five classes of `OBSERVABILITY.md`. |
 
 `crates/vela-core/src/diagnostics/**` (logging setup):
 
@@ -41,7 +41,7 @@ No dependency, manifest, lockfile or `lib.rs` change. Every file is inside the t
 
 1. **Corpus of secret patterns is redacted in logs, journal payloads, and process output.** One corpus (`redact/corpus.rs`) is run through each ingestion point with the production redactor:
    - logs: `log::tests::the_corpus_is_redacted_in_log_records` emits every case as a message, as an event field and as a span field through the real JSON layer and asserts no secret is in the log and every line is still one JSON object;
-   - journal payloads: `pattern::tests::the_corpus_is_redacted_in_journal_payloads` embeds every case in a serialized payload (member value and array element) and asserts the secrets are gone and the document shape is intact; `vela-core` `payload::tests` covers the typed (`serde_json::Value`) path the Orchestrator will use;
+   - journal payloads: `pattern::tests::the_corpus_is_redacted_in_journal_payloads` embeds every case in a serialized payload (member value and array element) and asserts the secrets are gone and the document shape is intact. That call, `Redactor::redact` on the serialized payload, is exactly what the journal entry point does: `vela-core` `redact_payload` serializes the payload and passes the document to the port (`payload::tests::the_whole_payload_passes_through_the_redactor_as_one_document`), so there is one JSON walk and the corpus covers it;
    - process output: `stream::tests::the_corpus_is_redacted_however_the_output_is_chunked` feeds every case in chunks of 1, 2, 3, 5, 7, 16 and 64 bytes and asserts the result equals the unchunked result;
    - plain text and idempotence: `pattern::tests::the_corpus_is_redacted_as_plain_text`, `redaction_is_idempotent`; false positives: `ordinary_text_is_returned_unchanged_and_borrowed`.
 2. **Log rotation caps total size.** `rotation::tests::rotation_caps_the_total_size` writes more than twenty times the cap and checks the bytes on disk after every record; `a_record_larger_than_a_file_is_split_and_still_capped`, `keeping_no_rotated_files_keeps_only_the_active_file`, `reopening_appends_and_enforces_smaller_limits`, `files_rotate_in_order`, `clones_share_one_file_and_records_are_not_interleaved`.
@@ -61,7 +61,35 @@ Local Rust build, clippy and test remain blocked on this host (Smart App Control
 |---|---|---|
 | 38080064902 | `3030e90` | FAIL: compile error in a `vela-core` test helper (`tracing::span::Current` is not re-exported) |
 | 38080304978 | `3b47e76` | PASS, both jobs (Rust: format, structure, clippy `-D warnings`, build `--all-targets`, `cargo test --workspace`; TypeScript). `vela-process` 34 tests, `vela-core` 18 tests |
+| 38080782735 | `a976289` | PASS, both jobs: review iteration 1 head |
+| 38082211247 | `c61d64b` | FAIL: clippy, one unused import in a test module |
+| 38082331441 | `7876efc` | PASS, both jobs: code after review 1. `vela-process` 42 tests, `vela-core` 21 tests (including the two Windows tests that hold a log file open) |
+
+The corpus now has 37 cases (seven added after review 1: argument vectors and credential objects in JSON, Debug-formatted, colour-coded and percent-encoded text, `=>` and multi-word environment values, a URL password with an unencoded slash). Local loop after review 1: 37 dependency-free tests under WASI, not gate evidence.
 
 ## Review
 
-(recorded per iteration below)
+Authoritative reviews run in a fresh reviewer session with no implementer context, through the `/code-review` skill at effort `high` (the repository names no level; this is the session's level), against the fixed point `efc6ef3` with the three-dot diff. The reviewer supplies severities; blocking is decided by the Engineering exit policy (`REVIEW_PROTOCOL.md`). The iteration limit is 3.
+
+### Iteration 1 (`F07-R1`, head `a976289`, CI run 38080782735 green)
+
+Sixteen findings: 2 high, 8 medium, 6 low. All ten high and medium findings are in blocking classes and were fixed; none was reclassified.
+
+| # | Finding | Reviewer severity | Class | Disposition |
+|---|---|---|---|---|
+| R1-1 | Tokens, bearer values and lowercase names survive after an escape letter (`\n` in Debug output), a colour sequence or a percent escape, because matching needed a word start | high, security | blocking | Fixed: self-identifying token prefixes and JSON Web Tokens are matched anywhere; a word may start after an escape, a percent escape or a colour sequence (names too). Tests `tokens_are_found_after_escapes_and_inside_words`; three corpus cases |
+| R1-2 | The JSON walk cloned the member name into every nested array frame and per element: one crafted line could exhaust memory | high, security | blocking | Fixed: names are shared (`Rc<str>`), depth is bounded (128, then plain-text redaction). Test `hostile_nesting_is_cheap_and_bounded` |
+| R1-3 | Quadratic scans: repeated JSON Web Token attempts over one long run; the line end recomputed for every named value | medium, performance | blocking | Fixed: a failed token attempt marks the bytes it examined; the line end is memoized; bounded shape and URL scans. Test `hostile_input_stays_linear` (megabyte inputs that cannot finish unless linear) |
+| R1-4 | `redact_payload` (the journal entry point) was a second JSON walk without the name and value pair rule and was tested only with a stand-in; numeric pair values were skipped by both | medium, spec | blocking | Fixed: one walk. `redact_payload` serializes and passes the document through the port; the pair rule covers numbers. DR-F07-1 marked as needing an owner decision before O01 |
+| R1-5 | The value after a credential flag in an argument array (`["--password", "x"]`) was not redacted | medium, security | blocking | Fixed in the walk; corpus case "json argument vector" |
+| R1-6 | An object under a credential-like name was not redacted (`{"credentials": {"pass": "x"}}`) | medium, security | blocking | Fixed: everything inside a container stored under a credential-like name is redacted; corpus case |
+| R1-7 | Streamed private keys: one line that was not plain base64 (a `git diff` or `grep` prefix) ended the swallowing and released the rest of the key | medium, security | blocking | Fixed: an open key swallows every line until its `END` marker, at most 256 lines. Tests `prefixed_key_lines_are_swallowed_until_the_end_marker`, `an_unclosed_private_key_swallows_a_bounded_number_of_lines` |
+| R1-8 | `=>` was treated as an operator; an unquoted value after `=` was one word, so environment values with blanks leaked their tail | medium, security | blocking | Fixed: `=>` assigns; `==` and `=~` compare only with blanks on both sides; an assignment that starts its line takes the rest of the line. Corpus case |
+| R1-9 | A failed rotation emptied the active file, discarding the newest records (a file held open on Windows) | medium, data loss | blocking | Fixed: old history gives way first; an active file that cannot be renamed is copied, then emptied. Two Windows tests hold a file open without delete sharing |
+| R1-10 | `with_environment` registered `PWD`, paths and placeholders as global secrets, corrupting ordinary output | medium, correctness | blocking | Fixed: `PWD` and `OLDPWD` are not credential names; paths and placeholders are not registered |
+| R1-11 | The cut of an over-long line could expose the head of an unfinished secret | low | non-blocking | Fixed: the word the cut falls in is dropped |
+| R1-12 | A URL password containing an unencoded `/` was not found | low | non-blocking | Fixed: bounded look-ahead for the `@` when what follows the colon is not a port |
+| R1-13 | UTF-16 process output matches nothing | low | non-blocking | Documented on `StreamRedactor` and in DR-F07-5: P01 transcodes before feeding |
+| R1-14 | Output is released only at a line feed (prompts, carriage-return progress) | low | non-blocking | `flush_partial` added for P01; a bare carriage return as a terminator is not implemented (DR-F07-5) |
+| R1-15 | Weak tests: JSON well-formedness asserted by first and last character; "linear" test measured nothing; no test for the rotation fallback or the cross-crate join | low | non-blocking | Fixed except the cross-crate join, which cannot be written inside F07's surfaces (recorded for W01 and X04) |
+| R1-16 | Evidence table stopped before the review head; `payload.rs` claimed the payload shape never changes; `redact_payload_text` always re-serialized | low | non-blocking | Fixed: this table; the module documentation states what changes; unchanged text is returned as is |
