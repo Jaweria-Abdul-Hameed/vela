@@ -143,7 +143,16 @@ impl GitRepo {
     /// Runs `git` with the neutralising configuration and returns the raw output (a non-zero exit is not an error).
     pub fn output(&self, args: &[&str]) -> Result<Output, FixtureError> {
         let mut command = self.command(true);
-        command.args(args);
+        // Diff-producing subcommands also need `--no-ext-diff --no-textconv` (an empty `diff.external` alone makes Git
+        // try to spawn an empty program); they go right after the subcommand so a trailing `--` pathspec still works.
+        match args.split_first() {
+            Some((sub, rest)) if matches!(*sub, "diff" | "log" | "show") => {
+                command.arg(sub).args(["--no-ext-diff", "--no-textconv"]).args(rest);
+            }
+            _ => {
+                command.args(args);
+            }
+        }
         command
             .output()
             .map_err(|source| FixtureError::io(format!("spawn git {}", args.join(" ")), source))

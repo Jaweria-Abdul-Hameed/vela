@@ -10,8 +10,13 @@
 //! and the state directory and [`Phase`] when the harness started it. [`sample`] is a complete worked example, which is
 //! also the harness's self-test.
 //!
-//! The `fault-injection` feature of `vela-domain` is switched on by this crate's own manifest, so any test binary that
-//! links `vela-testkit` has live fault points. Owning tickets add [`FaultPoint`] variants in `vela-domain`; R03 owns the
+//! The `fault-injection` feature of `vela-domain` is switched on for this crate's own tests through its manifest (a
+//! dev-dependency feature). Dev-dependency features are not transitive: a crate that runs crash tests must enable
+//! `vela-domain/fault-injection` in its own `[dev-dependencies]`, or its armed children never abort (the harness then
+//! reports `NotKilled`). Attribution is by the child's `about_to_reach` announcement plus the abort signature; a
+//! consumer whose fault point sits inside production code announces before entering that routine, so an abort elsewhere
+//! after the announcement is indistinguishable from the point (decision request DR-F03-1 in `F03_EVIDENCE.md`: the F02
+//! hook could announce itself). Owning tickets add [`FaultPoint`] variants in `vela-domain`; R03 owns the
 //! matrix that runs this harness over every variant.
 
 #![warn(missing_docs)]
@@ -168,10 +173,10 @@ impl fmt::Display for HarnessError {
             HarnessError::Scratch(e) => write!(f, "state directory: {e}"),
             HarnessError::Io { context, source } => write!(f, "{context}: {source}"),
             HarnessError::UnknownFaultPoint(name) => write!(f, "unknown fault point {name:?}"),
-            HarnessError::ChildNotFound { test_name, .. } => {
+            HarnessError::ChildNotFound { test_name, stdout } => {
                 write!(
                     f,
-                    "the child test {test_name:?} was not found in this test binary"
+                    "the child test {test_name:?} was not found in this test binary; stdout:\n{stdout}"
                 )
             }
             HarnessError::Timeout {
@@ -191,10 +196,18 @@ stderr:
             }
             HarnessError::NotKilled { point, run } => write!(
                 f,
-                "armed {:?} but the child did not crash (exit {:?}); stdout:\n{}",
+                "armed {:?} but the child was not killed at the point (exit {:?}; the point announcement was {}). \
+                 If the child never aborts, check that its crate enables vela-domain/fault-injection in \
+                 [dev-dependencies]. stdout:\n{}\nstderr:\n{}",
                 point.name(),
                 run.exit_code,
-                run.stdout
+                if run.reached(*point) {
+                    "seen"
+                } else {
+                    "missing"
+                },
+                run.stdout,
+                run.stderr
             ),
             HarnessError::StateNotFresh => write!(
                 f,

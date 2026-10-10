@@ -323,7 +323,8 @@ impl FixtureRepo {
     }
 
     /// Runs `git` in the repository with the neutralising configuration; returns trimmed stdout, and an error for a
-    /// non-zero exit. Safe on the hostile repository.
+    /// non-zero exit. Safe on the hostile repository: `diff`, `log` and `show` automatically get
+    /// `--no-ext-diff --no-textconv` in addition to the neutralising configuration.
     pub fn git(&self, args: &[&str]) -> Result<String, FixtureError> {
         self.git.run(args)
     }
