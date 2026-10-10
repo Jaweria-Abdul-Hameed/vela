@@ -932,9 +932,10 @@ mod tests {
                 prop_assert!(known.contains(&next));
                 match before {
                     S::NeedsHuman { kind: InterventionKind::ProviderPolicyBlock, resume_state } => {
+                        let held_stop = S::StoppingProviderBlock { resume_state };
                         prop_assert!(
                             matches!(next, S::Cancelled | S::Failed)
-                                || next == S::StoppingProviderBlock { resume_state }
+                                || next == held_stop
                                 || (next == S::Active(resume_state) && user)
                         );
                     }
