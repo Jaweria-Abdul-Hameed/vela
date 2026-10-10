@@ -57,11 +57,12 @@ pub enum GuardError {
         /// The sync product recognised.
         provider: SyncProvider,
     },
-    /// The location is inside a Git repository (a `.git` entry exists in an ancestor).
+    /// The location is inside the Vela repository itself (`DIRECTORY_STRUCTURE.md`: test repositories are never
+    /// generated inside this repository).
     InsideRepository {
         /// The location that was offered.
         path: PathBuf,
-        /// The ancestor that holds the `.git` entry.
+        /// The Vela repository root.
         repository: PathBuf,
     },
 }
@@ -77,7 +78,7 @@ impl fmt::Display for GuardError {
             ),
             GuardError::InsideRepository { path, repository } => write!(
                 f,
-                "refusing to create fixtures under {}: it is inside the Git repository at {}",
+                "refusing to create fixtures under {}: it is inside the Vela repository at {}",
                 path.display(),
                 repository.display()
             ),
@@ -112,7 +113,8 @@ pub fn classify_component(component: &str) -> Option<SyncProvider> {
     if c.starts_with("icloud") || c == "mobile documents" || c == "com~apple~clouddocs" {
         return Some(SyncProvider::ICloud);
     }
-    if c.starts_with("box sync") {
+    // Box Drive is `Box` (Windows) or `Box-Box` (macOS CloudStorage); the legacy client is `Box Sync`.
+    if c == "box" || c.starts_with("box-box") || c.starts_with("box sync") {
         return Some(SyncProvider::Box);
     }
     None
@@ -170,6 +172,12 @@ fn nearest_existing(path: &Path) -> Option<PathBuf> {
     path.ancestors().find(|p| p.exists()).map(Path::to_path_buf)
 }
 
+/// The root of the Vela repository this crate was built from (two levels above the crate manifest), resolved.
+fn vela_repository_root() -> Option<PathBuf> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2)?;
+    Some(root.canonicalize().unwrap_or_else(|_| root.to_path_buf()))
+}
+
 /// Checks a candidate parent directory for fixtures against the sync roots in `roots`.
 ///
 /// `path` need not exist yet. A path that does exist is also resolved (symlinks and junctions followed) and
@@ -196,11 +204,12 @@ pub fn ensure_fixture_location_with_roots(
     }
     let start = resolved.or(existing);
     if let Some(start) = start
-        && let Some(repository) = start.ancestors().find(|a| a.join(".git").exists())
+        && let Some(repository) = vela_repository_root()
+        && normalized_components(&start).starts_with(&normalized_components(&repository))
     {
         return Err(GuardError::InsideRepository {
             path: path.to_path_buf(),
-            repository: repository.to_path_buf(),
+            repository,
         });
     }
     Ok(())
@@ -264,6 +273,14 @@ mod tests {
             provider(r"C:\Users\Ada\Box Sync\repos"),
             Some(SyncProvider::Box)
         );
+        assert_eq!(
+            provider(r"C:\Users\Ada\Box\repos"),
+            Some(SyncProvider::Box)
+        );
+        assert_eq!(
+            provider("/Users/ada/Library/CloudStorage/Box-Box/repos"),
+            Some(SyncProvider::Box)
+        );
     }
 
     #[test]
@@ -271,7 +288,7 @@ mod tests {
         for path in [
             r"C:\Users\Ada\AppData\Local\Temp\vela-fixture-1",
             r"C:\Temp\drive",
-            r"D:\Projects\box",
+            r"D:\Projects\boxes",
             "/tmp/fixtures",
             "/var/folders/xx/T/one-drive-notes",
             "",
@@ -341,13 +358,14 @@ mod tests {
     }
 
     #[test]
-    fn a_location_inside_a_git_repository_is_rejected() {
-        let scratch = crate::fixture_repo::ScratchDir::create("guard-in-repo").unwrap();
-        std::fs::create_dir(scratch.path().join(".git")).unwrap();
-        let nested = scratch.path().join("sub");
-        std::fs::create_dir(&nested).unwrap();
+    fn a_location_inside_the_vela_repository_is_rejected() {
+        let inside = Path::new(env!("CARGO_MANIFEST_DIR")).join("target-fixtures");
         assert!(matches!(
-            ensure_fixture_location_with_roots(&nested, &[]),
+            ensure_fixture_location_with_roots(&inside, &[]),
+            Err(GuardError::InsideRepository { .. })
+        ));
+        assert!(matches!(
+            ensure_fixture_location_with_roots(Path::new(env!("CARGO_MANIFEST_DIR")), &[]),
             Err(GuardError::InsideRepository { .. })
         ));
     }

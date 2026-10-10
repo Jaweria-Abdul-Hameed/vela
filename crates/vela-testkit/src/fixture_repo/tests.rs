@@ -62,6 +62,25 @@ fn the_specification_lists_exactly_the_kinds_the_builder_knows() {
 }
 
 #[test]
+fn the_specification_fields_agree_with_the_builders() {
+    let schema = spec_entry(FixtureKind::SchemaOverlapPair);
+    assert_eq!(schema["shared_path"], SCHEMA_PATH);
+    assert_eq!(schema["merge"], "clean");
+    let conflict = spec_entry(FixtureKind::MergeConflictPair);
+    assert_eq!(conflict["shared_path"], CONFLICT_PATH);
+    assert_eq!(conflict["merge"], "conflict");
+    let defect = seeded_defect();
+    let entry = spec_entry(FixtureKind::SeededReviewDefect);
+    assert_eq!(entry["defect"]["path"], defect.path);
+    assert_eq!(entry["defect"]["branch"], defect.branch);
+    // Exact tracked file sets for the kinds that only list main (a stray extra file fails).
+    for kind in [FixtureKind::SchemaOverlapPair, FixtureKind::MergeConflictPair] {
+        let repo = FixtureRepo::create(kind).unwrap();
+        assert_eq!(files_on(&repo, MAIN_BRANCH).len(), 14, "{}", kind.name());
+    }
+}
+
+#[test]
 fn every_kind_matches_its_specification_when_inspected_with_git() {
     for kind in FixtureKind::ALL {
         let repo = FixtureRepo::create(*kind).unwrap();

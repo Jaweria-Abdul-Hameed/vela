@@ -18,6 +18,9 @@
 
 pub mod sample;
 
+#[cfg(test)]
+mod feature_off;
+
 use crate::fixture_repo::{FixtureError, ScratchDir};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -33,8 +36,10 @@ pub const STATE_DIR_ENV: &str = "VELA_HARNESS_STATE_DIR";
 pub const PHASE_ENV: &str = "VELA_HARNESS_PHASE";
 /// Prefix of the lines a child prints (via [`report`]) for the harness to collect.
 pub const REPORT_PREFIX: &str = "VELA-HARNESS-REPORT: ";
-/// Exit code libtest uses when a test fails (a panic), which is not a crash injected by the harness.
-const TEST_FAILURE_EXIT_CODE: i32 = 101;
+/// `SIGABRT` as a shell reports it (128 + 6).
+const ABORT_SHELL_STATUS: i32 = 134;
+/// `STATUS_STACK_BUFFER_OVERRUN` (`0xC0000409`), the status `std::process::abort` produces on Windows.
+const WINDOWS_FAST_FAIL_STATUS: i32 = 0xC000_0409_u32 as i32;
 
 /// Which launch of the child this is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +132,10 @@ pub enum HarnessError {
         after: Duration,
         /// Which launch hung.
         phase: Phase,
+        /// What the child had written to standard output when it was killed.
+        stdout: String,
+        /// What the child had written to standard error when it was killed.
+        stderr: String,
     },
     /// The armed child did not crash: it completed or failed some other way, so the fault point was never reached.
     NotKilled {
@@ -154,10 +163,18 @@ impl fmt::Display for HarnessError {
                     "the child test {test_name:?} was not found in this test binary"
                 )
             }
-            HarnessError::Timeout { after, phase } => {
+            HarnessError::Timeout {
+                after,
+                phase,
+                stdout,
+                stderr,
+            } => {
                 write!(
                     f,
-                    "the {} child did not exit within {after:?}",
+                    "the {} child did not exit within {after:?}; stdout:
+{stdout}
+stderr:
+{stderr}",
                     phase.as_str()
                 )
             }
@@ -211,10 +228,17 @@ pub struct ChildRun {
 }
 
 impl ChildRun {
-    /// True when the process died abnormally for a reason other than a failed test assertion: an abort or a signal.
-    /// That is what an armed fault point produces.
+    /// True when the process ended the way `std::process::abort` ends it: killed by a signal (no exit code),
+    /// `SIGABRT` seen as a shell status (134), or the Windows fast-fail status `0xC0000409`. That is what an armed
+    /// fault point produces. A failed test (101), an ordinary non-zero exit, or another fatal status (an access
+    /// violation, a missing DLL) is deliberately not a crash, so an unrelated early death is never reported as a kill
+    /// at the armed point.
     pub fn crashed(&self) -> bool {
-        !self.success && self.exit_code != Some(TEST_FAILURE_EXIT_CODE)
+        !self.success
+            && match self.exit_code {
+                None => true,
+                Some(code) => code == ABORT_SHELL_STATUS || code == WINDOWS_FAST_FAIL_STATUS,
+            }
     }
 
     /// The value of a `key=value` report line.
@@ -466,6 +490,8 @@ impl KillRestartHarness {
                     return Err(HarnessError::Timeout {
                         after: self.timeout,
                         phase,
+                        stdout: read_lossy(&stdout_path).unwrap_or_default(),
+                        stderr: read_lossy(&stderr_path).unwrap_or_default(),
                     });
                 }
                 None => std::thread::sleep(Duration::from_millis(20)),
@@ -474,7 +500,7 @@ impl KillRestartHarness {
 
         let stdout = read_lossy(&stdout_path)?;
         let stderr = read_lossy(&stderr_path)?;
-        if stdout.contains("running 0 tests") {
+        if stdout.lines().any(|line| line.trim() == "running 0 tests") {
             return Err(HarnessError::ChildNotFound {
                 test_name: self.test_name.clone(),
                 stdout,

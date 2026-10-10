@@ -7,6 +7,7 @@
 //! complete example of the pattern every persisted transition in Vela follows, and R03's crash matrix copies it.
 
 use super::{HarnessError, io};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use vela_domain::fault::FaultPoint;
 
@@ -106,8 +107,12 @@ impl SampleStateMachine {
     fn persist(&self, state: SampleState) -> Result<(), HarnessError> {
         let tmp = self.dir.join(STATE_TMP_FILE);
         let target = self.dir.join(STATE_FILE);
-        std::fs::write(&tmp, state.name().as_bytes())
+        let mut file = std::fs::File::create(&tmp)
+            .map_err(|e| io(format!("create {}", tmp.display()), e))?;
+        file.write_all(state.name().as_bytes())
+            .and_then(|()| file.sync_all())
             .map_err(|e| io(format!("write {}", tmp.display()), e))?;
+        drop(file);
         std::fs::rename(&tmp, &target).map_err(|e| io(format!("rename to {}", target.display()), e))
     }
 
@@ -120,6 +125,12 @@ impl SampleStateMachine {
 
     /// What a restarted process does: look at the persisted state and finish a half-done transition. Idempotent.
     pub fn recover(&self) -> Result<RecoveryOutcome, HarnessError> {
+        // A crash between the temporary write and the rename leaves a stale temporary file: it was never the state.
+        let stale = self.dir.join(STATE_TMP_FILE);
+        if stale.exists() {
+            std::fs::remove_file(&stale)
+                .map_err(|e| io(format!("remove {}", stale.display()), e))?;
+        }
         let found = self.load()?;
         let action = match found {
             SampleState::Fresh => RecoveryAction::NothingToRecover,
@@ -333,6 +344,12 @@ mod tests {
             "Windows fast-fail abort"
         );
         assert!(run(false, Some(134)).crashed(), "SIGABRT as a shell status");
+        assert!(!run(false, Some(1)).crashed(), "an ordinary failure exit");
+        assert!(!run(false, Some(2)).crashed(), "a usage error");
+        assert!(
+            !run(false, Some(0xC000_0005_u32 as i32)).crashed(),
+            "an access violation is not the abort signature"
+        );
     }
 
     #[test]
@@ -361,6 +378,16 @@ mod tests {
             RecoveryAction::RolledForward
         );
         assert_eq!(machine.load().unwrap(), SampleState::Committed);
+    }
+
+    #[test]
+    fn recovery_removes_a_stale_temporary_file() {
+        let scratch = ScratchDir::create("sample-stale").unwrap();
+        std::fs::write(scratch.path().join(STATE_TMP_FILE), "committed").unwrap();
+        let machine = SampleStateMachine::new(scratch.path());
+        let outcome = machine.recover().unwrap();
+        assert_eq!(outcome.found, SampleState::Fresh, "the temporary was never the state");
+        assert!(!scratch.path().join(STATE_TMP_FILE).exists());
     }
 
     #[test]

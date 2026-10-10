@@ -82,6 +82,10 @@ impl GitRepo {
             "init.defaultBranch=main",
             "-c",
             "core.quotepath=false",
+            "-c",
+            format!("core.attributesFile={}", null_device()).as_str(),
+            "-c",
+            format!("core.excludesFile={}", null_device()).as_str(),
         ]);
         for var in [
             "GIT_DIR",
@@ -91,6 +95,15 @@ impl GitRepo {
             "GIT_COMMON_DIR",
             "GIT_NAMESPACE",
             "GIT_PREFIX",
+            "GIT_TEMPLATE_DIR",
+            "GIT_EXTERNAL_DIFF",
+            "GIT_CONFIG",
+            "GIT_CONFIG_PARAMETERS",
+            "GIT_CONFIG_COUNT",
+            "GIT_ATTR_SOURCE",
+            "GIT_CEILING_DIRECTORIES",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_PAGER",
         ] {
             command.env_remove(var);
         }
@@ -98,7 +111,15 @@ impl GitRepo {
             "{} +0000",
             BASE_EPOCH + i64::from(self.seq) * COMMIT_SPACING_SECONDS
         );
+        // Nothing from the host's home may leak in: no global attributes or ignore file, no XDG configuration.
+        let isolated_home = self
+            .empty_global_config
+            .parent()
+            .unwrap_or(&self.empty_global_config);
         command
+            .env("HOME", isolated_home)
+            .env("USERPROFILE", isolated_home)
+            .env("XDG_CONFIG_HOME", isolated_home)
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_CONFIG_GLOBAL", &self.empty_global_config)
             .env("GIT_TERMINAL_PROMPT", "0")
@@ -173,4 +194,44 @@ impl GitRepo {
 /// Where a test may put the empty global configuration for `dir`: a sibling file.
 pub(crate) fn empty_config_path(root: &Path) -> PathBuf {
     root.join("gitconfig-empty")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_git_environment_is_isolated_from_the_host() {
+        let repo = GitRepo::new(PathBuf::from("repo"), PathBuf::from("scratch").join("cfg"));
+        let command = repo.command(true);
+        let envs: std::collections::HashMap<_, _> = command
+            .get_envs()
+            .map(|(k, v)| (k.to_string_lossy().into_owned(), v.map(|v| v.to_owned())))
+            .collect();
+        // Removed (present with no value) so a host value cannot reach Git.
+        for var in [
+            "GIT_TEMPLATE_DIR",
+            "GIT_EXTERNAL_DIFF",
+            "GIT_CONFIG_PARAMETERS",
+            "GIT_CONFIG_COUNT",
+            "GIT_DIR",
+            "GIT_PAGER",
+        ] {
+            assert_eq!(envs.get(var), Some(&None), "{var} must be removed");
+        }
+        // Redirected into the scratch directory.
+        for var in ["HOME", "USERPROFILE", "XDG_CONFIG_HOME"] {
+            assert_eq!(
+                envs.get(var).and_then(|v| v.as_deref()),
+                Some(std::ffi::OsStr::new("scratch")),
+                "{var}"
+            );
+        }
+        let args: Vec<String> = command
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(args.iter().any(|a| a.starts_with("core.attributesFile=")));
+        assert!(args.iter().any(|a| a.starts_with("core.excludesFile=")));
+    }
 }
