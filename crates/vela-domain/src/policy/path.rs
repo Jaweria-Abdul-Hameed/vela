@@ -44,7 +44,7 @@ pub(crate) enum PathIssue {
 }
 
 /// A path resolved lexically to an absolute, case-folded component list.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Default)]
 pub(crate) struct ResolvedPath {
     /// Case-folded drive (`c:`) or UNC share (`\\server\share`).
     prefix: String,

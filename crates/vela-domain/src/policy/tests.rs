@@ -1368,6 +1368,150 @@ fn non_ascii_worktree_paths_match_consistently() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Regression tests for review iteration 2
+// ---------------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn git_checkout_forms_that_overwrite_local_work_are_denied() {
+    use Decision::{Ask, Deny};
+    use OperationClass::*;
+    let e = trusted();
+    for text in [
+        "git checkout HEAD src/main.rs",
+        "git checkout src/main.rs",
+        "git checkout main.rs",
+        "git checkout -qf main",
+        "git checkout --forc main",
+        "git checkout --ours conflicted.txt",
+        "git checkout release-1.2",
+        "git checkout feature/x",
+        "git checkout -- .",
+        "git rm -f tracked.txt",
+        "git rm --forc tracked.txt",
+    ] {
+        expect(&e, ps(text), Deny, GitDestructive);
+    }
+    for text in [
+        "git checkout main",
+        "git checkout -b feature/x",
+        "git checkout -b x origin/main",
+        "git checkout",
+        "git rm tracked.txt",
+    ] {
+        expect(&e, ps(text), Ask, GitMutate);
+    }
+    expect(&e, ps("git switch main"), Ask, GitMutate);
+}
+
+#[test]
+fn bare_words_are_names_not_credential_paths() {
+    let e = trusted();
+    for text in [
+        "cargo test token",
+        "git log --grep=token",
+        "npm run credentials",
+        "rg token",
+    ] {
+        let d = decide(&e, &ps(text));
+        assert_ne!(d.scope.class, OperationClass::CredentialAccess, "{text}");
+        assert_ne!(d.decision, Decision::Deny, "{text}");
+    }
+    // A confirmed profile command with such a word is allowed.
+    let profiled = engine_with(TrustState::Trusted, &[("cargo test token", None)]);
+    assert_eq!(
+        decide(&profiled, &ps("cargo test token")).decision,
+        Decision::Allow
+    );
+    // A path to a file of that name is still credential material.
+    expect(
+        &e,
+        ps(r"Get-Content config\token"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+    expect(
+        &e,
+        ps(r"git log --grep=x --file=config\token"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+}
+
+#[test]
+fn structured_operations_and_commands_agree_on_unresolvable_paths() {
+    use Decision::Deny;
+    use OperationClass::*;
+    let e = trusted();
+    for (path, delete) in [
+        (".git.\\hooks\\pre-commit", false),
+        (".git\\hooks\\pre-commit ", false),
+        (".git\\*", false),
+        ("GIT~1\\x", false),
+        (".agents\\*", true),
+    ] {
+        let op = if delete {
+            Operation::FileDelete {
+                path: path.into(),
+                recursive: true,
+            }
+        } else {
+            Operation::FileWrite { path: path.into() }
+        };
+        // Short names are not protected by name, so only the textual forms are asserted here.
+        if path.starts_with("GIT~") {
+            assert_ne!(decide(&e, &op).decision, Decision::Allow);
+            continue;
+        }
+        expect(&e, op, Deny, ProtectedPathChange);
+    }
+    let read = Operation::FileRead {
+        path: "~\\.ssh\\id_rsa".into(),
+    };
+    expect(&e, read, Deny, CredentialAccess);
+    let write = Operation::FileWrite {
+        path: "C:\\Users\\a\\.aws\\*".into(),
+    };
+    expect(&e, write, Deny, CredentialAccess);
+}
+
+#[test]
+fn cmd_builtins_glued_to_their_switches_are_still_recognised() {
+    use Decision::{Ask, Deny};
+    use OperationClass::*;
+    let e = trusted();
+    expect(&e, cmd("rd/s/q C:\\Windows"), Deny, DestructiveDelete);
+    expect(&e, cmd("del/s/q C:\\Users"), Deny, DestructiveDelete);
+    expect(&e, cmd("rd/s/q build"), Ask, RecursiveDelete);
+    expect(&e, cmd("del/q build"), Ask, Delete);
+    expect(&e, cmd("format/q D:"), Deny, DestructiveDelete);
+    assert_eq!(
+        normalize("rd/s/q x", Dialect::Cmd).unwrap().args(),
+        ["/s", "/q", "x"]
+    );
+    // PowerShell does not split at a slash, and the two readings disagree, so an unspecified dialect is ambiguous.
+    assert_eq!(
+        normalize("rd/s/q x", Dialect::Unspecified),
+        Err(Rejection::Ambiguous)
+    );
+    let unspecified = Operation::Command {
+        dialect: Dialect::Unspecified,
+        text: "rd/s/q C:\\Windows".into(),
+        cwd: None,
+    };
+    assert_eq!(decide(&e, &unspecified).decision, Ask);
+}
+
+#[test]
+fn an_oversized_profile_is_refused_before_it_is_examined() {
+    let entry = ProfileEntry::parse("npm test", Dialect::PowerShell, None, ROOT).unwrap();
+    let huge = vec![entry; MAX_PROFILE_ENTRIES + 1];
+    assert_eq!(
+        CommandProfile::new(huge).unwrap_err(),
+        ContextError::ProfileTooLarge
+    );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Redaction: secrets never reach decisions or debug output
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -1527,8 +1671,12 @@ proptest! {
         let _ = decide(&trusted(), &op);
         if let Ok(cmd) = normalize(&text, dialect) {
             let canonical = cmd.canonical_text();
-            if let Ok(again) = normalize(&canonical, Dialect::Cmd) {
-                prop_assert_eq!(again, cmd);
+            for again_dialect in [Dialect::Cmd, Dialect::PowerShell] {
+                // `cmd` ends a command name at a slash, so a slash in the executable reads differently there.
+                let glued = again_dialect == Dialect::Cmd && cmd.executable().contains('/');
+                if !glued && let Ok(again) = normalize(&canonical, again_dialect) {
+                    prop_assert_eq!(&again, &cmd);
+                }
             }
         }
     }

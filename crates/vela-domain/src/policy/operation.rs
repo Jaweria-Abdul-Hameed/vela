@@ -86,6 +86,9 @@ pub struct ProfileEntry {
     args: Vec<String>,
     /// Absolute working directory in canonical form, below or at the worktree root.
     cwd: String,
+    /// `cwd` resolved once, for matching.
+    #[serde(skip)]
+    resolved_cwd: ResolvedPath,
 }
 
 #[derive(Deserialize)]
@@ -102,10 +105,16 @@ impl TryFrom<RawProfileEntry> for ProfileEntry {
     fn try_from(raw: RawProfileEntry) -> Result<Self, Self::Error> {
         let canonical = NormalizedCommand::from_parts(raw.executable.clone(), raw.args.clone())
             .canonical_text();
-        // `cmd` is the more permissive grammar for bare words, so a stored command is checked under it.
-        let reparsed =
-            normalize(&canonical, Dialect::Cmd).map_err(|_| ContextError::UnnormalizableCommand)?;
-        if reparsed.executable() != raw.executable || reparsed.args() != raw.args.as_slice() {
+        // The stored form must re-parse to exactly the stored command under at least one dialect (`cmd` is the more
+        // permissive about bare words, PowerShell does not split `tools/x` at the slash).
+        let reproduces = [Dialect::Cmd, Dialect::PowerShell]
+            .into_iter()
+            .any(|dialect| {
+                normalize(&canonical, dialect).is_ok_and(|again| {
+                    again.executable() == raw.executable && again.args() == raw.args.as_slice()
+                })
+            });
+        if !reproduces {
             return Err(ContextError::UnnormalizableCommand);
         }
         let cwd = ResolvedPath::resolve(None, &raw.cwd)
@@ -117,6 +126,7 @@ impl TryFrom<RawProfileEntry> for ProfileEntry {
             executable: raw.executable,
             args: raw.args,
             cwd: raw.cwd,
+            resolved_cwd: cwd,
         })
     }
 }
@@ -221,14 +231,15 @@ pub struct CommandProfile {
 impl CommandProfile {
     /// Builds a profile, dropping duplicates and keeping order.
     pub fn new(entries: Vec<ProfileEntry>) -> Result<CommandProfile, ContextError> {
+        // The cap comes first so the de-duplication below is bounded.
+        if entries.len() > MAX_PROFILE_ENTRIES {
+            return Err(ContextError::ProfileTooLarge);
+        }
         let mut unique: Vec<ProfileEntry> = Vec::with_capacity(entries.len());
         for entry in entries {
             if !unique.contains(&entry) {
                 unique.push(entry);
             }
-        }
-        if unique.len() > MAX_PROFILE_ENTRIES {
-            return Err(ContextError::ProfileTooLarge);
         }
         Ok(CommandProfile { entries: unique })
     }
@@ -243,7 +254,7 @@ impl CommandProfile {
         self.entries.iter().any(|e| {
             e.executable == command.executable()
                 && e.args == command.args()
-                && ResolvedPath::resolve(None, &e.cwd).is_ok_and(|dir| dir.same_as(cwd))
+                && e.resolved_cwd.same_as(cwd)
         })
     }
 }

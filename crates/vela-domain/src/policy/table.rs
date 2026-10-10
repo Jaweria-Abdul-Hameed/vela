@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::classify::{WriteExclusions, command_facts_for_parts, write_exclusions};
 use super::engine::PolicyEngine;
+use super::normalizer::Dialect;
 use super::operation::{
     CommandProfile, ContextError, PolicyContext, ProfileEntry, RunMode, TrustState,
 };
@@ -127,12 +128,21 @@ pub fn native_allow_rules(engine: &PolicyEngine) -> Vec<NativeAllowRule> {
     }
     let mut out = Vec::new();
     for entry in ctx.profile().entries() {
-        let Some(facts) =
-            command_facts_for_parts(entry.executable(), entry.args(), entry.cwd(), ctx)
-        else {
-            continue;
-        };
-        if engine.decide(&facts).decision == Decision::Allow {
+        // A stored entry has no dialect, and a few classifications depend on it, so emit only what the engine allows
+        // under each.
+        let allowed_everywhere = [Dialect::PowerShell, Dialect::Cmd]
+            .into_iter()
+            .all(|dialect| {
+                let facts = command_facts_for_parts(
+                    entry.executable(),
+                    entry.args(),
+                    entry.cwd(),
+                    ctx,
+                    dialect,
+                );
+                engine.decide(&facts).decision == Decision::Allow
+            });
+        if allowed_everywhere {
             out.push(NativeAllowRule::Command {
                 executable: entry.executable().to_string(),
                 args: entry.args().to_vec(),

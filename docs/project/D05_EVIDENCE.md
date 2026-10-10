@@ -44,8 +44,8 @@ Run on a Linux cloud host (local Rust works here, unlike the Windows development
 | `cargo fmt --all --check` | 0 | |
 | `cargo clippy --workspace --exclude vela-desktop --exclude fake-approval-window --all-targets --locked -- -D warnings` | 0 | |
 | `cargo build --workspace --exclude ... --locked --all-targets` | 0 | about 21 s |
-| `cargo test --workspace --exclude ... --locked` | 0 | `vela-domain` 181 tests (includes the nested `hook-table` and `fault-injection` configuration run), `vela-testkit` 53 |
-| `cargo test -p vela-domain --lib --locked --no-default-features --features hook-table policy` | 0 | 54 policy tests with only `serde` |
+| `cargo test --workspace --exclude ... --locked` | 0 | `vela-domain` 186 tests (includes the nested `hook-table` and `fault-injection` configuration run), `vela-testkit` 53 |
+| `cargo test -p vela-domain --lib --locked --no-default-features --features hook-table policy` | 0 | 59 policy tests with only `serde` |
 | `node scripts/check-crate-deps.mjs`, `node scripts/check-module-skeleton.mjs` | 0 | |
 
 ## Review
@@ -61,10 +61,27 @@ Reviewer: the `/code-review` skill (forked execution), invoked as `code-review <
 | 3 | Native `WriteWithin` excluded only protected directories, not credential material. | Fixed: `WriteExclusions` (components, file names, prefixes, extensions) from the classifier's own tables. |
 | 4 | `/Windows` was a "flag", so `Remove-Item /Windows -Recurse` was ASK. | Fixed: dialect-aware switch rule (`/x` of up to two characters in every dialect, longer only in `cmd`). |
 | 5 | Deleting a protected location was ASK, writing it DENY. | Fixed: class renamed `ProtectedPathChange`, covers deletes (structured and commands). |
-| 6 | Generic names (`token`, `credentials`) matched at any depth. | Fixed: final component only. `hosts.yml` is credential only under `gh`. |
+| 6 | Generic names (`token`, `credentials`) matched at any depth. | Fixed: final component only. `hosts.yml` is credential only inside a `gh` directory (path sequence), not by name alone. |
 | 7 | Unresolvable targets and `format.` (trailing dot) escaped the protected and DENY tables. | Fixed: text-level fallback for unresolved targets; trailing dots and spaces stripped for executable lookup (not for profile matching). A bare wildcard was already rejected by the normalizer (ASK). |
 | 8 | Git long options accepted as abbreviations (`--forc`). | Fixed: danger options match any prefix; lenient options (`--dry-run`, `--staged`) still need the full name. |
 | 9 | `RuleSet::from_rules` did not enforce the tier invariants. | Fixed: only `DENY` before the user tier, nothing that allows inside it, tier within bounds. |
 | 10 | Profile working-directory matching used ASCII case folding "while placement used Unicode". | The premise is inaccurate (both use the ASCII fold of `case_fold_key`), but the two code paths were separate; matching now compares resolved paths, so they cannot diverge. Behavior for non-ASCII case differences is conservative and tested. |
 
 Regression tests: `protected_and_credential_checks_ignore_the_worktrees_own_location`, `generic_credential_names_count_only_as_the_final_component`, `quoted_arguments_with_shell_characters_survive_storage`, `rooted_slash_paths_are_delete_targets_in_powershell`, `deleting_protected_locations_is_denied_like_writing_them`, `unresolvable_targets_cannot_hide_a_protected_location_or_a_denied_executable`, `git_long_option_abbreviations_cannot_bypass_the_deny_tiers`, `a_rule_set_re_establishes_its_tier_invariants_on_load`, `non_ascii_worktree_paths_match_consistently`.
+
+### Iteration 2 (head `f08e4a41445f157489a211650c476b575e3f92cc`): 8 findings, all treated as blocking or cheap-and-correct, all fixed
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | `git checkout <path>`, `checkout HEAD file`, `-qf`, `--forc` overwrite local work but were ASK. | Fixed: checkout is `DENY` unless it creates a branch, has no operands, or switches to one plain branch-like name; `git rm -f` too; `git switch` remains the branch-only form. |
+| 2 | Bare words (`cargo test token`, `--grep=token`) were judged as credential paths by the generic-name rule. | Fixed: generic names count only for path-like arguments and resolved paths. |
+| 3 | Structured `FileWrite`/`FileDelete`/`FileRead` of an unresolvable path lacked the text fallback the command path has. | Fixed: both entry points share the credential and protected-name text checks. |
+| 4 | `rd/s/q`, `del/q`, `format/q` (command glued to switches) escaped the delete and disk tables in `cmd`. | Fixed: in `cmd` the first word is split at a slash (`rd/s/q` is `rd /s /q`); an unspecified dialect is ambiguous (ASK). |
+| 5 | `CommandProfile::new` de-duplicated an unbounded input in quadratic time before the cap. | Fixed: cap first. |
+| 6 | The `gh`/`hosts.yml` sequence is not limited to `gh` the program. | Documentation corrected: it is a path sequence (a `gh` directory); the program-name narrowing was never claimed by the code. |
+| 7 | Native allow rules classified a dialect-less profile entry under one dialect. | Fixed: an entry is emitted only if the engine allows it under both PowerShell and `cmd`; `command_facts_for_parts` no longer returns `Option`. |
+| 8 | Profile working directory re-resolved on every evaluation. | Fixed: resolved once at construction (`resolved_cwd`, not serialized). |
+
+A property-test counterexample found after these fixes (`0/` normalizes differently under `cmd` than PowerShell) led to profile storage accepting a command that re-parses to itself under either dialect, and to the canonical-form property being stated per dialect.
+
+Regression tests: `git_checkout_forms_that_overwrite_local_work_are_denied`, `bare_words_are_names_not_credential_paths`, `structured_operations_and_commands_agree_on_unresolvable_paths`, `cmd_builtins_glued_to_their_switches_are_still_recognised`, `an_oversized_profile_is_refused_before_it_is_examined`.

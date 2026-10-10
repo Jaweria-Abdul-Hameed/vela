@@ -117,10 +117,18 @@ fn file_op(raw: &str, ctx: &PolicyContext, kind: FileKind) -> Facts {
     let path = match ResolvedPath::resolve(Some(ctx.root()), raw) {
         Ok(p) => p,
         Err(issue) => {
-            let class = match kind {
-                FileKind::Read => OperationClass::FileRead,
-                FileKind::Write => OperationClass::FileWrite,
-                FileKind::Delete(recursive) => delete_class(&[Err(issue)], recursive, ctx),
+            // Judge what cannot be resolved by its text, as for command targets, so the structured and command entry
+            // points agree.
+            let class = if arg_mentions_credentials(raw, ctx.root(), ctx.root()) {
+                OperationClass::CredentialAccess
+            } else if !matches!(kind, FileKind::Read) && raw_mentions_protected(raw, ctx.root()) {
+                OperationClass::ProtectedPathChange
+            } else {
+                match kind {
+                    FileKind::Read => OperationClass::FileRead,
+                    FileKind::Write => OperationClass::FileWrite,
+                    FileKind::Delete(recursive) => delete_class(&[Err(issue)], recursive, ctx),
+                }
             };
             return Facts::of(class, Placement::Unresolvable);
         }
@@ -140,20 +148,16 @@ fn file_op(raw: &str, ctx: &PolicyContext, kind: FileKind) -> Facts {
     Facts::of(class, placement)
 }
 
-/// Facts for an already-normalized command, as stored in a profile entry.
+/// Facts for an already-normalized command, as stored in a profile entry, classified as if issued in `dialect`.
 pub(crate) fn command_facts_for_parts(
     executable: &str,
     args: &[String],
     cwd: &str,
     ctx: &PolicyContext,
-) -> Option<Facts> {
+    dialect: Dialect,
+) -> Facts {
     let command = NormalizedCommand::from_parts(executable.to_string(), args.to_vec());
-    Some(command_facts(
-        &command,
-        ResolvedPath::resolve(None, cwd),
-        ctx,
-        Dialect::Unspecified,
-    ))
+    command_facts(&command, ResolvedPath::resolve(None, cwd), ctx, dialect)
 }
 
 fn command_facts(
@@ -596,22 +600,24 @@ fn arg_mentions_credentials(arg: &str, cwd: &ResolvedPath, root: &ResolvedPath) 
     let pathlike = lower.contains(['\\', '/']);
     // A plain path argument is judged below the worktree root, so the worktree's own location never counts.
     if pathlike && let Ok(path) = ResolvedPath::resolve(Some(cwd), arg) {
-        return segments_are_credentials(&path.components_below(root));
+        return segments_are_credentials(&path.components_below(root), true);
     }
     let segments: Vec<&str> = lower
         .split(['\\', '/', '='])
         .filter(|s| !s.is_empty())
         .collect();
-    segments_are_credentials(&segments)
+    // A bare word such as `token` in `cargo test token` is a name, not a path.
+    segments_are_credentials(&segments, pathlike)
 }
 
 fn is_credential_path(path: &ResolvedPath, root: &ResolvedPath) -> bool {
-    segments_are_credentials(&path.components_below(root))
+    segments_are_credentials(&path.components_below(root), true)
 }
 
 /// True when a path, given as case-folded components, names credential or key material. Generic names (`token`,
-/// `credentials`) count only as the final component, so a source directory with that name is not credential material.
-fn segments_are_credentials(segments: &[&str]) -> bool {
+/// `credentials`) count only as the final component of a path, so a source directory with that name, or a bare word that is
+/// not a path (`weak_names` false), is not credential material.
+fn segments_are_credentials(segments: &[&str], weak_names: bool) -> bool {
     for seg in segments {
         if CREDENTIAL_DIRS.contains(seg) || CREDENTIAL_FILES.contains(seg) {
             return true;
@@ -625,9 +631,10 @@ fn segments_are_credentials(segments: &[&str]) -> bool {
             return true;
         }
     }
-    if segments
-        .last()
-        .is_some_and(|last| WEAK_CREDENTIAL_NAMES.contains(last))
+    if weak_names
+        && segments
+            .last()
+            .is_some_and(|last| WEAK_CREDENTIAL_NAMES.contains(last))
     {
         return true;
     }
@@ -971,14 +978,26 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
             }
         }
         "checkout" => {
-            if rest.iter().any(|a| {
-                a == "--"
-                    || a == "."
-                    || a == "-f"
-                    || a == "--force"
-                    || a == "--ours"
-                    || a == "--theirs"
-            }) {
+            // `git checkout <path>` overwrites local edits with no flag at all, and a branch name cannot be told from a
+            // path lexically, so only branch creation and a single plain branch-like name are a plain state change.
+            let creates = short(rest, 'b') || short(rest, 'B') || long_abbrev(rest, &["orphan"]);
+            let discards = rest.iter().any(|a| a == "--" || a == ".")
+                || short(rest, 'f')
+                || long_abbrev(rest, &["force", "ours", "theirs"]);
+            let branch_like = |name: &str| !name.contains(['/', '\\', '.']);
+            if discards {
+                GitDestructive
+            } else if creates
+                || positional.is_empty()
+                || (positional.len() == 1 && branch_like(positional[0]))
+            {
+                GitMutate
+            } else {
+                GitDestructive
+            }
+        }
+        "rm" => {
+            if short(rest, 'f') || long_abbrev(rest, &["force"]) {
                 GitDestructive
             } else {
                 GitMutate

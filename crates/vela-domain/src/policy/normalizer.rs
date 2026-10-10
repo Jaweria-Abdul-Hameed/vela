@@ -146,8 +146,9 @@ impl NormalizedCommand {
 
     /// A canonical one-line form for display, profile storage and native rules. Arguments that are not plain words
     /// (whitespace, shell-significant characters, or none at all) are double-quoted; the grammar guarantees no argument
-    /// contains a double quote, so the form re-parses to the same command under `cmd`, the more permissive bare-word
-    /// grammar. A command that cannot be written that way is refused when it is stored (see `ProfileEntry::parse`).
+    /// contains a double quote, so the form re-parses to the same command under `cmd` or PowerShell (`cmd` splits a
+    /// first word at a slash, PowerShell does not). A command that neither reproduces is refused when it is stored (see
+    /// `ProfileEntry::parse`).
     pub fn canonical_text(&self) -> String {
         let mut out = self.executable.clone();
         for arg in &self.args {
@@ -286,8 +287,21 @@ fn parse(text: &str, syntax: Syntax) -> Result<NormalizedCommand, Rejection> {
     if syntax == Syntax::PowerShell && first.text.contains('=') && first.text.starts_with('=') {
         return Err(Rejection::NonBareExecutable);
     }
-    let executable = normalize_executable(&first.text);
-    let args: Vec<String> = iter.map(|t| t.text).collect();
+    let mut glued: Vec<String> = Vec::new();
+    let mut head = first.text.as_str();
+    if syntax == Syntax::Cmd
+        && let Some((name, switches)) = head.split_once('/')
+        && !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        // In `cmd` a slash ends a command name: `rd/s/q` is `rd /s /q`.
+        glued = switches.split('/').map(|s| format!("/{s}")).collect();
+        head = name;
+    }
+    let executable = normalize_executable(head);
+    let args: Vec<String> = glued.into_iter().chain(iter.map(|t| t.text)).collect();
     Ok(NormalizedCommand::from_parts(executable, args))
 }
 
