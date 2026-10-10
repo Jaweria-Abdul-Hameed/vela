@@ -218,10 +218,12 @@ impl ErrorCode {
         }
     }
 
-    /// Whether Vela retries. Every approval error is never retried (`ERROR_HANDLING.md`: never respond to approval errors
-    /// by clicking repeatedly; a surface that is unavailable is reconciled on return, not retried), and a provider policy
-    /// block is never retried whatever its class says. No other code is retried either, so `Bounded` is currently
-    /// reachable only through [`VelaError::of_class`] with `EXTERNAL_TEMPORARY`.
+    /// Whether Vela retries. Every approval error is never retried by this stored disposition (`ERROR_HANDLING.md`: never
+    /// respond to approval errors by clicking repeatedly; a surface that is unavailable is reconciled on return), and a
+    /// provider policy block is never retried whatever its class says. No other code is retried either, so `Bounded` is
+    /// currently reachable only through [`VelaError::of_class`] with `EXTERNAL_TEMPORARY`. Whether the approval codes
+    /// should allow *bounded re-detection* (the document also speaks of "bounded recovery") is an open specification
+    /// question, recorded as DR-F02-3; the conservative reading is implemented.
     pub fn retry(self) -> RetryDisposition {
         RetryDisposition::Never
     }
@@ -250,25 +252,72 @@ impl SideEffects {
 }
 
 /// The typed error every port returns. It answers the five questions of `ERROR_HANDLING.md`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Values are internally consistent: built through [`VelaError::from_code`] or [`VelaError::of_class`] (the fields are
+/// private) and re-checked when deserialized, so a journaled error cannot claim, for example, to be a retryable
+/// transient Vela error while carrying the `PROVIDER_POLICY_BLOCK` code. The rules ([`VelaError::validate`]): with a
+/// code, `class` and `origin` are the code's; without one the origin is Vela; `retry` is `Bounded` only for a retryable
+/// class whose code allows it and when the action had no side effects.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "full", derive(ts_rs::TS))]
 pub struct VelaError {
     /// The error class.
-    pub class: ErrorClass,
+    class: ErrorClass,
     /// The specific typed error, when there is one.
-    pub code: Option<ErrorCode>,
+    code: Option<ErrorCode>,
     /// Who the error originates from.
-    pub origin: ErrorOrigin,
+    origin: ErrorOrigin,
     /// 1. What failed.
-    pub what_failed: String,
+    what_failed: String,
     /// 2. What state is preserved.
-    pub state_preserved: String,
+    state_preserved: String,
     /// 3. Whether anything was committed, pushed or merged.
-    pub side_effects: SideEffects,
+    side_effects: SideEffects,
     /// 4. Whether Vela will retry.
-    pub retry: RetryDisposition,
+    retry: RetryDisposition,
     /// 5. What the user can do.
-    pub user_action: String,
+    user_action: String,
+}
+
+/// Why a stored [`VelaError`] was rejected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InconsistentError(pub &'static str);
+
+impl fmt::Display for InconsistentError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
+impl std::error::Error for InconsistentError {}
+
+impl<'de> Deserialize<'de> for VelaError {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            class: ErrorClass,
+            code: Option<ErrorCode>,
+            origin: ErrorOrigin,
+            what_failed: String,
+            state_preserved: String,
+            side_effects: SideEffects,
+            retry: RetryDisposition,
+            user_action: String,
+        }
+        let raw = Raw::deserialize(deserializer)?;
+        let error = VelaError {
+            class: raw.class,
+            code: raw.code,
+            origin: raw.origin,
+            what_failed: raw.what_failed,
+            state_preserved: raw.state_preserved,
+            side_effects: raw.side_effects,
+            retry: raw.retry,
+            user_action: raw.user_action,
+        };
+        error.validate().map_err(serde::de::Error::custom)?;
+        Ok(error)
+    }
 }
 
 impl VelaError {
@@ -307,6 +356,78 @@ impl VelaError {
     /// An internal-bug error, for states that should be unreachable.
     pub fn internal(what_failed: impl Into<String>) -> Self {
         Self::of_class(ErrorClass::InternalBug, what_failed)
+    }
+
+    /// The error class.
+    pub fn class(&self) -> ErrorClass {
+        self.class
+    }
+
+    /// The specific typed error, when there is one.
+    pub fn code(&self) -> Option<ErrorCode> {
+        self.code
+    }
+
+    /// Who the error originates from.
+    pub fn origin(&self) -> ErrorOrigin {
+        self.origin
+    }
+
+    /// 1. What failed.
+    pub fn what_failed(&self) -> &str {
+        &self.what_failed
+    }
+
+    /// 2. What state is preserved.
+    pub fn state_preserved(&self) -> &str {
+        &self.state_preserved
+    }
+
+    /// 3. What had already been committed, pushed or merged.
+    pub fn side_effects(&self) -> SideEffects {
+        self.side_effects
+    }
+
+    /// 4. The stored retry disposition. Retry loops use [`VelaError::may_retry`].
+    pub fn retry(&self) -> RetryDisposition {
+        self.retry
+    }
+
+    /// 5. What the user can do.
+    pub fn user_action(&self) -> &str {
+        &self.user_action
+    }
+
+    /// Checks the consistency rules; used when reading a stored error.
+    pub fn validate(&self) -> Result<(), InconsistentError> {
+        match self.code {
+            Some(code) => {
+                if self.class != code.class() {
+                    return Err(InconsistentError("the class does not match the error code"));
+                }
+                if self.origin != code.origin() {
+                    return Err(InconsistentError("the origin does not match the error code"));
+                }
+                if self.retry == RetryDisposition::Bounded && code.retry() != RetryDisposition::Bounded {
+                    return Err(InconsistentError("this error code is never retried"));
+                }
+            }
+            None => {
+                if self.origin != ErrorOrigin::Vela {
+                    return Err(InconsistentError(
+                        "only a provider policy block originates from the provider",
+                    ));
+                }
+            }
+        }
+        if self.retry == RetryDisposition::Bounded
+            && (!self.class.is_retryable() || self.side_effects.any())
+        {
+            return Err(InconsistentError(
+                "a retry is only allowed for a transient class and an action without side effects",
+            ));
+        }
+        Ok(())
     }
 
     /// True when the failed action may already have had an effect (it committed, pushed or merged, or its outcome is
@@ -501,6 +622,63 @@ mod tests {
         let clean = VelaError::of_class(ErrorClass::ExternalTemporary, "x")
             .with_side_effects(SideEffects::default());
         assert!(clean.may_retry());
+    }
+
+    #[test]
+    fn every_constructible_error_is_consistent() {
+        for code in ErrorCode::ALL {
+            let error = VelaError::from_code(code, "x");
+            assert_eq!(error.validate(), Ok(()), "{code:?}");
+        }
+        for class in ErrorClass::ALL {
+            let error = VelaError::of_class(class, "x");
+            assert_eq!(error.validate(), Ok(()), "{class:?}");
+        }
+        let with_effects = VelaError::of_class(ErrorClass::ExternalTemporary, "x").with_side_effects(
+            SideEffects {
+                pushed: true,
+                ..SideEffects::default()
+            },
+        );
+        assert_eq!(with_effects.validate(), Ok(()));
+    }
+
+    #[test]
+    fn validation_rejects_every_inconsistent_combination() {
+        let base = || VelaError::from_code(ErrorCode::ProviderPolicyBlock, "blocked");
+        let mut wrong_class = base();
+        wrong_class.class = ErrorClass::ExternalTemporary;
+        assert!(wrong_class.validate().is_err());
+        let mut wrong_origin = base();
+        wrong_origin.origin = ErrorOrigin::Vela;
+        assert!(wrong_origin.validate().is_err());
+        let mut retried = base();
+        retried.retry = RetryDisposition::Bounded;
+        assert!(retried.validate().is_err());
+
+        let mut provider_without_code = VelaError::of_class(ErrorClass::PolicyBlock, "x");
+        provider_without_code.origin = ErrorOrigin::Provider;
+        assert!(provider_without_code.validate().is_err());
+
+        let mut retry_on_a_permanent_class = VelaError::of_class(ErrorClass::InternalBug, "x");
+        retry_on_a_permanent_class.retry = RetryDisposition::Bounded;
+        assert!(retry_on_a_permanent_class.validate().is_err());
+
+        let mut retry_after_a_push = VelaError::of_class(ErrorClass::ExternalTemporary, "x");
+        retry_after_a_push.side_effects.pushed = true;
+        assert!(retry_after_a_push.validate().is_err());
+    }
+
+    #[cfg(feature = "full")]
+    #[test]
+    fn a_forged_stored_error_is_rejected_on_read_and_a_real_one_round_trips() {
+        let forged = r#"{"class":"EXTERNAL_TEMPORARY","code":"PROVIDER_POLICY_BLOCK","origin":"vela","what_failed":"x","state_preserved":"","side_effects":{"committed":false,"pushed":false,"merged":false,"uncertain":false},"retry":"bounded","user_action":""}"#;
+        assert!(serde_json::from_str::<VelaError>(forged).is_err());
+        for code in ErrorCode::ALL {
+            let error = VelaError::from_code(code, "x");
+            let json = serde_json::to_string(&error).unwrap();
+            assert_eq!(serde_json::from_str::<VelaError>(&json).unwrap(), error);
+        }
     }
 
     #[test]

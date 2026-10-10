@@ -11,6 +11,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::errors::VelaError;
+use super::validated::{FailedGate, MergeBinding, PassedGates};
 use crate::ids::{BranchName, CommitSha, GateResult, ReviewSeverity, WorktreePath};
 
 macro_rules! event_vocabulary {
@@ -192,16 +193,24 @@ event_vocabulary! {
     WorkerCompleted => WorkerCompletedPayload {
         /// The worker's final head.
         head: CommitSha,
-        /// The gate results recorded for it (callers use `GateResult::is_pass` to decide).
-        gates: Vec<GateResult>,
+        /// The gates it passed: every entry passed, and a row listing a gate that did not pass is rejected on read.
+        gates: PassedGates,
     },
     /// The merge lane started merging a worker.
     MergeStarted => MergeStartedPayload {
+        /// The worker branch being merged.
+        source_branch: BranchName,
+        /// The commit that passed review (`review_head_sha`); the merge is refused unless the branch tip is exactly this.
+        reviewed_head: CommitSha,
         /// The integration tip before the merge (the recorded reset point).
         integration_before: CommitSha,
     },
     /// A merge completed and was validated.
     MergeCompleted => MergeCompletedPayload {
+        /// The worker branch that was merged.
+        source_branch: BranchName,
+        /// The reviewed commit and the commit actually merged (always equal; a row where they differ is rejected).
+        binding: MergeBinding,
         /// The integration tip before the merge.
         integration_before: CommitSha,
         /// The integration tip after the merge.
@@ -209,10 +218,14 @@ event_vocabulary! {
     },
     /// Integration validation failed after a merge.
     IntegrationGateFailed => IntegrationGateFailedPayload {
+        /// The worker branch that was merged.
+        source_branch: BranchName,
+        /// The reviewed commit and the commit actually merged.
+        binding: MergeBinding,
         /// The integration tip before the merge.
         integration_before: CommitSha,
-        /// The failing gate.
-        result: GateResult,
+        /// The failing gate (its status is `fail`; a row with any other status is rejected on read).
+        result: FailedGate,
     },
     /// A human must act.
     HumanActionRequired => HumanActionRequiredPayload {
@@ -388,6 +401,8 @@ event_vocabulary! {
     },
     /// An unpublished merge was discarded.
     MergeDiscarded => MergeDiscardedPayload {
+        /// The worker branch whose unpublished merge was discarded.
+        source_branch: BranchName,
         /// The integration tip the lane reset to.
         integration_before: CommitSha,
         /// Why it was discarded.

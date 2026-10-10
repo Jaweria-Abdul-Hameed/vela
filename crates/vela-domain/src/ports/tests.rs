@@ -3,6 +3,7 @@
 use super::*;
 use crate::errors::{ErrorClass, ErrorCode};
 use crate::ids::{BranchName, CommitSha, OperationId, TicketId, WorkerId, WorktreePath};
+use std::num::NonZeroU64;
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
@@ -294,7 +295,7 @@ fn an_agent_double_implementing_only_the_session_capability_compiles_and_streams
         worktree: path(),
         prompt: "do it".into(),
         conversation: None,
-        timeout_ms: 1_000,
+        timeout_ms: NonZeroU64::new(1_000).unwrap(),
     };
     let session: &dyn AgentSession = &OnlySession;
     let result = block_on(session.run_turn(&request, &sink)).unwrap();
@@ -324,7 +325,7 @@ fn a_reviewer_session_is_addressable_separately_from_its_worker_session() {
         fixed_point: sha(),
         reviewed_head: sha(),
         prompt: String::new(),
-        timeout_ms: 1,
+        timeout_ms: NonZeroU64::MIN,
     };
     assert_eq!(request.worker.as_str(), "w-1");
 }
@@ -404,7 +405,7 @@ fn the_neutral_provider_policy_block_event_and_typed_error_are_provider_free() {
     };
     assert!(matches!(event, AgentEvent::ProviderPolicyBlock { .. }));
     let error = VelaError::from_code(ErrorCode::ProviderPolicyBlock, "blocked");
-    assert_eq!(error.class, ErrorClass::PolicyBlock);
+    assert_eq!(error.class(), ErrorClass::PolicyBlock);
 }
 
 struct NoPullRequests;
@@ -438,7 +439,7 @@ fn a_tracker_without_pull_requests_reports_the_capability_as_missing() {
     let tracker: &dyn IssueTrackerAdapter = &NoPullRequests;
     let id = TicketId::new("F02").unwrap();
     let err = block_on(tracker.link_pull_request(&id, "https://example.invalid/pr/1")).unwrap_err();
-    assert_eq!(err.code, Some(ErrorCode::CapabilityMissing));
+    assert_eq!(err.code(), Some(ErrorCode::CapabilityMissing));
 }
 
 #[test]

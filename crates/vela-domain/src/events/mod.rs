@@ -14,8 +14,10 @@ pub mod command_registry;
 mod contract_export;
 #[cfg(all(test, feature = "full"))]
 mod sample;
+mod validated;
 mod vocabulary;
 
+pub use validated::*;
 pub use vocabulary::*;
 
 use serde::{Deserialize, Serialize};
@@ -48,8 +50,8 @@ pub struct EventEnvelope {
     /// Kind and typed payload.
     #[serde(flatten)]
     pub event: Event,
-    /// Schema version of the payload.
-    pub schema_version: u32,
+    /// Schema version of the payload (`1..=EVENT_SCHEMA_VERSION`; anything else is rejected on read).
+    pub schema_version: SchemaVersion,
 }
 
 impl EventEnvelope {
@@ -63,6 +65,7 @@ impl EventEnvelope {
 mod tests {
     use super::sample::Sample;
     use super::*;
+    use crate::ids::{BranchName, CommitSha, GateResult, GateStatus};
     use std::collections::HashSet;
 
     fn envelope(event: Event) -> EventEnvelope {
@@ -73,7 +76,7 @@ mod tests {
             ticket_id: Some(TicketId::sample()),
             worker_id: None,
             event,
-            schema_version: EVENT_SCHEMA_VERSION,
+            schema_version: SchemaVersion::current(),
         }
     }
 
@@ -180,6 +183,118 @@ mod tests {
         let mut wrong_shape = ok;
         wrong_shape["kind"] = "RunCreated".into();
         assert!(serde_json::from_value::<EventEnvelope>(wrong_shape).is_err());
+    }
+
+    #[test]
+    fn an_envelope_with_an_unsupported_schema_version_is_rejected() {
+        let ok = serde_json::to_value(envelope(Event::TicketReady(TicketReadyPayload {
+            frontier_size: 1,
+        })))
+        .unwrap();
+        assert_eq!(ok["schema_version"], 1);
+        for bad in [0u32, 2, 999] {
+            let mut value = ok.clone();
+            value["schema_version"] = bad.into();
+            assert!(
+                serde_json::from_value::<EventEnvelope>(value).is_err(),
+                "schema_version {bad}"
+            );
+        }
+    }
+
+    /// Replaces `path` (a dotted key path) in the serialized event of `kind` and reports whether it still parses.
+    fn parses_with(event: Event, edit: impl FnOnce(&mut serde_json::Value)) -> bool {
+        let mut value = serde_json::to_value(envelope(event)).unwrap();
+        edit(&mut value);
+        serde_json::from_value::<EventEnvelope>(value).is_ok()
+    }
+
+    fn gate_json(status: &str, exit_code: i32) -> serde_json::Value {
+        serde_json::json!({
+            "gate": "cargo test", "status": status, "exit_code": exit_code,
+            "duration_ms": null, "summary": ""
+        })
+    }
+
+    #[test]
+    fn worker_completed_replays_only_with_passing_gates() {
+        let event = || {
+            Event::WorkerCompleted(WorkerCompletedPayload {
+                head: CommitSha::sample(),
+                gates: PassedGates::new(vec![GateResult::sample()]).unwrap(),
+            })
+        };
+        assert!(parses_with(event(), |_| {}));
+        assert!(parses_with(event(), |v| {
+            v["payload"]["gates"] = serde_json::json!([gate_json("pass", 0)]);
+        }));
+        for (status, code) in [("fail", 1), ("blocked", 101), ("pass", 1)] {
+            assert!(
+                !parses_with(event(), |v| {
+                    v["payload"]["gates"] = serde_json::json!([gate_json("pass", 0), gate_json(status, code)]);
+                }),
+                "{status} {code}"
+            );
+        }
+    }
+
+    #[test]
+    fn integration_gate_failed_replays_only_with_a_failed_gate() {
+        let binding = || MergeBinding::new(CommitSha::sample(), CommitSha::sample()).unwrap();
+        let event = || {
+            Event::IntegrationGateFailed(IntegrationGateFailedPayload {
+                source_branch: BranchName::sample(),
+                binding: binding(),
+                integration_before: CommitSha::sample(),
+                result: FailedGate::new(
+                    GateResult::new("cargo test", GateStatus::Fail, Some(1), None, "").unwrap(),
+                )
+                .unwrap(),
+            })
+        };
+        assert!(parses_with(event(), |_| {}));
+        for (status, code) in [("pass", 0), ("blocked", 101), ("not_applicable", 0)] {
+            assert!(
+                !parses_with(event(), |v| {
+                    v["payload"]["result"] = gate_json(status, code);
+                }),
+                "{status}"
+            );
+        }
+        // A failure with exit code 0 is an inconsistent gate record, rejected before the event even looks at it.
+        assert!(!parses_with(event(), |v| {
+            v["payload"]["result"] = gate_json("fail", 0);
+        }));
+    }
+
+    #[test]
+    fn merge_events_preserve_the_reviewed_and_merged_commits_and_reject_a_mismatch() {
+        let a = CommitSha::new("a".repeat(40)).unwrap();
+        let b = CommitSha::new("b".repeat(40)).unwrap();
+        let started = Event::MergeStarted(MergeStartedPayload {
+            source_branch: BranchName::sample(),
+            reviewed_head: a.clone(),
+            integration_before: CommitSha::sample(),
+        });
+        let json = serde_json::to_value(envelope(started)).unwrap();
+        assert_eq!(json["payload"]["reviewed_head"], a.as_str());
+
+        let completed = || {
+            Event::MergeCompleted(MergeCompletedPayload {
+                source_branch: BranchName::sample(),
+                binding: MergeBinding::new(a.clone(), a.clone()).unwrap(),
+                integration_before: CommitSha::sample(),
+                integration_after: b.clone(),
+            })
+        };
+        let json = serde_json::to_value(envelope(completed())).unwrap();
+        assert_eq!(json["payload"]["binding"]["reviewed_head"], a.as_str());
+        assert_eq!(json["payload"]["binding"]["merged_source"], a.as_str());
+        assert!(parses_with(completed(), |_| {}));
+        // A row claiming that a different commit than the reviewed one was merged is not replayable.
+        assert!(!parses_with(completed(), |v| {
+            v["payload"]["binding"]["merged_source"] = b.as_str().into();
+        }));
     }
 
     #[test]

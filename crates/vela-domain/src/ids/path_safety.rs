@@ -169,23 +169,27 @@ impl PathComponent {
             changed = true;
         }
         if body.len() > MAX_COMPONENT_LEN {
-            // Only text longer than the limit is shortened (text of up to MAX_COMPONENT_LEN bytes keeps its identity).
-            // The body is ASCII by construction, so truncating at a byte index is on a character boundary; the
-            // truncated body plus the suffix is exactly MAX_COMPONENT_LEN bytes, and the hash keeps truncated names
-            // distinct.
-            body.truncate(MAX_COMPONENT_LEN - SUFFIX_LEN);
             changed = true;
-        } else if changed && body.len() + SUFFIX_LEN > MAX_COMPONENT_LEN {
-            // A changed name (case, encoding) near the limit must still fit once the suffix is added.
-            body.truncate(MAX_COMPONENT_LEN - SUFFIX_LEN);
         }
-        if is_windows_reserved_name(&body) {
-            // `con.txt` is still the console device; the stem itself must change, so the hash goes before the first dot.
-            let stem_end = body.find('.').unwrap_or(body.len());
-            body.insert_str(stem_end, &format!("~{}", stable_hash(original)));
-        } else if changed {
-            body.push('~');
-            body.push_str(&stable_hash(original));
+        if changed || is_windows_reserved_name(&body) {
+            // A suffix is needed, so the body must leave room for it. The body is ASCII by construction, so truncating
+            // at a byte index is on a character boundary. (Text that needs no change keeps its identity up to the full
+            // MAX_COMPONENT_LEN bytes; only changed, reserved or over-long text is shortened, to at most
+            // MAX_COMPONENT_LEN - SUFFIX_LEN bytes, so body plus suffix is at most MAX_COMPONENT_LEN.)
+            body.truncate(body.len().min(MAX_COMPONENT_LEN - SUFFIX_LEN));
+            let hash = stable_hash(original);
+            if is_windows_reserved_name(&body) {
+                // `con.txt` is still the console device; the stem itself must change, so the hash goes before the first
+                // dot (a trailing dot left by truncation is dropped first, since Windows strips it).
+                while body.ends_with('.') {
+                    body.pop();
+                }
+                let stem_end = body.find('.').unwrap_or(body.len());
+                body.insert_str(stem_end, &format!("~{hash}"));
+            } else {
+                body.push('~');
+                body.push_str(&hash);
+            }
         }
         Self(body)
     }
@@ -358,6 +362,87 @@ mod tests {
             PathComponent::encode(&format!("{}a", "x".repeat(70))),
             PathComponent::encode(&format!("{}b", "x".repeat(70)))
         );
+    }
+
+    #[test]
+    fn reserved_names_near_the_limit_still_yield_valid_components_within_the_limit() {
+        for stem in ["con", "CON", "nul", "aux", "prn", "com1", "LPT9", "com0"] {
+            for tail_len in [0usize, 1, 40, 49, 50, 53, 54, 58, 59, 60, 61, 62, 100] {
+                for tail_char in ['a', '.', '-'] {
+                    let tail: String = std::iter::repeat_n(tail_char, tail_len).collect();
+                    for original in [format!("{stem}.{tail}"), format!("{stem}{tail}")] {
+                        let encoded = PathComponent::encode(&original);
+                        assert!(
+                            encoded.as_str().len() <= MAX_COMPONENT_LEN,
+                            "{original:?} encoded to {} bytes",
+                            encoded.as_str().len()
+                        );
+                        assert!(
+                            PathComponent::new(encoded.as_str()).is_ok(),
+                            "{original:?} encoded to the invalid {encoded}"
+                        );
+                    }
+                }
+            }
+        }
+        // The documented example from review five: a reserved stem plus a 60-byte tail.
+        let encoded = PathComponent::encode(&format!("con.{}", "a".repeat(60)));
+        assert!(encoded.as_str().len() <= MAX_COMPONENT_LEN);
+        assert!(PathComponent::new(encoded.as_str()).is_ok());
+    }
+
+    /// Deterministic property-style test: a fixed-seed generator produces thousands of hostile and benign strings and
+    /// checks the guarantees of `encode` on all of them.
+    #[test]
+    fn encode_properties_hold_for_generated_inputs() {
+        // SplitMix64: small, fixed, reproducible.
+        struct Rng(u64);
+        impl Rng {
+            fn step(&mut self) -> u64 {
+                self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+                let mut z = self.0;
+                z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+                z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+                z ^ (z >> 31)
+            }
+        }
+        const FRAGMENTS: [&str; 24] = [
+            "a", "b", "Z", "7", "-", "_", ".", "..", "~", "#", " ", "/", "\\", ":", "con", "NUL", "com1",
+            "Lpt3", "é", "名", "\u{0}", "?", "*", "run-1",
+        ];
+        let mut rng = Rng(0x5eed);
+        let mut seen: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+        for _ in 0..6000 {
+            let pieces = (rng.step() % 40) as usize;
+            let mut original = String::new();
+            for _ in 0..pieces {
+                original.push_str(FRAGMENTS[(rng.step() % FRAGMENTS.len() as u64) as usize]);
+            }
+            let encoded = PathComponent::encode(&original);
+            // 1. Always valid and within the limit.
+            assert!(
+                encoded.as_str().len() <= MAX_COMPONENT_LEN,
+                "{original:?} -> {} bytes",
+                encoded.as_str().len()
+            );
+            assert!(
+                PathComponent::new(encoded.as_str()).is_ok(),
+                "{original:?} -> invalid {encoded}"
+            );
+            // 2. Deterministic.
+            assert_eq!(encoded, PathComponent::encode(&original));
+            // 3. Safe, in-limit input is its own component (identity), and nothing else is.
+            if let Ok(already) = PathComponent::new(original.as_str()) {
+                if !original.contains('~') {
+                    assert_eq!(encoded, already, "{original:?}");
+                }
+            }
+            // 4. Distinct originals never share a component, not even case-insensitively.
+            let key = encoded.as_str().to_ascii_lowercase();
+            if let Some(previous) = seen.insert(key.clone(), original.clone()) {
+                assert_eq!(previous, original, "{previous:?} and {original:?} both map to {key}");
+            }
+        }
     }
 
     #[test]

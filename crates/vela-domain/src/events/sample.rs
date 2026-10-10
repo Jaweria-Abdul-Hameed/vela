@@ -1,5 +1,6 @@
 //! Test-only sample values, so that every event payload can be round-tripped with non-default data in every field.
 
+use super::{FailedGate, MergeBinding, PassedGates};
 use crate::errors::{ErrorCode, VelaError};
 use crate::ids::{
     BranchName, CommitSha, GateResult, GateStatus, ReviewSeverity, RunId, TicketId, WorkerId,
@@ -88,6 +89,22 @@ impl Sample for ReviewSeverity {
 impl Sample for GateResult {
     fn sample() -> Self {
         Self::new("cargo test", GateStatus::Pass, Some(0), Some(42), "ok").unwrap()
+    }
+}
+impl Sample for PassedGates {
+    fn sample() -> Self {
+        Self::new(vec![GateResult::sample()]).unwrap()
+    }
+}
+impl Sample for FailedGate {
+    fn sample() -> Self {
+        Self::new(GateResult::new("cargo test", GateStatus::Fail, Some(1), Some(42), "failed").unwrap())
+            .unwrap()
+    }
+}
+impl Sample for MergeBinding {
+    fn sample() -> Self {
+        Self::new(CommitSha::sample(), CommitSha::sample()).unwrap()
     }
 }
 impl Sample for VelaError {

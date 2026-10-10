@@ -76,6 +76,10 @@ fn validate_token(value: &str) -> Result<(), IdError> {
             "an identifier cannot be a Windows reserved device name",
         ));
     }
+    // Git refuses a ref component ending in `.lock`, and ids are used as branch-name components.
+    if value.to_ascii_lowercase().ends_with(".lock") {
+        return Err(IdError::Malformed("an identifier cannot end with `.lock`"));
+    }
     Ok(())
 }
 
@@ -208,9 +212,9 @@ fn validate_branch_name(value: &str) -> Result<String, IdError> {
     {
         return Err(IdError::InvalidCharacter { found });
     }
-    if value == "@" || value.contains("@{") {
+    if value == "@" || value == "HEAD" || value.contains("@{") {
         return Err(IdError::Malformed(
-            "a branch name cannot be `@` or contain `@{`",
+            "a branch name cannot be `@` or `HEAD`, or contain `@{`",
         ));
     }
     if value.contains("..") || value.contains("//") {
@@ -352,6 +356,35 @@ mod tests {
         for fine in ["console", "com10", "lpt", "a.b", "a_b", "9", "x-"] {
             assert!(RunId::new(fine).is_ok(), "{fine:?}");
         }
+    }
+
+    #[test]
+    fn ids_ending_in_lock_are_rejected_because_git_refuses_such_ref_components() {
+        for id in ["F02.lock", "run.lock", "a.LOCK", "x.Lock"] {
+            assert!(TicketId::new(id).is_err(), "{id}");
+        }
+        assert!(TicketId::new("locksmith").is_ok());
+        assert!(TicketId::new("a.lock.b").is_ok());
+    }
+
+    #[test]
+    fn every_accepted_id_is_usable_as_a_branch_name_component() {
+        let accepted = [
+            "F02", "f02", "A", "9", "a.b", "a_b", "a-b", "x-", "gh#42", "Run-1", "a.lockx", "z".repeat(60).as_str(),
+        ];
+        for id in accepted {
+            assert!(RunId::new(id).is_ok(), "{id}");
+            let branch = format!("vela/{id}/{id}");
+            assert!(BranchName::new(branch.as_str()).is_ok(), "{branch}");
+        }
+    }
+
+    #[test]
+    fn head_is_not_a_branch_name() {
+        assert!(BranchName::new("HEAD").is_err());
+        assert!(BranchName::new("head").is_ok());
+        assert!(BranchName::new("HEAD2").is_ok());
+        assert!(BranchName::new("feature/HEAD").is_ok());
     }
 
     #[test]

@@ -5,6 +5,8 @@
 //! crate. [`AgentAdapter`] is the original port name: a supertrait of the three capabilities with a blanket
 //! implementation.
 
+use std::num::NonZeroU64;
+
 use crate::ids::{CommitSha, IdError, WorkerId, WorktreePath};
 
 use super::PortFuture;
@@ -164,8 +166,9 @@ pub struct TurnRequest {
     pub prompt: String,
     /// The conversation to resume, or `None` for a fresh one.
     pub conversation: Option<ConversationId>,
-    /// Explicit turn timeout in milliseconds (never the provider default).
-    pub timeout_ms: u64,
+    /// Explicit turn timeout in milliseconds. It can never be zero: the provider's own default of `0s` means "wait for the
+    /// turn without limit" (`ERROR_HANDLING.md`), which Vela never asks for.
+    pub timeout_ms: NonZeroU64,
 }
 
 /// Normalized events a provider adapter emits during a turn (component C05 outputs).
@@ -253,8 +256,8 @@ pub struct ReviewRequest {
     pub reviewed_head: CommitSha,
     /// The reviewer prompt (Vela's prompt contract).
     pub prompt: String,
-    /// Explicit timeout in milliseconds.
-    pub timeout_ms: u64,
+    /// Explicit timeout in milliseconds (never zero, see [`TurnRequest::timeout_ms`]).
+    pub timeout_ms: NonZeroU64,
 }
 
 /// The reviewer's raw output, classified by Vela afterwards.
@@ -360,7 +363,7 @@ mod tests {
             worktree: WorktreePath::new("/repo").unwrap(),
             prompt: String::new(),
             conversation: resume,
-            timeout_ms: 1,
+            timeout_ms: NonZeroU64::MIN,
         };
         assert!(request.conversation.is_none());
     }

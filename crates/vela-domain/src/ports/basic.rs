@@ -1,6 +1,6 @@
 //! Small synchronous ports: time, identifiers, power, desktop-session probe, notifications.
 
-use crate::ids::{RunId, TicketId, WorkerId};
+use crate::ids::{OperationId, RunId, TicketId, WorkerId};
 
 use super::PortFuture;
 
@@ -16,7 +16,12 @@ pub trait IdGenerator: Send + Sync {
     fn new_run_id(&self) -> RunId;
     /// A fresh worker identifier.
     fn new_worker_id(&self) -> WorkerId;
-    /// A fresh opaque token (operation, command, approval or backup identifiers).
+    /// A fresh operation identifier (the key of a persisted operation record and its per-worktree lock; every
+    /// `GitContext` carries one).
+    fn new_operation_id(&self) -> OperationId;
+    /// A fresh opaque token for identifiers that have no dedicated type (command, approval or backup identifiers). The
+    /// result is plain text from the generator: callers that need a validated identifier construct the typed value
+    /// (`new_operation_id` exists for that reason) rather than wrapping a token.
     fn new_token(&self) -> String;
 }
 

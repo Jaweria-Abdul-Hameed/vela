@@ -1,6 +1,7 @@
 //! `ProcessRunner`: runs configured commands (`ADAPTERS.md` "ProcessAdapter", component C10).
 
 use std::fmt;
+use std::num::NonZeroU64;
 
 use crate::ids::WorktreePath;
 
@@ -13,14 +14,15 @@ pub struct CommandSpec {
     pub id: String,
     /// The program to execute.
     pub program: String,
-    /// Arguments, passed without a shell.
+    /// Arguments, passed without a shell. They appear in logs and `Debug` output, so secrets belong in `env`, not here.
     pub args: Vec<String>,
     /// Working directory.
     pub cwd: WorktreePath,
     /// Allowlisted environment variables; nothing else is inherited.
     pub env: Vec<(String, String)>,
-    /// Timeout in milliseconds; exceeding it kills the whole process tree.
-    pub timeout_ms: u64,
+    /// Timeout in milliseconds (never zero: an absent limit is not expressible); exceeding it kills the whole process
+    /// tree.
+    pub timeout_ms: NonZeroU64,
 }
 
 /// `Debug` shows the environment variable *names* only: allowlisted values can still be sensitive (paths, tokens) and
@@ -104,7 +106,7 @@ mod tests {
             args: vec!["status".into()],
             cwd: WorktreePath::new("/repo").unwrap(),
             env: vec![("TOKEN".into(), "s3cr3t-value".into())],
-            timeout_ms: 1_000,
+            timeout_ms: NonZeroU64::new(1_000).unwrap(),
         };
         let shown = format!("{spec:?}");
         assert!(shown.contains("TOKEN"));

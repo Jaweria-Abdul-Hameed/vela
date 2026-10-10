@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::TicketId;
+use super::{IdError, TicketId};
 
 /// Risk class of a ticket (the `risk:*` label).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -212,16 +212,59 @@ pub enum EdgeOrigin {
     Analyst,
 }
 
-/// A "blocker must finish before blocked" edge between two tickets.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// A "blocker must finish before blocked" edge between two tickets. A ticket cannot block itself (that would be a
+/// cycle of length one), so such an edge can neither be constructed nor read back.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[cfg_attr(feature = "full", derive(ts_rs::TS))]
 pub struct DependencyEdge {
     /// The ticket that must be `DONE` first.
-    pub blocker: TicketId,
+    blocker: TicketId,
     /// The ticket that waits.
-    pub blocked: TicketId,
+    blocked: TicketId,
     /// Where the edge came from.
-    pub origin: EdgeOrigin,
+    origin: EdgeOrigin,
+}
+
+impl DependencyEdge {
+    /// Builds an edge, rejecting a self-edge.
+    pub fn new(blocker: TicketId, blocked: TicketId, origin: EdgeOrigin) -> Result<Self, IdError> {
+        if blocker == blocked {
+            return Err(IdError::Malformed("a ticket cannot block itself"));
+        }
+        Ok(Self {
+            blocker,
+            blocked,
+            origin,
+        })
+    }
+
+    /// The ticket that must be `DONE` first.
+    pub fn blocker(&self) -> &TicketId {
+        &self.blocker
+    }
+
+    /// The ticket that waits.
+    pub fn blocked(&self) -> &TicketId {
+        &self.blocked
+    }
+
+    /// Where the edge came from.
+    pub fn origin(&self) -> EdgeOrigin {
+        self.origin
+    }
+}
+
+impl<'de> Deserialize<'de> for DependencyEdge {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            blocker: TicketId,
+            blocked: TicketId,
+            origin: EdgeOrigin,
+        }
+        let raw = Raw::deserialize(deserializer)?;
+        Self::new(raw.blocker, raw.blocked, raw.origin).map_err(serde::de::Error::custom)
+    }
 }
 
 #[cfg(test)]
@@ -356,14 +399,32 @@ mod tests {
         }
     }
 
+    #[test]
+    fn a_ticket_cannot_block_itself() {
+        let f02 = || TicketId::new("F02").unwrap();
+        assert!(DependencyEdge::new(TicketId::new("F01").unwrap(), f02(), EdgeOrigin::Analyst).is_ok());
+        assert_eq!(
+            DependencyEdge::new(f02(), f02(), EdgeOrigin::Authored),
+            Err(IdError::Malformed("a ticket cannot block itself"))
+        );
+    }
+
+    #[cfg(feature = "full")]
+    #[test]
+    fn a_self_edge_is_rejected_on_read() {
+        let forged = r#"{"blocker":"F02","blocked":"F02","origin":"authored"}"#;
+        assert!(serde_json::from_str::<DependencyEdge>(forged).is_err());
+    }
+
     #[cfg(feature = "full")]
     #[test]
     fn value_objects_round_trip_through_json() {
-        let edge = DependencyEdge {
-            blocker: TicketId::new("F01").unwrap(),
-            blocked: TicketId::new("F02").unwrap(),
-            origin: EdgeOrigin::Authored,
-        };
+        let edge = DependencyEdge::new(
+            TicketId::new("F01").unwrap(),
+            TicketId::new("F02").unwrap(),
+            EdgeOrigin::Authored,
+        )
+        .unwrap();
         let json = serde_json::to_string(&edge).unwrap();
         assert_eq!(
             json,

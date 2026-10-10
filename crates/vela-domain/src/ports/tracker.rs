@@ -21,6 +21,9 @@ pub struct TrackerTicket {
 }
 
 /// Reads tickets and writes status back to the tracker.
+///
+/// Every string argument and every field read from a tracker is untrusted data (ADR-013): adapters pass them to the
+/// tracker as values, never as command-line options or paths, and nothing read here changes Vela's policy.
 pub trait IssueTrackerAdapter: Send + Sync {
     /// Lists the tickets in scope.
     fn list_tickets(&self) -> PortFuture<'_, Vec<TrackerTicket>>;
