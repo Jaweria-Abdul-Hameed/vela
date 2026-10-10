@@ -125,3 +125,18 @@ Smaller review-4 items fixed because they were cheap and in scope: `CheckpointMe
 Decision requests DR-F02-1 and DR-F02-2 are unchanged and still open (`F02_DECISION_REQUESTS.md`).
 
 CI for this round: run 38041105779 (`79fe658`) failed `cargo fmt --check` (rustfmt cannot run locally); run 38041191441 (`7f07572`) failed only the generated-contract golden test (new `uncertain` field and documentation changes); run **38041363423** (`e27509f`) PASSED both jobs after the TypeScript contracts were regenerated.
+
+## Review iteration 5 (exceptional, user-authorized; head `2c85a44`, CI run 38041547274 PASS)
+
+Eight findings. The four iteration-4 blocking findings are verified closed (the `GateResult` type itself, `may_retry`, `encode` identity for 1-64 bytes, `ConversationId`), and the port signature for merge binding is correct. **Verdict: the Engineering exit policy does not pass; F02 stays REVIEW_STALLED and was not merged. No further iteration is authorized.**
+
+Blocking (medium):
+1. `PathComponent::encode` can exceed `MAX_COMPONENT_LEN`: an unchanged safe text of 54-64 bytes whose stem is a reserved device name (for example `con.` plus 60 `a`) gets the 11-byte `~hash` inserted with no length re-check, giving 75 bytes that `PathComponent::new` rejects. Public `encode` API only (ids and branch names cannot be reserved names). Fix: shorten the body before inserting the hash in the reserved branch, and add the long reserved-stem case to the hostile-input test.
+2. The merge events cannot record the reviewed-commit binding added to the Git port: `MergeStartedPayload` and `MergeCompletedPayload` carry no merged source, source branch or expected reviewed head, so the audit trail S12 must journal has no field. Fix: add those fields to the two payloads (a contract change, regenerate TypeScript).
+3. `WorkerCompleted.gates` and `IntegrationGateFailed.result` accept a `GateResult` of any status, so a passing gate can be journaled as an integration failure and a failed or blocked gate can sit in a completed worker. Fix: validate at the payload boundary (all gates pass; the failing gate is not a pass) on construction and deserialize.
+
+Medium only if F02 is to enforce them; otherwise low-medium: (4) logical ids accept a `.lock` suffix that `BranchName` rejects, so `vela/{run}/{ticket}` can be unconstructible; (5) `VelaError` has public fields and derived `Deserialize` without checking that `class`, `origin` and `retry` agree with `code` (only `may_retry` is protected).
+
+Low: (6) `ErrorCode::retry` returns `Never` for every code although the approval codes' class is `EXTERNAL_TEMPORARY` and `ERROR_HANDLING.md` speaks of bounded recovery (a spec-interpretation call that should be a decision request, DR-F02-3); (7) `DependencyEdge` accepts `blocker == blocked`; (8) `IdGenerator` has no `new_operation_id()`, and `new_token()` is unvalidated.
+
+To pass: fix items 1-3 (and, if wanted, 4-5), regenerate the TypeScript contracts for item 2, obtain green CI, and obtain a further authoritative review.
