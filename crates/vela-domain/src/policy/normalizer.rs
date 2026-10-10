@@ -136,7 +136,7 @@ impl NormalizedCommand {
         // Windows drops trailing dots and spaces from a file name, so `format.` runs `format`.
         let base = self.executable.rsplit(['\\', '/']).next().unwrap_or("");
         let base = base.trim_end_matches(['.', ' ']);
-        for ext in [".exe", ".com", ".cmd", ".bat", ".ps1"] {
+        for ext in [".exe", ".com", ".cmd", ".bat"] {
             if let Some(stem) = base.strip_suffix(ext) {
                 return stem.to_string();
             }
@@ -284,7 +284,8 @@ fn parse(text: &str, syntax: Syntax) -> Result<NormalizedCommand, Rejection> {
     {
         return Err(Rejection::NonBareExecutable);
     }
-    if syntax == Syntax::PowerShell && first.text.contains('=') && first.text.starts_with('=') {
+    // An assignment (`FOO=bar cmd`) is not a command word in either syntax.
+    if first.text.contains('=') {
         return Err(Rejection::NonBareExecutable);
     }
     let mut glued: Vec<String> = Vec::new();

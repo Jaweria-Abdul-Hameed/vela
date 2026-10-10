@@ -169,7 +169,7 @@ fn operation_class_table() {
         ("diskpart", Deny, DestructiveDelete),
         ("Remove-Item -Recurse build", Ask, RecursiveDelete),
         ("Remove-Item -r build", Ask, RecursiveDelete),
-        ("rd /s build", Ask, RecursiveDelete),
+        ("rd /s build", Deny, DestructiveDelete),
         ("del notes.txt", Ask, Delete),
         // Protected locations and outside-root writes.
         (
@@ -1509,6 +1509,197 @@ fn an_oversized_profile_is_refused_before_it_is_examined() {
         CommandProfile::new(huge).unwrap_err(),
         ContextError::ProfileTooLarge
     );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Regression tests for review iteration 3 (applied after the iteration limit; not re-reviewed)
+// ---------------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn quoted_wildcards_are_placed_by_their_literal_prefix() {
+    use Decision::{Ask, Deny};
+    use OperationClass::*;
+    let e = trusted();
+    expect(&e, ps(r#"rm "C:\Users\me\*""#), Deny, DestructiveDelete);
+    expect(&e, ps(r#"del "..\*.txt""#), Deny, DestructiveDelete);
+    expect(
+        &e,
+        ps(r#"Remove-Item -Recurse "C:\Users\me\*""#),
+        Deny,
+        DestructiveDelete,
+    );
+    expect(&e, ps(r#"del "build\*.o""#), Ask, Delete);
+    expect(
+        &e,
+        ps(r#"Remove-Item -Recurse "build\*""#),
+        Ask,
+        RecursiveDelete,
+    );
+    let del = |p: &str| Operation::FileDelete {
+        path: p.into(),
+        recursive: false,
+    };
+    expect(&e, del(r"C:\Users\me\*"), Deny, DestructiveDelete);
+    expect(&e, del(r"build\*.o"), Ask, Delete);
+    // Structured reads and writes take no wildcards: never allowed.
+    let write = Operation::FileWrite {
+        path: r"src\*.rs".into(),
+    };
+    expect(&e, write, Ask, FileWrite);
+}
+
+#[test]
+fn scripts_inside_the_worktree_are_not_the_system_tools_they_resemble() {
+    use Decision::Ask;
+    use OperationClass::*;
+    let e = trusted();
+    expect(&e, ps(r".\scripts\format.ps1"), Ask, UnknownExecutable);
+    expect(&e, ps(r".\fsutil.exe"), Ask, UnknownExecutable);
+    expect(&e, ps(r"scripts/dd.cmd"), Ask, UnknownExecutable);
+    // An absolute system path outside the worktree is the real tool.
+    expect(
+        &e,
+        ps(r"C:\Windows\System32\format.com D:"),
+        Decision::Deny,
+        DestructiveDelete,
+    );
+    expect(
+        &e,
+        ps(r"C:\Windows\System32\cmdkey.exe /list"),
+        Decision::Deny,
+        CredentialAccess,
+    );
+    // A repo formatter can be confirmed into the profile.
+    let profiled = engine_with(TrustState::Trusted, &[(r".\scripts\format.ps1", None)]);
+    assert_eq!(
+        decide(&profiled, &ps(r".\scripts\format.ps1")).decision,
+        Decision::Allow
+    );
+}
+
+#[test]
+fn powershell_reads_short_slash_words_as_rooted_paths_for_cmdlets() {
+    use Decision::Deny;
+    use OperationClass::*;
+    let e = trusted();
+    expect(&e, ps("Remove-Item -Recurse /a"), Deny, DestructiveDelete);
+    expect(&e, ps("rm /s"), Deny, DestructiveDelete);
+    expect(&e, ps("rd /s /q build"), Deny, DestructiveDelete);
+    // Native tools keep their switches, and cmd is unchanged.
+    expect(&e, ps("robocopy /MIR build out"), Decision::Ask, FileMutate);
+    expect(&e, cmd("rd /s /q build"), Decision::Ask, RecursiveDelete);
+    expect(&e, cmd("del /q /s build"), Decision::Ask, RecursiveDelete);
+    // When the dialect is unknown the short cmd forms are switches, and the reading is not a DENY.
+    let unspecified = Operation::Command {
+        dialect: Dialect::Unspecified,
+        text: "del /s /q build".into(),
+        cwd: None,
+    };
+    assert_eq!(decide(&e, &unspecified).decision, Decision::Ask);
+}
+
+#[test]
+fn urls_and_plain_words_are_not_credential_access() {
+    let e = trusted();
+    for text in [
+        "curl https://api.example.com/token",
+        "curl https://example.com/credentials",
+        "git commit -m credential",
+        "git commit -m credentials",
+        "git log --grep=credential",
+        "git push origin credential",
+    ] {
+        let d = decide(&e, &ps(text));
+        assert_ne!(d.scope.class, OperationClass::CredentialAccess, "{text}");
+    }
+    // The real forms stay denied.
+    expect(
+        &e,
+        ps("git credential fill"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+    expect(
+        &e,
+        ps("git -C . credential-manager get"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+    expect(
+        &e,
+        ps("git config --get-all credential.helper"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+}
+
+#[test]
+fn branch_force_delete_is_destructive_however_it_is_spelled() {
+    use Decision::{Ask, Deny};
+    use OperationClass::*;
+    let e = trusted();
+    for text in [
+        "git branch -D x",
+        "git branch -df x",
+        "git branch -fd x",
+        "git branch --delete --force x",
+        "git branch --del --forc x",
+        "git branch -d -f x",
+    ] {
+        expect(&e, ps(text), Deny, GitDestructive);
+    }
+    expect(&e, ps("git branch -d merged"), Ask, GitMutate);
+    expect(&e, ps("git branch --list"), Ask, GitInspect);
+}
+
+#[test]
+fn short_option_detection_only_reads_option_clusters() {
+    use Decision::{Ask, Deny};
+    use OperationClass::*;
+    let e = trusted();
+    // A dash-prefixed value or an operand after `--` is not an option cluster.
+    expect(&e, ps("git push -o -d1 origin main"), Ask, GitPush);
+    expect(&e, ps("git push origin main -- -f"), Ask, GitPush);
+    expect(&e, ps("git push -u origin main"), Ask, GitPush);
+    expect(&e, ps("git push -fu origin main"), Deny, GitForcePush);
+    expect(&e, ps("git clean -n -d"), Ask, GitInspect);
+}
+
+#[test]
+fn an_unresolvable_working_directory_is_not_replaced_by_the_root() {
+    use Decision::Deny;
+    use OperationClass::*;
+    let e = trusted();
+    let op = |text: &str, cwd: &str| Operation::Command {
+        dialect: Dialect::PowerShell,
+        text: text.into(),
+        cwd: Some(cwd.into()),
+    };
+    // Relative targets cannot be placed without a working directory; a delete is refused rather than guessed.
+    expect(&e, op(r"rm -r ..\..\data", "%X%"), Deny, DestructiveDelete);
+    expect(&e, op("rm notes.txt", "~"), Deny, DestructiveDelete);
+    // An absolute target still resolves.
+    expect(
+        &e,
+        op(r"Remove-Item C:\Users\me\x", "%X%"),
+        Deny,
+        DestructiveDelete,
+    );
+    assert_ne!(decide(&e, &op("npm test", "%X%")).decision, Decision::Allow);
+}
+
+#[test]
+fn an_assignment_is_not_a_command_word() {
+    for text in ["FOO=bar npm test", "=x", "a=b"] {
+        for d in [Dialect::PowerShell, Dialect::Cmd, Dialect::Unspecified] {
+            assert_eq!(
+                normalize(text, d),
+                Err(Rejection::NonBareExecutable),
+                "{d:?} {text}"
+            );
+        }
+    }
+    assert!(normalize("npm test FOO=bar", Dialect::PowerShell).is_ok());
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

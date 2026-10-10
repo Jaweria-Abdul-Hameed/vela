@@ -44,8 +44,8 @@ Run on a Linux cloud host (local Rust works here, unlike the Windows development
 | `cargo fmt --all --check` | 0 | |
 | `cargo clippy --workspace --exclude vela-desktop --exclude fake-approval-window --all-targets --locked -- -D warnings` | 0 | |
 | `cargo build --workspace --exclude ... --locked --all-targets` | 0 | about 21 s |
-| `cargo test --workspace --exclude ... --locked` | 0 | `vela-domain` 186 tests (includes the nested `hook-table` and `fault-injection` configuration run), `vela-testkit` 53 |
-| `cargo test -p vela-domain --lib --locked --no-default-features --features hook-table policy` | 0 | 59 policy tests with only `serde` |
+| `cargo test --workspace --exclude ... --locked` | 0 | `vela-domain` 194 tests (includes the nested `hook-table` and `fault-injection` configuration run), `vela-testkit` 53 |
+| `cargo test -p vela-domain --lib --locked --no-default-features --features hook-table policy` | 0 | 67 policy tests with only `serde` |
 | `node scripts/check-crate-deps.mjs`, `node scripts/check-module-skeleton.mjs` | 0 | |
 
 ## Review
@@ -85,3 +85,24 @@ Regression tests: `protected_and_credential_checks_ignore_the_worktrees_own_loca
 A property-test counterexample found after these fixes (`0/` normalizes differently under `cmd` than PowerShell) led to profile storage accepting a command that re-parses to itself under either dialect, and to the canonical-form property being stated per dialect.
 
 Regression tests: `git_checkout_forms_that_overwrite_local_work_are_denied`, `bare_words_are_names_not_credential_paths`, `structured_operations_and_commands_agree_on_unresolvable_paths`, `cmd_builtins_glued_to_their_switches_are_still_recognised`, `an_oversized_profile_is_refused_before_it_is_examined`.
+
+### Iteration 3 (head `b9d607d859d02cac10410b68a5b6be446f7e4d83`, the last permitted): 10 findings
+
+The Engineering exit policy blocks medium-or-higher correctness and specification findings. Classification by the worker (the skill supplies no severities):
+
+| # | Finding | Classification |
+|---|---|---|
+| 1 | A quoted wildcard outside the root, non-recursive delete, was ASK (DR-D05-2 says DENY). | Blocking (specification, DENY-tier bypass). |
+| 2 | A repo script named `format`/`dd`/`fsutil` was a non-overridable DENY. | Blocking (over-denial that cannot be overridden). |
+| 3 | In PowerShell `/a` and other short slash words were read as `cmd` switches, hiding a rooted delete target. | Blocking (DENY-tier bypass). |
+| 4 | A URL path segment (`.../token`) or `git commit -m credential` was a credential DENY. | Blocking (over-denial that cannot be overridden). |
+| 5 | `git branch -df` was ASK while `-D` was DENY. | Blocking (DENY-tier bypass). |
+| 6 | `short()` matched any dash-prefixed argument containing the letter. | Blocking-adjacent (wrong DENY, wrong downgrade); fixed with 5. |
+| 7 | An unresolvable `cwd` was replaced by the worktree root as the base for relative targets. | Medium (class derived from an invented base). |
+| 8 | Rule validation ran twice in `into_engine`. | Low (efficiency). |
+| 9 | `PolicyContext::new` re-resolved profile directories already resolved. | Low (duplication). |
+| 10 | A redundant condition in the normalizer (`contains('=') && starts_with('=')`). | Low (clarity). |
+
+**All ten were fixed in the commit after `b9d607d`** (wildcard-tolerant placement for deletes and command targets; local scripts skip the name tables; dialect-aware slash words with a native-tool list; URL arguments and git subcommand-position credential detection; branch force-delete spellings; option clusters of ASCII letters before `--`; no invented base for an unresolvable directory; single validation pass; accessor reuse; any `=` in the first word is rejected). Regression tests for each are in `tests.rs` under "iteration 3".
+
+**Review status: REVIEW_STALLED (a `NEEDS_HUMAN` kind).** Three authoritative iterations have run (the default limit); iteration 3 reported blocking findings, and their fixes have not been re-reviewed. The Engineering exit policy therefore has **not passed**: tests, clippy, build and structure checks are green, but the reviewed head (`b9d607d`) is not the final head. The decision needed from the owner is whether to authorize one exceptional fourth `/code-review` of the fixes (earlier tickets F01 and F02 ran exceptional iterations on explicit user authorization), or to accept the fixes on the strength of the regression tests. Nothing was merged and no integration state was changed.

@@ -217,6 +217,23 @@ impl ResolvedPath {
     }
 }
 
+/// Like [`ResolvedPath::resolve`], but a path whose only problem is `*` or `?` is resolved with the wildcard replaced by a
+/// literal, so its placement is that of its literal prefix. Used for deletes and command targets, where a wildcard names
+/// several entries in the same place; never for the structured read and write operations, which do not take wildcards.
+pub(crate) fn resolve_with_wildcards(
+    base: Option<&ResolvedPath>,
+    raw: &str,
+) -> Result<ResolvedPath, PathIssue> {
+    match ResolvedPath::resolve(base, raw) {
+        Err(PathIssue::ControlOrWildcard)
+            if !raw.chars().any(|c| c.is_control() || "<>|\"".contains(c)) =>
+        {
+            ResolvedPath::resolve(base, &raw.replace(['*', '?'], "x"))
+        }
+        other => other,
+    }
+}
+
 fn drive_prefix(text: &str) -> Option<char> {
     let mut chars = text.chars();
     let letter = chars.next()?;

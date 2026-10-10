@@ -82,13 +82,9 @@ impl HookRuleTable {
         let profile = CommandProfile::new(self.profile).map_err(TableError::Context)?;
         let context = PolicyContext::new(&self.worktree_root, self.trust, self.run_mode, profile)
             .map_err(TableError::Context)?;
-        // Re-validate the rules: a deserialized set was validated, a constructed one may not have been.
-        let rules = RuleSet::from_rules(
-            self.rules.rules().to_vec(),
-            self.rules.user_start(),
-            self.rules.user_len(),
-        )
-        .map_err(TableError::Rules)?;
+        // The rule set is validated by construction: its only constructors are `from_rules`, `insert_user_rule` and
+        // deserialization, which calls `from_rules`.
+        let rules = self.rules;
         Ok(PolicyEngine::with_rules(context, rules))
     }
 }

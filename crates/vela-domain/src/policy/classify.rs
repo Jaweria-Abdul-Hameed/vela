@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::normalizer::{Dialect, NormalizedCommand, Rejection, normalize};
 use super::operation::{Operation, PolicyContext, TrustState};
-use super::path::{PathIssue, Placement, Relation, ResolvedPath};
+use super::path::{PathIssue, Placement, Relation, ResolvedPath, resolve_with_wildcards};
 
 /// What kind of thing an operation is, for rule matching and explanation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -114,12 +114,17 @@ enum FileKind {
 }
 
 fn file_op(raw: &str, ctx: &PolicyContext, kind: FileKind) -> Facts {
-    let path = match ResolvedPath::resolve(Some(ctx.root()), raw) {
+    let resolved = if matches!(kind, FileKind::Delete(_)) {
+        resolve_with_wildcards(Some(ctx.root()), raw)
+    } else {
+        ResolvedPath::resolve(Some(ctx.root()), raw)
+    };
+    let path = match resolved {
         Ok(p) => p,
         Err(issue) => {
             // Judge what cannot be resolved by its text, as for command targets, so the structured and command entry
             // points agree.
-            let class = if arg_mentions_credentials(raw, ctx.root(), ctx.root()) {
+            let class = if arg_mentions_credentials(raw, Some(ctx.root()), ctx.root()) {
                 OperationClass::CredentialAccess
             } else if !matches!(kind, FileKind::Read) && raw_mentions_protected(raw, ctx.root()) {
                 OperationClass::ProtectedPathChange
@@ -171,8 +176,15 @@ fn command_facts(
         Ok(p) => p.placement(ctx.root()),
         Err(_) => Placement::Unresolvable,
     };
-    let base = cwd.clone().unwrap_or_else(|_| ctx.root().clone());
-    let (class, targets_placement) = classify_command(command, &name, &base, ctx, dialect);
+    // A script or program inside the worktree is not the system tool its file name resembles, so the name tables
+    // (`format`, `cmdkey`, ...) do not apply to it; it is an unknown executable.
+    let table_name = if is_local_executable(command, cwd.as_ref().ok(), ctx.root()) {
+        String::new()
+    } else {
+        name.clone()
+    };
+    let (class, targets_placement) =
+        classify_command(command, &table_name, cwd.as_ref().ok(), ctx, dialect);
     let placement = worst(cwd_placement, targets_placement);
     let profile_match = ctx.trust() == TrustState::Trusted
         && cwd.as_ref().is_ok_and(|dir| {
@@ -185,6 +197,21 @@ fn command_facts(
         executable: Some(name),
         profile_match,
         rejection: None,
+    }
+}
+
+/// True when the executable is a path that is not an absolute location outside the worktree.
+fn is_local_executable(
+    cmd: &NormalizedCommand,
+    cwd: Option<&ResolvedPath>,
+    root: &ResolvedPath,
+) -> bool {
+    if !cmd.is_path_qualified() {
+        return false;
+    }
+    match ResolvedPath::resolve(cwd.or(Some(root)), cmd.executable()) {
+        Ok(path) => path.placement(root) == Placement::InsideRoot,
+        Err(_) => true,
     }
 }
 
@@ -204,7 +231,7 @@ fn worst(a: Placement, b: Placement) -> Placement {
 fn classify_command(
     cmd: &NormalizedCommand,
     name: &str,
-    cwd: &ResolvedPath,
+    cwd: Option<&ResolvedPath>,
     ctx: &PolicyContext,
     dialect: Dialect,
 ) -> (OperationClass, Placement) {
@@ -226,7 +253,7 @@ fn classify_command(
         return (git_class(cmd.args()), none);
     }
 
-    let targets = target_paths(cmd.args(), cwd, dialect);
+    let targets = target_paths(cmd.args(), cwd, dialect, name);
     let target_placement = targets
         .iter()
         .fold(Placement::InsideRoot, |acc, t| match &t.path {
@@ -551,7 +578,7 @@ fn is_credential_command(
     cmd: &NormalizedCommand,
     name: &str,
     lower_args: &[String],
-    cwd: &ResolvedPath,
+    cwd: Option<&ResolvedPath>,
     root: &ResolvedPath,
 ) -> bool {
     if CREDENTIAL_TOOLS.contains(&name) {
@@ -578,12 +605,10 @@ fn is_credential_command(
         return true;
     }
     let git_credential = name == "git"
-        && (cmd
-            .args()
-            .iter()
-            .any(|a| a == "credential" || a.starts_with("credential-"))
-            || (lower_args.iter().any(|a| a == "config")
-                && lower_args.iter().any(|a| a.contains("credential"))));
+        && git_subcommand(cmd.args()).is_some_and(|(sub, rest, _)| {
+            sub.starts_with("credential")
+                || (sub == "config" && rest.iter().any(|a| a.to_lowercase().contains("credential")))
+        });
     git_credential
         || lower_args.iter().any(|a| TOKEN_WORDS.contains(&a.as_str()))
         || lower_args
@@ -595,11 +620,15 @@ fn is_credential_command(
             .any(|a| arg_mentions_credentials(a, cwd, root))
 }
 
-fn arg_mentions_credentials(arg: &str, cwd: &ResolvedPath, root: &ResolvedPath) -> bool {
+fn arg_mentions_credentials(arg: &str, cwd: Option<&ResolvedPath>, root: &ResolvedPath) -> bool {
     let lower = arg.to_lowercase();
+    // A URL names a remote resource, not a local file.
+    if lower.contains("://") {
+        return false;
+    }
     let pathlike = lower.contains(['\\', '/']);
     // A plain path argument is judged below the worktree root, so the worktree's own location never counts.
-    if pathlike && let Ok(path) = ResolvedPath::resolve(Some(cwd), arg) {
+    if pathlike && let Ok(path) = ResolvedPath::resolve(cwd, arg) {
         return segments_are_credentials(&path.components_below(root), true);
     }
     let segments: Vec<&str> = lower
@@ -690,6 +719,11 @@ fn is_security_control(name: &str, lower_args: &[String]) -> bool {
 // Files: targets, deletes, protected locations
 // ---------------------------------------------------------------------------------------------------------------------
 
+/// Native programs that take `/switch` arguments when run from PowerShell.
+const NATIVE_SWITCH_TOOLS: &[&str] = &[
+    "robocopy", "xcopy", "attrib", "icacls", "takeown", "tar", "7z",
+];
+
 /// A command argument that names a path, with its resolution.
 struct Target {
     raw: String,
@@ -707,10 +741,10 @@ impl Target {
     }
 }
 
-/// True for a switch rather than a path. A single-slash word of at most two characters is a switch in every dialect
-/// (`/s`, `/q`); longer ones only in `cmd`, where `/MIR` and `/purge` are switches and `/Windows` is not valid anyway. In
-/// PowerShell a longer `/word` is a rooted path.
-fn is_flag(arg: &str, dialect: Dialect) -> bool {
+/// True for a switch rather than a path. In `cmd` a single-slash word is a switch (`/s`, `/MIR`); in PowerShell it is a
+/// rooted path (`/Windows`) except for native programs that take switches; when the dialect is unknown only the short
+/// `cmd` forms (`/s`, `/q`) are read as switches, and a longer word is a path.
+fn is_flag(arg: &str, dialect: Dialect, name: &str) -> bool {
     if arg == "-" || arg == "--" {
         return true;
     }
@@ -721,16 +755,26 @@ fn is_flag(arg: &str, dialect: Dialect) -> bool {
         .strip_prefix('/')
         .filter(|t| !t.is_empty() && !t.contains(['/', '\\']));
     match tail {
-        Some(t) => t.len() <= 2 || (dialect == Dialect::Cmd && t.len() <= 16),
+        Some(t) => match dialect {
+            Dialect::Cmd => t.len() <= 16,
+            Dialect::Unspecified => t.len() <= 2,
+            // PowerShell cmdlets and aliases take no slash switches; native tools do.
+            Dialect::PowerShell => NATIVE_SWITCH_TOOLS.contains(&name) && t.len() <= 16,
+        },
         None => false,
     }
 }
 
 /// Paths a command argument list names: bare arguments plus values of `-Param:value` and `key=value` forms.
-fn target_paths(args: &[String], cwd: &ResolvedPath, dialect: Dialect) -> Vec<Target> {
+fn target_paths(
+    args: &[String],
+    cwd: Option<&ResolvedPath>,
+    dialect: Dialect,
+    name: &str,
+) -> Vec<Target> {
     let mut out = Vec::new();
     for arg in args {
-        let candidate: Option<&str> = if is_flag(arg, dialect) {
+        let candidate: Option<&str> = if is_flag(arg, dialect, name) {
             arg.split_once(':')
                 .filter(|_| arg.starts_with('-'))
                 .map(|(_, v)| v)
@@ -745,7 +789,7 @@ fn target_paths(args: &[String], cwd: &ResolvedPath, dialect: Dialect) -> Vec<Ta
         if let Some(c) = candidate {
             out.push(Target {
                 raw: c.to_string(),
-                path: ResolvedPath::resolve(Some(cwd), c),
+                path: resolve_with_wildcards(cwd, c),
             });
         }
     }
@@ -877,8 +921,9 @@ pub fn write_exclusions() -> WriteExclusions {
 // Git
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn git_class(args: &[String]) -> OperationClass {
-    use OperationClass::*;
+/// Splits a Git argument list into the subcommand, its arguments, and whether a global option overrides configuration
+/// or location.
+fn git_subcommand(args: &[String]) -> Option<(&str, &[String], bool)> {
     let mut i = 0;
     let mut overridden = false;
     while i < args.len() && args[i].starts_with('-') {
@@ -904,10 +949,15 @@ fn git_class(args: &[String]) -> OperationClass {
             }
         }
     }
-    let Some(sub) = args.get(i).map(String::as_str) else {
+    let sub = args.get(i)?;
+    Some((sub.as_str(), &args[i + 1..], overridden))
+}
+
+fn git_class(args: &[String]) -> OperationClass {
+    use OperationClass::*;
+    let Some((sub, rest, overridden)) = git_subcommand(args) else {
         return GitInspect;
     };
-    let rest = &args[i + 1..];
     let class = git_subcommand_class(sub, rest);
     match class {
         GitInspect | GitMutate | GitPush if overridden => GitConfigOverride,
@@ -936,9 +986,16 @@ fn long_abbrev(rest: &[String], names: &[&str]) -> bool {
     })
 }
 
+/// True when a short-option cluster before any `--` contains `flag` (`-f`, `-fu`). Only clusters of ASCII letters count, so
+/// a value that happens to start with a dash (`-o`'s argument, a number) is not mistaken for options.
 fn short(rest: &[String], flag: char) -> bool {
-    rest.iter()
-        .any(|a| a.starts_with('-') && !a.starts_with("--") && a[1..].contains(flag))
+    rest.iter().take_while(|a| a.as_str() != "--").any(|a| {
+        a.strip_prefix('-').is_some_and(|cluster| {
+            !cluster.is_empty()
+                && cluster.chars().all(|c| c.is_ascii_alphabetic())
+                && cluster.contains(flag)
+        })
+    })
 }
 
 fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
@@ -1023,7 +1080,9 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
             _ => GitMutate,
         },
         "branch" => {
-            if short(rest, 'D') {
+            let force = short(rest, 'f') || long_abbrev(rest, &["force"]);
+            let delete = short(rest, 'd') || long_abbrev(rest, &["delete"]);
+            if short(rest, 'D') || (delete && force) {
                 GitDestructive
             } else if short(rest, 'd')
                 || short(rest, 'm')

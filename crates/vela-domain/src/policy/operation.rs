@@ -283,9 +283,7 @@ impl PolicyContext {
             return Err(ContextError::InvalidRoot);
         }
         for entry in profile.entries() {
-            let dir = ResolvedPath::resolve(None, &entry.cwd)
-                .map_err(|_| ContextError::InvalidProfileDirectory)?;
-            if dir.placement(&root) != Placement::InsideRoot {
+            if entry.resolved_cwd.placement(&root) != Placement::InsideRoot {
                 return Err(ContextError::InvalidProfileDirectory);
             }
         }
