@@ -108,7 +108,7 @@ mod tests {
 
     use super::*;
     use crate::redact::corpus::corpus;
-    use crate::redact::{PatternRedactor, REDACTED, Redactor};
+    use crate::redact::{PatternRedactor, REDACTED};
 
     /// An in-memory log file.
     #[derive(Clone, Default)]
