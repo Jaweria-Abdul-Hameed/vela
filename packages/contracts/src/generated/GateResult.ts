@@ -3,6 +3,10 @@ import type { GateStatus } from "./GateStatus";
 
 /**
  * The recorded result of one gate (`AGENTS.md`: command, exit code, duration, summary).
+ *
+ * A `Pass` with a non-zero exit code is a contradiction: it is rejected by [`GateResult::new`] and when deserializing
+ * (so a journaled record cannot claim it), and [`GateResult::is_pass`] never treats such a value as a pass even if the
+ * public fields were assigned directly.
  */
 export type GateResult = { 
 /**

@@ -257,7 +257,8 @@ fn validate_worktree_path(value: &str) -> Result<String, IdError> {
         .or_else(|| value.strip_prefix(r"\\.\"))
         .unwrap_or(value);
     let rest = match rest.as_bytes() {
-        [drive, b':', ..] if drive.is_ascii_alphabetic() => &rest[2..],
+        [drive, b':'] if drive.is_ascii_alphabetic() => "",
+        [drive, b':', b'/' | b'\\', ..] if drive.is_ascii_alphabetic() => &rest[2..],
         _ => rest,
     };
     if let Some(found) = rest
