@@ -117,7 +117,9 @@ pub enum RegistryError {
 impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidName(name) => write!(f, "command name {name:?} is not <segment>.<segment>[...]"),
+            Self::InvalidName(name) => {
+                write!(f, "command name {name:?} is not <segment>.<segment>[...]")
+            }
             Self::Duplicate(name) => write!(f, "command {name:?} is registered twice"),
         }
     }
@@ -342,7 +344,9 @@ mod tests {
                 continue;
             }
             if CommandGroup::from_name(stem).is_none() {
-                return Err(format!("wrapper file {stem}.ts is not a known command group"));
+                return Err(format!(
+                    "wrapper file {stem}.ts is not a known command group"
+                ));
             }
             let source = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
             for name in parse_wrapper_names(&source) {
@@ -388,7 +392,15 @@ mod tests {
             assert!(is_valid_command_name(ok), "{ok}");
         }
         for bad in [
-            "", "project", "project.", ".set", "Project.import", "a..b", "a.1b", "a.b-c", "a b.c",
+            "",
+            "project",
+            "project.",
+            ".set",
+            "Project.import",
+            "a..b",
+            "a.1b",
+            "a.b-c",
+            "a b.c",
             "a.b ",
         ] {
             assert!(!is_valid_command_name(bad), "{bad:?}");
@@ -515,7 +527,11 @@ mod tests {
         )
         .unwrap();
         // Helper files next to a group file are not group files.
-        std::fs::write(dir.join("run.test.ts"), "export const commandNames = ['x.y'];").unwrap();
+        std::fs::write(
+            dir.join("run.test.ts"),
+            "export const commandNames = ['x.y'];",
+        )
+        .unwrap();
         std::fs::write(dir.join("run.d.ts"), "export const commandNames = ['x.z'];").unwrap();
         std::fs::write(dir.join("notes.md"), "ignored").unwrap();
         assert_eq!(typescript_wrappers(&dir), Ok(vec!["run.create".to_owned()]));

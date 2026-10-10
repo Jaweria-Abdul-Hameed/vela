@@ -37,7 +37,11 @@ static ONLY_SESSION: OnlySession = OnlySession;
 struct OnlyRead;
 
 impl GitRead for OnlyRead {
-    fn status<'a>(&'a self, _ctx: &'a GitContext, _repo: &'a WorktreePath) -> PortFuture<'a, RepoStatus> {
+    fn status<'a>(
+        &'a self,
+        _ctx: &'a GitContext,
+        _repo: &'a WorktreePath,
+    ) -> PortFuture<'a, RepoStatus> {
         ready(Ok(RepoStatus {
             head: Some(sha()),
             branch: BranchName::new("main").ok(),
@@ -78,7 +82,11 @@ impl GitRead for OnlyRead {
 struct EveryGitCapability;
 
 impl GitRead for EveryGitCapability {
-    fn status<'a>(&'a self, ctx: &'a GitContext, repo: &'a WorktreePath) -> PortFuture<'a, RepoStatus> {
+    fn status<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+    ) -> PortFuture<'a, RepoStatus> {
         ONLY_READ.status(ctx, repo)
     }
     fn resolve_ref<'a>(
@@ -109,7 +117,11 @@ impl GitRead for EveryGitCapability {
     }
 }
 impl GitWorktrees for EveryGitCapability {
-    fn add_worktree<'a>(&'a self, _ctx: &'a GitContext, _request: &'a WorktreeRequest) -> PortFuture<'a, ()> {
+    fn add_worktree<'a>(
+        &'a self,
+        _ctx: &'a GitContext,
+        _request: &'a WorktreeRequest,
+    ) -> PortFuture<'a, ()> {
         ready(Ok(()))
     }
     fn remove_worktree<'a>(
@@ -147,7 +159,11 @@ impl GitMerges for EveryGitCapability {
     ) -> PortFuture<'a, MergeOutcome> {
         ready(Ok(MergeOutcome::Merged { head: sha() }))
     }
-    fn abort_merge<'a>(&'a self, _ctx: &'a GitContext, _integration: &'a WorktreePath) -> PortFuture<'a, ()> {
+    fn abort_merge<'a>(
+        &'a self,
+        _ctx: &'a GitContext,
+        _integration: &'a WorktreePath,
+    ) -> PortFuture<'a, ()> {
         ready(Ok(()))
     }
     fn discard_unpublished_merge<'a>(
@@ -286,7 +302,10 @@ fn a_reviewer_session_is_addressable_separately_from_its_worker_session() {
     );
     // Stop All can name, and therefore cancel, the running review.
     let reviewer = SessionRef::reviewer(worker.clone());
-    assert_eq!(block_on(session.status(&reviewer)).unwrap(), SessionStatus::Running);
+    assert_eq!(
+        block_on(session.status(&reviewer)).unwrap(),
+        SessionStatus::Running
+    );
     assert!(block_on(session.cancel(&reviewer)).is_ok());
     assert_ne!(SessionRef::worker(worker.clone()), reviewer);
     let request = ReviewRequest {
@@ -362,7 +381,10 @@ fn agent_capability_traits_compose_into_the_original_port_name() {
         block_on(as_session.status(&worker)).unwrap(),
         SessionStatus::Idle
     );
-    assert!(block_on(adapter.provision_profile(&SessionRef::reviewer(WorkerId::new("w").unwrap()))).is_ok());
+    assert!(
+        block_on(adapter.provision_profile(&SessionRef::reviewer(WorkerId::new("w").unwrap())))
+            .is_ok()
+    );
 }
 
 #[test]

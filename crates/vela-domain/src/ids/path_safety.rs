@@ -105,10 +105,9 @@ impl PathComponent {
         if value.len() > MAX_COMPONENT_LEN {
             return Err(ComponentError::TooLong);
         }
-        if let Some(bad) = value
-            .chars()
-            .find(|c| !(c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '_' | '~' | '-')))
-        {
+        if let Some(bad) = value.chars().find(|c| {
+            !(c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '_' | '~' | '-'))
+        }) {
             return Err(ComponentError::InvalidCharacter(bad));
         }
         if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
@@ -200,11 +199,24 @@ mod tests {
     #[test]
     fn reserved_device_names_are_detected_in_any_case_and_with_extensions() {
         for name in [
-            "con", "CON", "Prn", "aux", "NUL", "com1", "COM9", "lpt0", "LPT7", "con.txt", "nul.tar.gz", "CONIN$",
+            "con",
+            "CON",
+            "Prn",
+            "aux",
+            "NUL",
+            "com1",
+            "COM9",
+            "lpt0",
+            "LPT7",
+            "con.txt",
+            "nul.tar.gz",
+            "CONIN$",
         ] {
             assert!(is_windows_reserved_name(name), "{name}");
         }
-        for name in ["console", "com", "com10", "lpt", "comma", "x.con", "a-con", "F02"] {
+        for name in [
+            "console", "com", "com10", "lpt", "comma", "x.con", "a-con", "F02",
+        ] {
             assert!(!is_windows_reserved_name(name), "{name}");
         }
     }
@@ -253,8 +265,29 @@ mod tests {
             assert_eq!(PathComponent::encode(safe).as_str(), safe);
         }
         let hostile = [
-            "F02", "CON", "con.txt", "Run-1", "a#b", "-rf", ".", "..", "a.", "a..b", "a b", "C:", "a/b", "a\\b",
-            "nul", "COM1", "é", "名前", "a?b", "~", &"A".repeat(200), &"a".repeat(200), "x\u{0}y",
+            "F02",
+            "CON",
+            "con.txt",
+            "Run-1",
+            "a#b",
+            "-rf",
+            ".",
+            "..",
+            "a.",
+            "a..b",
+            "a b",
+            "C:",
+            "a/b",
+            "a\\b",
+            "nul",
+            "COM1",
+            "é",
+            "名前",
+            "a?b",
+            "~",
+            &"A".repeat(200),
+            &"a".repeat(200),
+            "x\u{0}y",
         ];
         for original in hostile {
             let component = PathComponent::encode(original);
@@ -268,12 +301,14 @@ mod tests {
     #[test]
     fn encode_never_collides_case_insensitively_for_distinct_originals() {
         let originals = [
-            "run-1", "Run-1", "RUN-1", "rUn-1", "f02", "F02", "con", "CON", "Con", "a#b", "a%23b", "a.", "a~2e", "x",
-            "X", "-x", "x-",
+            "run-1", "Run-1", "RUN-1", "rUn-1", "f02", "F02", "con", "CON", "Con", "a#b", "a%23b",
+            "a.", "a~2e", "x", "X", "-x", "x-",
         ];
         let mut seen = std::collections::BTreeMap::new();
         for original in originals {
-            let key = PathComponent::encode(original).as_str().to_ascii_lowercase();
+            let key = PathComponent::encode(original)
+                .as_str()
+                .to_ascii_lowercase();
             if let Some(previous) = seen.insert(key.clone(), original) {
                 panic!("{previous:?} and {original:?} both map to {key}");
             }

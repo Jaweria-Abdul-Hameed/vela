@@ -104,7 +104,8 @@ impl RevisionSpec {
             return Err(IdError::TooLong { max: 256 });
         }
         if let Some(found) = value.chars().find(|c| {
-            !(c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '/' | '@' | '^' | '~' | '{' | '}' | '#' | '-'))
+            !(c.is_ascii_alphanumeric()
+                || matches!(c, '.' | '_' | '/' | '@' | '^' | '~' | '{' | '}' | '#' | '-'))
         }) {
             return Err(IdError::InvalidCharacter { found });
         }
@@ -425,7 +426,14 @@ mod tests {
 
     #[test]
     fn revision_specs_cannot_be_read_as_options_and_carry_no_whitespace() {
-        for ok in ["HEAD", "origin/main", "HEAD~2", "v1.0^{commit}", "HEAD@{1}", "a/b#c"] {
+        for ok in [
+            "HEAD",
+            "origin/main",
+            "HEAD~2",
+            "v1.0^{commit}",
+            "HEAD@{1}",
+            "a/b#c",
+        ] {
             assert!(RevisionSpec::new(ok).is_ok(), "{ok:?}");
         }
         for bad in [

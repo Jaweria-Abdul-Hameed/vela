@@ -149,8 +149,14 @@ impl<'de> Deserialize<'de> for GateResult {
             summary: String,
         }
         let raw = Raw::deserialize(deserializer)?;
-        Self::new(raw.gate, raw.status, raw.exit_code, raw.duration_ms, raw.summary)
-            .map_err(serde::de::Error::custom)
+        Self::new(
+            raw.gate,
+            raw.status,
+            raw.exit_code,
+            raw.duration_ms,
+            raw.summary,
+        )
+        .map_err(serde::de::Error::custom)
     }
 }
 

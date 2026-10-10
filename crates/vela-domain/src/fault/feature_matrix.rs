@@ -53,10 +53,8 @@ fn the_fault_injection_and_hook_table_configurations_build_and_pass() {
     if std::env::var_os(NESTED_ENV).is_some() {
         return;
     }
-    let target_dir = std::env::temp_dir().join(format!(
-        "vela-domain-feature-matrix-{}",
-        std::process::id()
-    ));
+    let target_dir =
+        std::env::temp_dir().join(format!("vela-domain-feature-matrix-{}", std::process::id()));
 
     let fault = nested_test("fault-injection", &target_dir);
     // The public macro really ran: the armed child aborted and the unarmed child survived, both through `fault_point!`.

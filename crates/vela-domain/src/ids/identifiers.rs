@@ -4,9 +4,7 @@ use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use super::path_safety::{
-    PathComponent, is_windows_illegal_name_char, is_windows_reserved_name,
-};
+use super::path_safety::{PathComponent, is_windows_illegal_name_char, is_windows_reserved_name};
 
 /// Why a candidate identifier was rejected.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,12 +199,10 @@ fn validate_branch_name(value: &str) -> Result<String, IdError> {
         return Err(IdError::Empty);
     }
     // Besides the `git check-ref-format` characters, reject what Windows forbids in a file name: loose refs are files.
-    if let Some(found) = value.chars().find(|c| {
-        c.is_control()
-            || c.is_whitespace()
-            || "~^?*[\\<>|\"".contains(*c)
-            || *c == ':'
-    }) {
+    if let Some(found) = value
+        .chars()
+        .find(|c| c.is_control() || c.is_whitespace() || "~^?*[\\<>|\"".contains(*c) || *c == ':')
+    {
         return Err(IdError::InvalidCharacter { found });
     }
     if value == "@" || value.contains("@{") {
@@ -340,9 +336,9 @@ mod tests {
     #[test]
     fn token_ids_reject_windows_unsafe_values() {
         let unsafe_ids = [
-            "a/b", "a\\b", "C:", "a:b", "..", "a..b", ".", "-rf", "-", ".hidden", "#x", "run-1.", "a.", "a<b", "a>b",
-            "a|b", "a\"b", "a*b", "a?b", "a~b", "a b", "a\tb", "a\0b", "é", "名前", "CON", "con", "Nul", "aux.txt",
-            "COM1", "lpt9", "com1.log",
+            "a/b", "a\\b", "C:", "a:b", "..", "a..b", ".", "-rf", "-", ".hidden", "#x", "run-1.",
+            "a.", "a<b", "a>b", "a|b", "a\"b", "a*b", "a?b", "a~b", "a b", "a\tb", "a\0b", "é",
+            "名前", "CON", "con", "Nul", "aux.txt", "COM1", "lpt9", "com1.log",
         ];
         for id in unsafe_ids {
             assert!(RunId::new(id).is_err(), "RunId accepted {id:?}");
@@ -356,9 +352,20 @@ mod tests {
 
     #[test]
     fn every_accepted_id_encodes_to_a_valid_path_component() {
-        for id in ["F02", "Run-1", "run-1", "gh#42", "a.b", "A", "x".repeat(128).as_str()] {
+        for id in [
+            "F02",
+            "Run-1",
+            "run-1",
+            "gh#42",
+            "a.b",
+            "A",
+            "x".repeat(128).as_str(),
+        ] {
             let run = RunId::new(id).unwrap();
-            assert!(PathComponent::new(run.path_component().as_str()).is_ok(), "{id}");
+            assert!(
+                PathComponent::new(run.path_component().as_str()).is_ok(),
+                "{id}"
+            );
         }
     }
 
@@ -376,7 +383,13 @@ mod tests {
         // An already-canonical id is its own component, so existing layouts are stable.
         assert_eq!(lower.path_component().as_str(), "run-1");
         // `#` is allowed in an id but never in a directory name.
-        assert!(!TicketId::new("gh#42").unwrap().path_component().as_str().contains('#'));
+        assert!(
+            !TicketId::new("gh#42")
+                .unwrap()
+                .path_component()
+                .as_str()
+                .contains('#')
+        );
     }
 
     #[test]
@@ -384,7 +397,10 @@ mod tests {
         // "f02" and "F02" are the same directory on NTFS; their components must differ.
         let a = WorkerId::new("F02").unwrap().path_component();
         let b = WorkerId::new("f02").unwrap().path_component();
-        assert_ne!(a.as_str().to_ascii_lowercase(), b.as_str().to_ascii_lowercase());
+        assert_ne!(
+            a.as_str().to_ascii_lowercase(),
+            b.as_str().to_ascii_lowercase()
+        );
     }
 
     #[test]
