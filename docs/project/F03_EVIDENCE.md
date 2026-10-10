@@ -64,6 +64,9 @@ CI runs on the branch (windows-latest; every push):
 | 38062964635 | `e79c39b` | PASS: review iteration 2 head (51 tests) |
 | 38063974331 | `858ef0a` | FAIL: rustfmt diff |
 | 38064077495 | `53bf7d7` | PASS: code after review 2 |
+| 38064421901 | `fae853e` | PASS: review iteration 3 head |
+| 38064989890 | `0459524` | FAIL: rustfmt diff |
+| 38065115771 | `277eb46` | PASS: final code (after review 3 cheap fixes) |
 
 ## Write-surface and scope check
 
@@ -129,3 +132,7 @@ Eight findings, none classified blocking; dispositions:
 - F09 (port fakes) follows in this crate and must add modules, not edit these; later fixture kinds add a builder function and a spec entry.
 - `vela-git` (G tickets) owns the production hardened Git invocation; the testkit copy is for fixtures only.
 - The guard is name-and-root based; it cannot detect an arbitrary sync client pointed at an arbitrarily named folder. `sync_roots_from_env` narrows that for OneDrive.
+
+## Exit policy verdict
+
+Iteration 3 (the last allowed) reported no finding classified blocking under the Engineering policy; the cheap items were fixed afterwards and CI is green on the final code (`277eb46`). The one finding that could be argued medium (attribution for fault points inside production crates) is a limit of F02's hook, not of F03's acceptance criteria, and is raised as DR-F03-1 rather than patched across ownership. No fourth review was run. The branch head after the final docs commit equals `277eb46` plus this record.
