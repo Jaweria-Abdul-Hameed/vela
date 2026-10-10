@@ -10,7 +10,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-vela-domain.workspace = true
+# `fault-injection` is what makes `fault_point!` abort when armed; the kill-and-restart harness needs it live.
+# Feature unification turns it on for every build that includes this dev-only crate (it adds no call sites by itself).
+vela-domain = { workspace = true, features = ["fault-injection"] }
 vela-process.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process", "io-util"] }
 serde.workspace = true
