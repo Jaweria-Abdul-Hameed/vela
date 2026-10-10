@@ -366,52 +366,78 @@ fn the_hostile_repository_really_contains_the_neutralizable_drivers_and_hooks() 
     assert_eq!(repo.fired_markers().unwrap(), Vec::<String>::new());
 }
 
+/// One step of the hostile workout: a Git command or a working-tree write.
+enum Step {
+    Git(&'static [&'static str]),
+    Write(&'static str),
+}
+
+/// Exercises every Git path that P10 found to execute repository-local code: status (fsmonitor, clean filter), diff
+/// (external diff), log -p (textconv), add (clean filter), commit (pre-commit, reference-transaction), checkout
+/// (post-checkout, smudge filter), and a real merge (post-merge).
+const WORKOUT: &[Step] = &[
+    Step::Write("payload v2
+"),
+    Step::Git(&["status", "--porcelain"]),
+    Step::Git(&["diff"]),
+    Step::Git(&["add", "-A"]),
+    Step::Git(&["commit", "-m", "second"]),
+    Step::Git(&["checkout", "-b", "other"]),
+    Step::Write("payload v3
+"),
+    Step::Git(&["add", "-A"]),
+    Step::Git(&["commit", "-m", "third"]),
+    Step::Git(&["log", "-p", "-1"]),
+    Step::Git(&["checkout", "main"]),
+    Step::Git(&["merge", "--no-ff", "--no-edit", "other"]),
+];
+
+fn run_workout(repo: &FixtureRepo, neutralized: bool) {
+    for step in WORKOUT {
+        match step {
+            Step::Write(text) => {
+                std::fs::write(repo.path().join(HOSTILE_PAYLOAD_PATH), text).unwrap();
+            }
+            Step::Git(args) if neutralized => {
+                repo.git(args).unwrap();
+            }
+            Step::Git(args) => {
+                let output = repo.git_unneutralized(args).unwrap();
+                assert!(
+                    output.status.success(),
+                    "git {args:?} failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn neutralized_git_never_runs_a_hostile_payload() {
     let repo = FixtureRepo::create(FixtureKind::HostileLocalConfig).unwrap();
-    std::fs::write(repo.path().join(HOSTILE_PAYLOAD_PATH), "payload v2\n").unwrap();
-
-    repo.git(&["status", "--porcelain"]).unwrap();
-    repo.git(&["diff", "--no-ext-diff", "--no-textconv"])
-        .unwrap();
-    repo.git(&["add", "-A"]).unwrap();
-    repo.git(&["commit", "--no-verify", "-m", "second"])
-        .unwrap();
-    repo.git(&["checkout", "-b", "other"]).unwrap();
-    repo.git(&["checkout", MAIN_BRANCH]).unwrap();
-    repo.git(&["merge", "--no-edit", "other"]).unwrap();
-
+    run_workout(&repo, true);
     assert_eq!(
         repo.fired_markers().unwrap(),
         Vec::<String>::new(),
         "a payload ran under the neutralising configuration"
     );
+    // The workout really happened: main now holds the merge of the third payload version.
+    assert_eq!(
+        repo.git(&["show", &format!("main:{HOSTILE_PAYLOAD_PATH}")]).unwrap(),
+        "payload v3"
+    );
 }
 
 #[test]
-fn control_without_neutralizing_the_hostile_payloads_do_fire() {
-    // Proves the markers detect execution, so the "nothing fired" assertions above mean something. The payloads only
+fn control_without_neutralizing_every_hostile_payload_does_fire() {
+    // Proves the markers detect execution, so the "nothing fired" assertion above means something. The payloads only
     // write marker files inside the fixture's own directory.
     let repo = FixtureRepo::create(FixtureKind::HostileLocalConfig).unwrap();
-    std::fs::write(repo.path().join(HOSTILE_PAYLOAD_PATH), "payload v2\n").unwrap();
-
-    for args in [
-        &["status", "--porcelain"][..],
-        &["diff"],
-        &["add", "-A"],
-        &["commit", "-m", "second"],
-        &["checkout", "-b", "other"],
-    ] {
-        repo.git_unneutralized(args).unwrap();
-    }
-
-    let fired = repo.fired_markers().unwrap();
-    for expected in ["fsmonitor", "pre-commit", "post-checkout", "filter-clean"] {
-        assert!(
-            fired.iter().any(|m| m == expected),
-            "{expected} did not fire; fired: {fired:?}"
-        );
-    }
+    run_workout(&repo, false);
+    let mut want: Vec<String> = HOSTILE_MARKERS.iter().map(|m| (*m).to_owned()).collect();
+    want.sort();
+    assert_eq!(repo.fired_markers().unwrap(), want);
 }
 
 #[test]

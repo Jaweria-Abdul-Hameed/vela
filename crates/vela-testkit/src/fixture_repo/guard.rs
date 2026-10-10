@@ -89,7 +89,11 @@ impl std::error::Error for GuardError {}
 
 /// Classifies one path component (a single directory or file name, not a path).
 pub fn classify_component(component: &str) -> Option<SyncProvider> {
-    let c = component.trim().to_lowercase();
+    // Windows ignores trailing dots and spaces in a component, so `OneDrive.` is the OneDrive folder.
+    let c = component
+        .trim_end_matches(['.', ' '])
+        .trim()
+        .to_lowercase();
     if c.is_empty() {
         return None;
     }
@@ -228,6 +232,8 @@ mod tests {
             r"C:\Users\Ada\ONEDRI~1\x",
             r"\\?\C:\Users\Ada\OneDrive\x",
             "C:/Users/Ada/OneDrive/Documents",
+            "C:/Users/Ada/OneDrive./x",
+            "C:/Users/Ada/OneDrive /x",
         ] {
             assert_eq!(provider(path), Some(SyncProvider::OneDrive), "{path}");
         }
