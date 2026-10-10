@@ -147,7 +147,9 @@ impl RunState {
         let mut states = Vec::new();
         for phase in RunPhase::ALL {
             states.push(Self::Active(phase));
-            states.push(Self::Stopping { resume_state: phase });
+            states.push(Self::Stopping {
+                resume_state: phase,
+            });
             for reason in PausedReason::ALL {
                 states.push(Self::Paused {
                     reason,
@@ -183,7 +185,9 @@ impl RunState {
                     if cause == Cause::UserDecision {
                         Ok(to)
                     } else {
-                        Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+                        Err(TransitionError::ExplicitDecisionRequired {
+                            machine: Machine::Run,
+                        })
                     }
                 }
                 _ => Err(TransitionError::ProviderPolicyBlockHeld {
@@ -195,10 +199,17 @@ impl RunState {
         match (self, to) {
             (_, Self::Failed) => Ok(to),
             (Self::Active(RunPhase::FinalValidation), Self::Completed) => Ok(to),
-            (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => Ok(to),
+            (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => {
+                Ok(to)
+            }
             (Self::Active(from), Self::Stopping { resume_state }) => same(to, from, resume_state),
             (
-                Self::Paused { resume_state: held, .. } | Self::NeedsHuman { resume_state: held, .. },
+                Self::Paused {
+                    resume_state: held, ..
+                }
+                | Self::NeedsHuman {
+                    resume_state: held, ..
+                },
                 Self::Stopping { resume_state },
             ) => same(to, held, resume_state),
             (Self::Active(RunPhase::Running), Self::Paused { resume_state, .. }) => {
@@ -215,14 +226,21 @@ impl RunState {
                 graph_invalid_rule(kind, from)?;
                 Ok(to)
             }
-            (Self::Stopping { resume_state: held }, Self::Paused { resume_state, .. }) => same(to, held, resume_state),
+            (Self::Stopping { resume_state: held }, Self::Paused { resume_state, .. }) => {
+                same(to, held, resume_state)
+            }
             (Self::Stopping { resume_state: held }, Self::NeedsHuman { kind, resume_state }) => {
                 same(to, held, resume_state)?;
                 graph_invalid_rule(kind, held)?;
                 Ok(to)
             }
             (
-                Self::Paused { resume_state: held, .. } | Self::NeedsHuman { resume_state: held, .. },
+                Self::Paused {
+                    resume_state: held, ..
+                }
+                | Self::NeedsHuman {
+                    resume_state: held, ..
+                },
                 Self::Active(target),
             ) => same(to, held, target),
             (Self::Paused { .. } | Self::NeedsHuman { .. }, Self::Cancelled) => Ok(to),
@@ -329,7 +347,10 @@ mod tests {
     use RunState as S;
 
     fn paused(reason: PausedReason, resume_state: RunPhase) -> S {
-        S::Paused { reason, resume_state }
+        S::Paused {
+            reason,
+            resume_state,
+        }
     }
 
     fn needs(kind: InterventionKind, resume_state: RunPhase) -> S {
@@ -373,17 +394,42 @@ mod tests {
         );
         // Stop All from every non-terminal state, recording the state left.
         for phase in P::ALL {
-            add(S::Active(phase), S::Stopping { resume_state: phase });
+            add(
+                S::Active(phase),
+                S::Stopping {
+                    resume_state: phase,
+                },
+            );
             for reason in PausedReason::ALL {
-                add(paused(reason, phase), S::Stopping { resume_state: phase });
+                add(
+                    paused(reason, phase),
+                    S::Stopping {
+                        resume_state: phase,
+                    },
+                );
                 // STOPPING resolves to PAUSED.
-                add(S::Stopping { resume_state: phase }, paused(reason, phase));
+                add(
+                    S::Stopping {
+                        resume_state: phase,
+                    },
+                    paused(reason, phase),
+                );
             }
             for kind in InterventionKind::ALL {
-                add(needs(kind, phase), S::Stopping { resume_state: phase });
+                add(
+                    needs(kind, phase),
+                    S::Stopping {
+                        resume_state: phase,
+                    },
+                );
                 // STOPPING resolves to NEEDS_HUMAN (GRAPH_INVALID belongs to ANALYZING only).
                 if kind != InterventionKind::GraphInvalid || phase == P::Analyzing {
-                    add(S::Stopping { resume_state: phase }, needs(kind, phase));
+                    add(
+                        S::Stopping {
+                            resume_state: phase,
+                        },
+                        needs(kind, phase),
+                    );
                 }
             }
             // Resume returns to resume_state; a cancel ends the run.
@@ -455,7 +501,9 @@ mod tests {
                 if held && by_user.is_ok() {
                     assert_eq!(
                         by_system,
-                        Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+                        Err(TransitionError::ExplicitDecisionRequired {
+                            machine: Machine::Run
+                        })
                     );
                 } else {
                     assert_eq!(by_user, by_system, "{from:?} -> {to:?}");
@@ -479,9 +527,15 @@ mod tests {
             (S::Active(P::GraphReady), S::Active(P::AwaitingStart)),
             (S::Active(P::AwaitingStart), S::Active(P::Starting)),
             (S::Active(P::Starting), S::Active(P::Running)),
-            (S::Active(P::Starting), needs(InterventionKind::Other, P::Starting)),
+            (
+                S::Active(P::Starting),
+                needs(InterventionKind::Other, P::Starting),
+            ),
             (S::Active(P::Starting), S::Failed),
-            (S::Active(P::Running), paused(PausedReason::Manual, P::Running)),
+            (
+                S::Active(P::Running),
+                paused(PausedReason::Manual, P::Running),
+            ),
             (
                 S::Active(P::Running),
                 needs(InterventionKind::IntegrationUnknown, P::Running),
@@ -495,10 +549,16 @@ mod tests {
         }
         // GRAPH_INVALID returns to ANALYZING after correction.
         let invalid = needs(InterventionKind::GraphInvalid, P::Analyzing);
-        assert_eq!(invalid.transition(S::Active(P::Analyzing), Cause::System), Ok(S::Active(P::Analyzing)));
+        assert_eq!(
+            invalid.transition(S::Active(P::Analyzing), Cause::System),
+            Ok(S::Active(P::Analyzing))
+        );
         // Resume returns to resume_state, including the FINAL_* states.
         let held = paused(PausedReason::StopAll, P::FinalFixing);
-        assert_eq!(held.transition(S::Active(P::FinalFixing), Cause::System), Ok(S::Active(P::FinalFixing)));
+        assert_eq!(
+            held.transition(S::Active(P::FinalFixing), Cause::System),
+            Ok(S::Active(P::FinalFixing))
+        );
         assert!(matches!(
             held.transition(S::Active(P::Running), Cause::System),
             Err(TransitionError::ResumeStateMismatch { .. })
@@ -509,10 +569,18 @@ mod tests {
     fn stop_all_round_trip_preserves_resume_state() {
         let start = S::Active(P::FinalValidation);
         let stopping = start
-            .transition(S::Stopping { resume_state: P::FinalValidation }, Cause::UserDecision)
+            .transition(
+                S::Stopping {
+                    resume_state: P::FinalValidation,
+                },
+                Cause::UserDecision,
+            )
             .unwrap();
         let paused_state = stopping
-            .transition(paused(PausedReason::StopAll, P::FinalValidation), Cause::System)
+            .transition(
+                paused(PausedReason::StopAll, P::FinalValidation),
+                Cause::System,
+            )
             .unwrap();
         assert_eq!(
             paused_state.transition(S::Active(P::FinalValidation), Cause::UserDecision),
@@ -520,7 +588,12 @@ mod tests {
         );
         // A wrong resume_state is a typed error, not a silent rewrite.
         assert!(matches!(
-            S::Active(P::Running).transition(S::Stopping { resume_state: P::Created }, Cause::System),
+            S::Active(P::Running).transition(
+                S::Stopping {
+                    resume_state: P::Created
+                },
+                Cause::System
+            ),
             Err(TransitionError::ResumeStateMismatch { .. })
         ));
     }
@@ -540,7 +613,8 @@ mod tests {
     #[test]
     fn graph_invalid_rules_are_typed() {
         assert_eq!(
-            S::Active(P::Analyzing).transition(needs(InterventionKind::Other, P::Analyzing), Cause::System),
+            S::Active(P::Analyzing)
+                .transition(needs(InterventionKind::Other, P::Analyzing), Cause::System),
             Err(TransitionError::KindNotAllowed {
                 machine: Machine::Run,
                 kind: InterventionKind::Other,
@@ -548,7 +622,10 @@ mod tests {
             })
         );
         assert_eq!(
-            S::Active(P::Running).transition(needs(InterventionKind::GraphInvalid, P::Running), Cause::System),
+            S::Active(P::Running).transition(
+                needs(InterventionKind::GraphInvalid, P::Running),
+                Cause::System
+            ),
             Err(TransitionError::KindNotAllowed {
                 machine: Machine::Run,
                 kind: InterventionKind::GraphInvalid,
@@ -570,15 +647,23 @@ mod tests {
         }
         assert_eq!(
             exits,
-            vec![(S::Active(P::Running), Cause::UserDecision), (S::Cancelled, Cause::System), (S::Cancelled, Cause::UserDecision)]
+            vec![
+                (S::Active(P::Running), Cause::UserDecision),
+                (S::Cancelled, Cause::System),
+                (S::Cancelled, Cause::UserDecision)
+            ]
         );
         assert_eq!(
             block.transition(S::Active(P::Running), Cause::System),
-            Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+            Err(TransitionError::ExplicitDecisionRequired {
+                machine: Machine::Run
+            })
         );
         for to in [
             S::Failed,
-            S::Stopping { resume_state: P::Running },
+            S::Stopping {
+                resume_state: P::Running,
+            },
             paused(PausedReason::Manual, P::Running),
             needs(InterventionKind::Other, P::Running),
             S::Active(P::FinalReview),
@@ -586,13 +671,18 @@ mod tests {
         ] {
             assert_eq!(
                 block.transition(to, Cause::UserDecision),
-                Err(TransitionError::ProviderPolicyBlockHeld { machine: Machine::Run, to: to.name() })
+                Err(TransitionError::ProviderPolicyBlockHeld {
+                    machine: Machine::Run,
+                    to: to.name()
+                })
             );
         }
         // A block reached through STOPPING is held the same way.
-        let via_stop = S::Stopping { resume_state: P::Running }
-            .transition(block, Cause::System)
-            .unwrap();
+        let via_stop = S::Stopping {
+            resume_state: P::Running,
+        }
+        .transition(block, Cause::System)
+        .unwrap();
         assert_eq!(via_stop, block);
     }
 
@@ -619,7 +709,10 @@ mod tests {
     fn serde_round_trip_uses_specification_names() {
         let state = needs(InterventionKind::ProviderPolicyBlock, P::FinalReview);
         let json = serde_json::to_string(&state).unwrap();
-        assert!(json.contains("PROVIDER_POLICY_BLOCK") && json.contains("FINAL_REVIEW"), "{json}");
+        assert!(
+            json.contains("PROVIDER_POLICY_BLOCK") && json.contains("FINAL_REVIEW"),
+            "{json}"
+        );
         assert_eq!(serde_json::from_str::<S>(&json).unwrap(), state);
     }
 

@@ -19,7 +19,8 @@ mod worker;
 pub use common::{Cause, InterventionKind, PausedReason};
 pub use error::{KindRule, Machine, TransitionError};
 pub use projection::{
-    SubIndicators, TicketProjection, TicketState, UiNode, UiNodeState, project_unstarted, project_worker,
+    SubIndicators, TicketProjection, TicketState, UiNode, UiNodeState, project_unstarted,
+    project_worker,
 };
 pub use run::{IntegrationHealth, RunPhase, RunState};
 pub use worker::{WorkerPhase, WorkerState, WorkerStatus};

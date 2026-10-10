@@ -88,13 +88,15 @@ impl TicketState {
     pub const fn from_worker_state(state: &WorkerState) -> Self {
         match state {
             WorkerState::Active(phase) => match phase {
-                WorkerPhase::Provisioning | WorkerPhase::ContextLoading | WorkerPhase::Implementing => Self::Running,
+                WorkerPhase::Provisioning
+                | WorkerPhase::ContextLoading
+                | WorkerPhase::Implementing => Self::Running,
                 WorkerPhase::FocusedValidation | WorkerPhase::Validating => Self::Testing,
                 WorkerPhase::Checkpointing | WorkerPhase::Reviewing => Self::Reviewing,
                 WorkerPhase::Fixing | WorkerPhase::ConflictResolution => Self::Fixing,
-                WorkerPhase::ReadyToMerge | WorkerPhase::Merging | WorkerPhase::IntegrationValidation => {
-                    Self::Merging
-                }
+                WorkerPhase::ReadyToMerge
+                | WorkerPhase::Merging
+                | WorkerPhase::IntegrationValidation => Self::Merging,
             },
             WorkerState::Complete => Self::Done,
             WorkerState::Paused {
@@ -155,15 +157,24 @@ pub const fn project_worker(status: &WorkerStatus) -> TicketProjection {
 /// The ticket state before any worker exists: `BLOCKED` when a blocker is `FAILED`, `NEEDS_HUMAN`, `REVIEW_STALLED` or
 /// `CANCELLED`; `READY` when every blocker is `DONE`, integration is healthy and the ticket is eligible for the
 /// frontier; otherwise `PENDING` (decision request DR-D01-6).
-pub fn project_unstarted(blockers: &[TicketState], health: IntegrationHealth, eligible: bool) -> TicketState {
+pub fn project_unstarted(
+    blockers: &[TicketState],
+    health: IntegrationHealth,
+    eligible: bool,
+) -> TicketState {
     if blockers.iter().any(|blocker| {
         matches!(
             blocker,
-            TicketState::Failed | TicketState::NeedsHuman | TicketState::ReviewStalled | TicketState::Cancelled
+            TicketState::Failed
+                | TicketState::NeedsHuman
+                | TicketState::ReviewStalled
+                | TicketState::Cancelled
         )
     }) {
         TicketState::Blocked
-    } else if blockers.iter().all(|blocker| *blocker == TicketState::Done) && health.permits_worker_start() && eligible
+    } else if blockers.iter().all(|blocker| *blocker == TicketState::Done)
+        && health.permits_worker_start()
+        && eligible
     {
         TicketState::Ready
     } else {
@@ -319,22 +330,42 @@ mod tests {
         ];
         assert_eq!(expected.len(), P::ALL.len());
         for phase in P::ALL {
-            let (_, want) = expected.iter().find(|(p, _)| *p == phase).expect("phase listed");
-            assert_eq!(TicketState::from_worker_state(&WorkerState::Active(phase)), *want, "{phase:?}");
+            let (_, want) = expected
+                .iter()
+                .find(|(p, _)| *p == phase)
+                .expect("phase listed");
+            assert_eq!(
+                TicketState::from_worker_state(&WorkerState::Active(phase)),
+                *want,
+                "{phase:?}"
+            );
         }
     }
 
     #[test]
     fn terminal_and_exceptional_worker_states_project() {
-        assert_eq!(TicketState::from_worker_state(&WorkerState::Complete), T::Done);
-        assert_eq!(TicketState::from_worker_state(&WorkerState::Failed), T::Failed);
-        assert_eq!(TicketState::from_worker_state(&WorkerState::Cancelled), T::Cancelled);
+        assert_eq!(
+            TicketState::from_worker_state(&WorkerState::Complete),
+            T::Done
+        );
+        assert_eq!(
+            TicketState::from_worker_state(&WorkerState::Failed),
+            T::Failed
+        );
+        assert_eq!(
+            TicketState::from_worker_state(&WorkerState::Cancelled),
+            T::Cancelled
+        );
         for reason in PausedReason::ALL {
             let state = WorkerState::Paused {
                 reason,
                 resume_state: P::Implementing,
             };
-            let want = if reason == PausedReason::Capacity { T::RateLimited } else { T::Paused };
+            let want = if reason == PausedReason::Capacity {
+                T::RateLimited
+            } else {
+                T::Paused
+            };
             assert_eq!(TicketState::from_worker_state(&state), want, "{reason:?}");
         }
     }
@@ -347,15 +378,28 @@ mod tests {
                 resume_state: P::Reviewing,
             });
             let projection = project_worker(&status);
-            let want = if kind == InterventionKind::ReviewStalled { T::ReviewStalled } else { T::NeedsHuman };
+            let want = if kind == InterventionKind::ReviewStalled {
+                T::ReviewStalled
+            } else {
+                T::NeedsHuman
+            };
             assert_eq!(projection.state, want, "{kind:?}");
-            assert_eq!(projection.indicators.review_stalled, kind == InterventionKind::ReviewStalled);
-            assert_eq!(projection.indicators.approval_stalled, kind == InterventionKind::ApprovalStalled);
+            assert_eq!(
+                projection.indicators.review_stalled,
+                kind == InterventionKind::ReviewStalled
+            );
+            assert_eq!(
+                projection.indicators.approval_stalled,
+                kind == InterventionKind::ApprovalStalled
+            );
             assert!(!projection.indicators.waiting_approval);
             // Every kind lands on a node state; REVIEW_STALLED and APPROVAL_STALLED are marks on `needs human`.
             let node = UiNode::from_projection(&projection);
             assert_eq!(node.state, UiNodeState::NeedsHuman);
-            assert_eq!(node.indicators.review_stalled, kind == InterventionKind::ReviewStalled);
+            assert_eq!(
+                node.indicators.review_stalled,
+                kind == InterventionKind::ReviewStalled
+            );
         }
     }
 
@@ -366,16 +410,24 @@ mod tests {
             resume_state: P::Implementing,
         });
         assert_eq!(project_worker(&status).state, T::NeedsHuman);
-        assert_eq!(UiNode::from_projection(&project_worker(&status)).state, UiNodeState::NeedsHuman);
+        assert_eq!(
+            UiNode::from_projection(&project_worker(&status)).state,
+            UiNodeState::NeedsHuman
+        );
     }
 
     #[test]
     fn waiting_approval_is_a_mark_not_a_state() {
-        let waiting = WorkerStatus::new(WorkerState::Active(P::Implementing)).begin_approval_wait().unwrap();
+        let waiting = WorkerStatus::new(WorkerState::Active(P::Implementing))
+            .begin_approval_wait()
+            .unwrap();
         let projection = project_worker(&waiting);
         assert_eq!(projection.state, T::Running);
         assert!(projection.indicators.waiting_approval);
-        assert_eq!(UiNode::from_projection(&projection).state, UiNodeState::Running);
+        assert_eq!(
+            UiNode::from_projection(&projection).state,
+            UiNodeState::Running
+        );
     }
 
     #[test]
@@ -383,16 +435,41 @@ mod tests {
         use IntegrationHealth::{Healthy, Unhealthy, Unknown};
         assert_eq!(project_unstarted(&[], Healthy, true), T::Ready);
         assert_eq!(project_unstarted(&[], Healthy, false), T::Pending);
-        assert_eq!(project_unstarted(&[T::Done, T::Done], Healthy, true), T::Ready);
-        assert_eq!(project_unstarted(&[T::Done, T::Running], Healthy, true), T::Pending);
+        assert_eq!(
+            project_unstarted(&[T::Done, T::Done], Healthy, true),
+            T::Ready
+        );
+        assert_eq!(
+            project_unstarted(&[T::Done, T::Running], Healthy, true),
+            T::Pending
+        );
         assert_eq!(project_unstarted(&[T::Done], Unknown, true), T::Pending);
         assert_eq!(project_unstarted(&[T::Done], Unhealthy, true), T::Pending);
         for stuck in [T::Failed, T::NeedsHuman, T::ReviewStalled, T::Cancelled] {
-            assert_eq!(project_unstarted(&[T::Done, stuck], Healthy, true), T::Blocked, "{stuck:?}");
-            assert_eq!(project_unstarted(&[T::Running, stuck], Unknown, false), T::Blocked, "{stuck:?}");
+            assert_eq!(
+                project_unstarted(&[T::Done, stuck], Healthy, true),
+                T::Blocked,
+                "{stuck:?}"
+            );
+            assert_eq!(
+                project_unstarted(&[T::Running, stuck], Unknown, false),
+                T::Blocked,
+                "{stuck:?}"
+            );
         }
-        for open in [T::Pending, T::Blocked, T::Ready, T::Running, T::Paused, T::RateLimited] {
-            assert_eq!(project_unstarted(&[open], Healthy, true), T::Pending, "{open:?}");
+        for open in [
+            T::Pending,
+            T::Blocked,
+            T::Ready,
+            T::Running,
+            T::Paused,
+            T::RateLimited,
+        ] {
+            assert_eq!(
+                project_unstarted(&[open], Healthy, true),
+                T::Pending,
+                "{open:?}"
+            );
         }
     }
 
@@ -407,8 +484,20 @@ mod tests {
         assert_eq!(
             labels,
             [
-                "pending", "ready", "running", "testing", "reviewing", "fixing", "merging", "done", "blocked", "paused",
-                "rate-limited", "failed", "needs human", "cancelled"
+                "pending",
+                "ready",
+                "running",
+                "testing",
+                "reviewing",
+                "fixing",
+                "merging",
+                "done",
+                "blocked",
+                "paused",
+                "rate-limited",
+                "failed",
+                "needs human",
+                "cancelled"
             ]
         );
     }

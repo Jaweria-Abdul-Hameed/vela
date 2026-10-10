@@ -98,7 +98,9 @@ pub enum TransitionError {
 impl fmt::Display for TransitionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Illegal { machine, from, to } => write!(f, "illegal {machine:?} transition {from} -> {to}"),
+            Self::Illegal { machine, from, to } => {
+                write!(f, "illegal {machine:?} transition {from} -> {to}")
+            }
             Self::Terminal { machine, from } => write!(f, "{machine:?} state {from} is terminal"),
             Self::ResumeStateMismatch {
                 machine,
@@ -109,21 +111,37 @@ impl fmt::Display for TransitionError {
                 f,
                 "{machine:?} transition to {to} needs resume_state {expected}, got {actual}"
             ),
-            Self::KindNotAllowed { machine, kind, rule } => {
-                write!(f, "{machine:?} intervention kind {} rejected ({rule:?})", kind.name())
+            Self::KindNotAllowed {
+                machine,
+                kind,
+                rule,
+            } => {
+                write!(
+                    f,
+                    "{machine:?} intervention kind {} rejected ({rule:?})",
+                    kind.name()
+                )
             }
             Self::ExplicitDecisionRequired { machine } => {
-                write!(f, "{machine:?} PROVIDER_POLICY_BLOCK resolves only by explicit user decision")
+                write!(
+                    f,
+                    "{machine:?} PROVIDER_POLICY_BLOCK resolves only by explicit user decision"
+                )
             }
             Self::ProviderPolicyBlockHeld { machine, to } => write!(
                 f,
                 "{machine:?} PROVIDER_POLICY_BLOCK exits only by resolve to resume_state or cancel, not to {to}"
             ),
-            Self::OverlayNotAllowed { state } => write!(f, "WAITING_APPROVAL cannot overlay {state}"),
+            Self::OverlayNotAllowed { state } => {
+                write!(f, "WAITING_APPROVAL cannot overlay {state}")
+            }
             Self::OverlayAlreadyActive => write!(f, "worker is already WAITING_APPROVAL"),
             Self::OverlayNotActive => write!(f, "worker is not WAITING_APPROVAL"),
             Self::OverlayBlocksAdvance { from, to } => {
-                write!(f, "worker WAITING_APPROVAL in {from} cannot advance to {to}")
+                write!(
+                    f,
+                    "worker WAITING_APPROVAL in {from} cannot advance to {to}"
+                )
             }
         }
     }

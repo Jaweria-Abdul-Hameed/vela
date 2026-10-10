@@ -74,7 +74,11 @@ impl WorkerPhase {
     pub const fn is_agent_driven(self) -> bool {
         matches!(
             self,
-            Self::ContextLoading | Self::Implementing | Self::Reviewing | Self::Fixing | Self::ConflictResolution
+            Self::ContextLoading
+                | Self::Implementing
+                | Self::Reviewing
+                | Self::Fixing
+                | Self::ConflictResolution
         )
     }
 }
@@ -145,7 +149,9 @@ impl WorkerState {
     /// The `resume_state` recorded by `PAUSED` or `NEEDS_HUMAN`.
     pub const fn resume_state(&self) -> Option<WorkerPhase> {
         match self {
-            Self::Paused { resume_state, .. } | Self::NeedsHuman { resume_state, .. } => Some(*resume_state),
+            Self::Paused { resume_state, .. } | Self::NeedsHuman { resume_state, .. } => {
+                Some(*resume_state)
+            }
             _ => None,
         }
     }
@@ -214,7 +220,9 @@ impl WorkerState {
         match (self, to) {
             (_, Self::Failed | Self::Cancelled) => Ok(to),
             (Self::Active(WorkerPhase::IntegrationValidation), Self::Complete) => Ok(to),
-            (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => Ok(to),
+            (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => {
+                Ok(to)
+            }
             (Self::Active(from), Self::Paused { resume_state, .. }) => same(to, from, resume_state),
             (Self::Active(from), Self::NeedsHuman { kind, resume_state }) => {
                 same(to, from, resume_state)?;
@@ -229,7 +237,12 @@ impl WorkerState {
                 }
             }
             (
-                Self::Paused { resume_state: held, .. } | Self::NeedsHuman { resume_state: held, .. },
+                Self::Paused {
+                    resume_state: held, ..
+                }
+                | Self::NeedsHuman {
+                    resume_state: held, ..
+                },
                 Self::Active(target),
             ) => same(to, held, target),
             _ => Err(TransitionError::Illegal {
@@ -242,7 +255,11 @@ impl WorkerState {
 }
 
 /// `resume_state` consistency: `actual` must equal `expected`.
-fn same(to: WorkerState, expected: WorkerPhase, actual: WorkerPhase) -> Result<WorkerState, TransitionError> {
+fn same(
+    to: WorkerState,
+    expected: WorkerPhase,
+    actual: WorkerPhase,
+) -> Result<WorkerState, TransitionError> {
     if expected == actual {
         Ok(to)
     } else {
@@ -284,7 +301,9 @@ impl WorkerStatus {
                 state: self.state,
                 waiting_approval: true,
             }),
-            other => Err(TransitionError::OverlayNotAllowed { state: other.name() }),
+            other => Err(TransitionError::OverlayNotAllowed {
+                state: other.name(),
+            }),
         }
     }
 
@@ -323,7 +342,10 @@ mod tests {
     use WorkerState as S;
 
     fn paused(reason: PausedReason, resume_state: WorkerPhase) -> S {
-        S::Paused { reason, resume_state }
+        S::Paused {
+            reason,
+            resume_state,
+        }
     }
 
     fn needs(kind: InterventionKind, resume_state: WorkerPhase) -> S {
@@ -348,7 +370,10 @@ mod tests {
         add(S::Active(P::Reviewing), S::Active(P::ReadyToMerge));
         add(S::Active(P::ReadyToMerge), S::Active(P::Merging));
         add(S::Active(P::Merging), S::Active(P::ConflictResolution));
-        add(S::Active(P::ConflictResolution), S::Active(P::Checkpointing));
+        add(
+            S::Active(P::ConflictResolution),
+            S::Active(P::Checkpointing),
+        );
         add(S::Active(P::Merging), S::Active(P::IntegrationValidation));
         add(S::Active(P::IntegrationValidation), S::Complete);
         // Every non-terminal state can reach the exceptional states.
@@ -384,7 +409,11 @@ mod tests {
         for from in &states {
             for to in &states {
                 let result = from.transition(*to, Cause::UserDecision);
-                assert_eq!(result.is_ok(), legal.contains(&(*from, *to)), "{from:?} -> {to:?}: {result:?}");
+                assert_eq!(
+                    result.is_ok(),
+                    legal.contains(&(*from, *to)),
+                    "{from:?} -> {to:?}: {result:?}"
+                );
                 if let Ok(next) = result {
                     assert_eq!(next, *to);
                     accepted += 1;
@@ -425,11 +454,26 @@ mod tests {
         ] {
             state = state.transition(S::Active(next), Cause::System).unwrap();
         }
-        assert_eq!(state.transition(S::Complete, Cause::System), Ok(S::Complete));
+        assert_eq!(
+            state.transition(S::Complete, Cause::System),
+            Ok(S::Complete)
+        );
         // CONFLICT_RESOLUTION is entered only from MERGING and cannot skip back to READY_TO_MERGE.
-        assert!(S::Active(P::ReadyToMerge).transition(S::Active(P::ConflictResolution), Cause::System).is_err());
-        assert!(S::Active(P::ConflictResolution).transition(S::Active(P::ReadyToMerge), Cause::System).is_err());
-        assert!(S::Active(P::ConflictResolution).transition(S::Active(P::Reviewing), Cause::System).is_err());
+        assert!(
+            S::Active(P::ReadyToMerge)
+                .transition(S::Active(P::ConflictResolution), Cause::System)
+                .is_err()
+        );
+        assert!(
+            S::Active(P::ConflictResolution)
+                .transition(S::Active(P::ReadyToMerge), Cause::System)
+                .is_err()
+        );
+        assert!(
+            S::Active(P::ConflictResolution)
+                .transition(S::Active(P::Reviewing), Cause::System)
+                .is_err()
+        );
     }
 
     #[test]
@@ -492,8 +536,14 @@ mod tests {
         let waiting = status.begin_approval_wait().unwrap();
         assert!(waiting.waiting_approval);
         assert_eq!(waiting.state, S::Active(P::Implementing));
-        assert_eq!(waiting.begin_approval_wait(), Err(TransitionError::OverlayAlreadyActive));
-        assert_eq!(status.end_approval_wait(), Err(TransitionError::OverlayNotActive));
+        assert_eq!(
+            waiting.begin_approval_wait(),
+            Err(TransitionError::OverlayAlreadyActive)
+        );
+        assert_eq!(
+            status.end_approval_wait(),
+            Err(TransitionError::OverlayNotActive)
+        );
         assert_eq!(waiting.end_approval_wait(), Ok(status));
         // It cannot advance the worker by itself.
         assert_eq!(
@@ -505,18 +555,29 @@ mod tests {
         );
         // ASK: NEEDS_HUMAN(APPROVAL_ASK) keeps the prior state as resume_state and clears the overlay.
         let asked = waiting
-            .transition(needs(InterventionKind::ApprovalAsk, P::Implementing), Cause::System)
+            .transition(
+                needs(InterventionKind::ApprovalAsk, P::Implementing),
+                Cause::System,
+            )
             .unwrap();
-        assert_eq!(asked, WorkerStatus::new(needs(InterventionKind::ApprovalAsk, P::Implementing)));
+        assert_eq!(
+            asked,
+            WorkerStatus::new(needs(InterventionKind::ApprovalAsk, P::Implementing))
+        );
         // After the decision the worker resumes the state it had.
         assert_eq!(
             asked.transition(S::Active(P::Implementing), Cause::UserDecision),
             Ok(status)
         );
         // Interactive session lost while waiting: PAUSED with that reason.
-        assert!(waiting
-            .transition(paused(PausedReason::InteractiveSessionUnavailable, P::Implementing), Cause::System)
-            .is_ok());
+        assert!(
+            waiting
+                .transition(
+                    paused(PausedReason::InteractiveSessionUnavailable, P::Implementing),
+                    Cause::System
+                )
+                .is_ok()
+        );
     }
 
     #[test]
@@ -525,7 +586,12 @@ mod tests {
             let result = WorkerStatus::new(S::Active(phase)).begin_approval_wait();
             assert_eq!(result.is_ok(), phase.is_agent_driven(), "{phase:?}");
         }
-        for state in [S::Complete, S::Failed, S::Cancelled, paused(PausedReason::Manual, P::Implementing)] {
+        for state in [
+            S::Complete,
+            S::Failed,
+            S::Cancelled,
+            paused(PausedReason::Manual, P::Implementing),
+        ] {
             assert!(matches!(
                 WorkerStatus::new(state).begin_approval_wait(),
                 Err(TransitionError::OverlayNotAllowed { .. })
