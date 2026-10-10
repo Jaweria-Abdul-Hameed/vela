@@ -53,9 +53,8 @@ pub(crate) fn hostile_config() -> String {
 /// Installs the hostile configuration and hooks into the repository at `git.dir`, and creates `markers_dir`.
 /// Plain file writes only: no Git command runs.
 pub(crate) fn install(git: &GitRepo, markers_dir: &Path) -> Result<(), FixtureError> {
-    std::fs::create_dir_all(markers_dir).map_err(|source| {
-        FixtureError::io(format!("create {}", markers_dir.display()), source)
-    })?;
+    std::fs::create_dir_all(markers_dir)
+        .map_err(|source| FixtureError::io(format!("create {}", markers_dir.display()), source))?;
     let git_dir = git.dir.join(".git");
     let config_path = git_dir.join("config");
     let mut config = std::fs::OpenOptions::new()

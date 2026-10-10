@@ -154,12 +154,16 @@ fn commits_carry_the_fixed_identity_and_a_monotonic_fixed_clock() {
     assert_eq!(rows.len(), 2);
     assert_eq!(
         rows[0],
-        format!("Vela Fixture|fixture@vela.invalid|{BASE_EPOCH}|Vela Fixture|fixture@vela.invalid|{BASE_EPOCH}")
+        format!(
+            "Vela Fixture|fixture@vela.invalid|{BASE_EPOCH}|Vela Fixture|fixture@vela.invalid|{BASE_EPOCH}"
+        )
     );
     let second = BASE_EPOCH + COMMIT_SPACING_SECONDS;
     assert_eq!(
         rows[1],
-        format!("Vela Fixture|fixture@vela.invalid|{second}|Vela Fixture|fixture@vela.invalid|{second}")
+        format!(
+            "Vela Fixture|fixture@vela.invalid|{second}|Vela Fixture|fixture@vela.invalid|{second}"
+        )
     );
 }
 
@@ -297,7 +301,9 @@ fn the_merge_conflict_pair_really_conflicts() {
     let merge = repo.git_output(&["merge", "--no-edit", b]).unwrap();
     assert!(!merge.status.success(), "the merge should conflict");
 
-    let unmerged = repo.git(&["diff", "--name-only", "--diff-filter=U"]).unwrap();
+    let unmerged = repo
+        .git(&["diff", "--name-only", "--diff-filter=U"])
+        .unwrap();
     assert_eq!(unmerged, CONFLICT_PATH);
     let staged = repo.git(&["ls-files", "--unmerged"]).unwrap();
     assert_eq!(staged.lines().count(), 3, "base, ours, theirs: {staged}");
@@ -366,9 +372,11 @@ fn neutralized_git_never_runs_a_hostile_payload() {
     std::fs::write(repo.path().join(HOSTILE_PAYLOAD_PATH), "payload v2\n").unwrap();
 
     repo.git(&["status", "--porcelain"]).unwrap();
-    repo.git(&["diff", "--no-ext-diff", "--no-textconv"]).unwrap();
+    repo.git(&["diff", "--no-ext-diff", "--no-textconv"])
+        .unwrap();
     repo.git(&["add", "-A"]).unwrap();
-    repo.git(&["commit", "--no-verify", "-m", "second"]).unwrap();
+    repo.git(&["commit", "--no-verify", "-m", "second"])
+        .unwrap();
     repo.git(&["checkout", "-b", "other"]).unwrap();
     repo.git(&["checkout", MAIN_BRANCH]).unwrap();
     repo.git(&["merge", "--no-edit", "other"]).unwrap();
@@ -424,7 +432,10 @@ fn a_onedrive_parent_is_rejected_by_the_builder_and_nothing_is_created() {
 #[test]
 fn every_synced_provider_parent_is_rejected_by_the_builder() {
     for (path, provider) in [
-        (r"C:\Users\Nobody\OneDrive - Contoso\x", SyncProvider::OneDrive),
+        (
+            r"C:\Users\Nobody\OneDrive - Contoso\x",
+            SyncProvider::OneDrive,
+        ),
         (r"C:\Users\Nobody\Dropbox\x", SyncProvider::Dropbox),
         (r"G:\My Drive\x", SyncProvider::GoogleDrive),
         (r"C:\Users\Nobody\iCloudDrive\x", SyncProvider::ICloud),

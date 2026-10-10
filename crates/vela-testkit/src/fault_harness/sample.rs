@@ -267,7 +267,8 @@ mod tests {
 
     #[test]
     fn a_missing_child_test_is_an_error_not_a_pass() {
-        let harness = KillRestartHarness::new("fault_harness::sample::tests::no_such_child").unwrap();
+        let harness =
+            KillRestartHarness::new("fault_harness::sample::tests::no_such_child").unwrap();
         assert!(matches!(
             harness.launch(None),
             Err(HarnessError::ChildNotFound { .. })
@@ -286,7 +287,10 @@ mod tests {
         ));
         // Every registered point can be named, so the matrix can drive them all.
         for point in FaultPoint::ALL {
-            assert_eq!(KillRestartHarness::point_named(point.name()).unwrap(), *point);
+            assert_eq!(
+                KillRestartHarness::point_named(point.name()).unwrap(),
+                *point
+            );
         }
     }
 
@@ -324,7 +328,10 @@ mod tests {
         assert!(!run(true, Some(0)).crashed());
         assert!(!run(false, Some(101)).crashed(), "a failed test");
         assert!(run(false, None).crashed(), "killed by a signal");
-        assert!(run(false, Some(-1_073_740_791)).crashed(), "Windows fast-fail abort");
+        assert!(
+            run(false, Some(-1_073_740_791)).crashed(),
+            "Windows fast-fail abort"
+        );
         assert!(run(false, Some(134)).crashed(), "SIGABRT as a shell status");
     }
 

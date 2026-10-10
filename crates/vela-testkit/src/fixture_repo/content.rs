@@ -90,10 +90,7 @@ pub(crate) const HOSTILE_FILES: &[(&str, &str)] = &[
         "README.md",
         "# Hostile-config fixture\n\nThe local Git configuration of this repository names programs that would write marker files.\nNothing here may ever run them.\n",
     ),
-    (
-        ".gitattributes",
-        "*.dat filter=hostile diff=hostile\n",
-    ),
+    (".gitattributes", "*.dat filter=hostile diff=hostile\n"),
     (HOSTILE_PAYLOAD_PATH, "payload v1\n"),
 ];
 

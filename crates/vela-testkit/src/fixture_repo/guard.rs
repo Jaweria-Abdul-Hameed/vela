@@ -304,7 +304,10 @@ mod tests {
         );
         let sibling = Path::new(r"D:\Cloud\Personal Files Backup\x");
         assert_eq!(classify_path_with_roots(sibling, &roots), None);
-        assert_eq!(classify_path_with_roots(Path::new(r"D:\Cloud"), &roots), None);
+        assert_eq!(
+            classify_path_with_roots(Path::new(r"D:\Cloud"), &roots),
+            None
+        );
     }
 
     #[test]
