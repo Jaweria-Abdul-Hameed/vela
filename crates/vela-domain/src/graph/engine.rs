@@ -105,36 +105,31 @@ impl DependencyGraph {
         }
     }
 
-    /// Removes the analyst edges that lie on cycles, until every remaining cycle is authored-only, and returns them sorted.
-    /// Authored edges are never touched. The caller treats each returned pair as sequential-but-unordered. A graph whose
-    /// authored edges form a DAG is valid afterwards, whatever order the edges were added in.
+    /// Removes every analyst edge that lies on a cycle and returns them, sorted. Authored edges are never touched.
+    ///
+    /// An analyst edge `u -> v` lies on a cycle when `v` can still reach `u`. Edges are examined in (blocker, blocked) order
+    /// and removed as found; removing edges only shrinks reachability, so one pass leaves no analyst edge on any cycle, and
+    /// the result does not depend on insertion order. The caller treats each returned pair as sequential-but-unordered. Every
+    /// cycle that remains is authored-only, so a graph whose authored edges form a DAG is valid afterwards.
     pub fn drop_cyclic_analyst_edges(&mut self) -> Vec<DependencyEdge> {
+        let mut analyst: Vec<DependencyEdge> = self
+            .edges()
+            .into_iter()
+            .filter(|e| e.origin() == EdgeOrigin::Analyst)
+            .collect();
+        analyst.sort_by(|a, b| (a.blocker(), a.blocked()).cmp(&(b.blocker(), b.blocked())));
         let mut removed = Vec::new();
-        loop {
-            let report = self.find_cycles();
-            let victims: Vec<DependencyEdge> = report
-                .cycles
-                .iter()
-                .filter_map(|c| {
-                    c.edges
-                        .iter()
-                        .find(|e| e.origin() == EdgeOrigin::Analyst)
-                        .cloned()
-                })
-                .collect();
-            if victims.is_empty() {
-                break;
-            }
-            for edge in victims {
-                if let (Ok(from), Ok(to)) = (self.node(edge.blocker()), self.node(edge.blocked()))
-                    && let Some(id) = self.graph.find_edge(from, to)
-                {
-                    self.graph.remove_edge(id);
-                    removed.push(edge);
-                }
+        for edge in analyst {
+            let (Ok(from), Ok(to)) = (self.node(edge.blocker()), self.node(edge.blocked())) else {
+                continue;
+            };
+            if has_path_connecting(&self.graph, to, from, None)
+                && let Some(id) = self.graph.find_edge(from, to)
+            {
+                self.graph.remove_edge(id);
+                removed.push(edge);
             }
         }
-        removed.sort_by(|a, b| (a.blocker(), a.blocked()).cmp(&(b.blocker(), b.blocked())));
         removed
     }
 

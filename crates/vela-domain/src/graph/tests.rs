@@ -193,6 +193,48 @@ fn analyst_edges_added_before_the_authored_edges_that_close_them_can_be_dropped(
 }
 
 #[test]
+fn an_analyst_edge_on_a_second_cycle_of_the_same_component_is_dropped_too() {
+    // The authored 0 <-> 1 cycle is the shortest and is the one reported; the analyst 0 -> 2 closes another through 2 -> 0.
+    let mut g = build(
+        3,
+        &[
+            (0, 1, EdgeKind::Authored),
+            (1, 0, EdgeKind::Authored),
+            (0, 2, EdgeKind::Analyst),
+            (2, 0, EdgeKind::Authored),
+        ],
+    );
+    assert_eq!(
+        g.drop_cyclic_analyst_edges(),
+        vec![edge(0, 2, EdgeKind::Analyst)]
+    );
+    let report = g.find_cycles();
+    assert_eq!(report.cycles.len(), 1);
+    assert_eq!(report.cycles[0].component, vec![n(0), n(1)]);
+    assert!(report.cycles[0].is_authored_only());
+}
+
+#[test]
+fn conflicting_analyst_edges_resolve_the_same_way_in_any_order() {
+    let forward = [(0, 1, EdgeKind::Analyst), (1, 0, EdgeKind::Analyst)];
+    let mut a = DependencyGraph::new();
+    let mut b = DependencyGraph::new();
+    for i in 0..2 {
+        a.add_ticket(n(i)).unwrap();
+        b.add_ticket(n(i)).unwrap();
+    }
+    for (x, y, k) in forward {
+        a.add_edge_unchecked(&edge(x, y, k)).unwrap();
+    }
+    for (x, y, k) in forward.iter().rev() {
+        b.add_edge_unchecked(&edge(*x, *y, *k)).unwrap();
+    }
+    assert_eq!(a.drop_cyclic_analyst_edges(), b.drop_cyclic_analyst_edges());
+    assert_eq!(a.edges(), b.edges());
+    assert!(a.validate().is_ok());
+}
+
+#[test]
 fn dropping_cyclic_analyst_edges_never_removes_an_authored_edge() {
     let mut g = build(
         3,
@@ -438,6 +480,16 @@ proptest! {
         let authored_after: Vec<_> = g.edges().into_iter().filter(|e| e.origin() == EdgeKind::Authored).collect();
         prop_assert_eq!(authored_before, authored_after);
         prop_assert!(g.find_cycles().cycles.iter().all(|c| c.is_authored_only()));
+        // No analyst edge lies on any cycle: its blocked ticket cannot reach its blocker.
+        let pairs: Vec<_> = g
+            .edges()
+            .iter()
+            .map(|e| (index_of(e.blocker()), index_of(e.blocked())))
+            .collect();
+        let r = reaches(count, &pairs);
+        for e in g.edges().iter().filter(|e| e.origin() == EdgeKind::Analyst) {
+            prop_assert!(!r[index_of(e.blocked())][index_of(e.blocker())]);
+        }
         // If the authored edges alone form a DAG, nothing the analyst added can leave the graph invalid.
         let authored_only = build_tolerant(
             count,
