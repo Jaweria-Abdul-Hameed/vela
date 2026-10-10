@@ -279,7 +279,7 @@ fn removing_a_ticket_removes_its_edges() {
 }
 
 #[test]
-fn results_do_not_depend_on_insertion_order() {
+fn non_conflicting_edges_added_singly_give_the_same_snapshot_in_any_order() {
     let edges = [
         (0, 2, EdgeKind::Authored),
         (1, 2, EdgeKind::Authored),
@@ -294,6 +294,177 @@ fn results_do_not_depend_on_insertion_order() {
         reversed.add_edge(&edge(*a, *b, *k)).unwrap();
     }
     assert_eq!(forward.snapshot().unwrap(), reversed.snapshot().unwrap());
+}
+
+/// Every permutation of `items` (Heap's algorithm).
+fn permutations<T: Clone>(items: &[T]) -> Vec<Vec<T>> {
+    fn go<T: Clone>(k: usize, a: &mut Vec<T>, out: &mut Vec<Vec<T>>) {
+        if k <= 1 {
+            out.push(a.clone());
+            return;
+        }
+        go(k - 1, a, out);
+        for i in 0..k - 1 {
+            if k.is_multiple_of(2) {
+                a.swap(i, k - 1);
+            } else {
+                a.swap(0, k - 1);
+            }
+            go(k - 1, a, out);
+        }
+    }
+    let mut a = items.to_vec();
+    let mut out = Vec::new();
+    go(a.len(), &mut a, &mut out);
+    out
+}
+
+/// Builds with the canonical batch path. Returns the graph and the refused analyst edges.
+fn build_batch(count: usize, edges: &[DependencyEdge]) -> (DependencyGraph, Vec<DependencyEdge>) {
+    let mut g = DependencyGraph::new();
+    for i in 0..count {
+        g.add_ticket(n(i)).unwrap();
+    }
+    let refused = g.add_edges(edges).unwrap();
+    (g, refused)
+}
+
+/// Everything observable about a built graph, comparable across builds.
+fn fingerprint(g: &DependencyGraph, refused: &[DependencyEdge]) -> String {
+    format!(
+        "{:?}|{:?}|{:?}|{:?}",
+        g.edges(),
+        g.find_cycles(),
+        g.snapshot().ok(),
+        refused
+    )
+}
+
+#[test]
+fn every_permutation_of_a_mixed_conflicting_edge_set_gives_the_same_graph() {
+    use EdgeKind::{Analyst, Authored};
+    let edges = vec![
+        edge(0, 1, Authored),
+        edge(1, 2, Authored),
+        edge(2, 1, Analyst), // opposes an authored edge: always refused
+        edge(3, 4, Analyst),
+        edge(4, 3, Analyst), // conflicts with the previous analyst edge: the smaller pair wins
+        edge(2, 3, Analyst), // closes a cycle only together with analyst 3 -> 4 and 4 -> 2 below
+        edge(4, 2, Analyst),
+        edge(0, 1, Analyst), // duplicate pair, also authored: collapses to authored
+    ];
+    let baseline = {
+        let (g, refused) = build_batch(5, &edges);
+        fingerprint(&g, &refused)
+    };
+    let mut seen = 0;
+    for order in permutations(&edges) {
+        let (g, refused) = build_batch(5, &order);
+        assert_eq!(fingerprint(&g, &refused), baseline, "order {order:?}");
+        seen += 1;
+    }
+    assert_eq!(seen, 40320);
+}
+
+#[test]
+fn the_batch_path_resolves_conflicts_canonically_and_authored_wins() {
+    use EdgeKind::{Analyst, Authored};
+    let (g, refused) = build_batch(
+        5,
+        &[
+            edge(4, 3, Analyst),
+            edge(3, 4, Analyst),
+            edge(2, 1, Analyst),
+            edge(1, 2, Authored),
+            edge(0, 1, Analyst),
+            edge(0, 1, Authored),
+        ],
+    );
+    // 3 -> 4 beats 4 -> 3 (smaller pair first); the analyst 2 -> 1 loses to the authored 1 -> 2; 0 -> 1 is authored.
+    assert_eq!(
+        g.edges(),
+        vec![
+            edge(0, 1, Authored),
+            edge(1, 2, Authored),
+            edge(3, 4, Analyst)
+        ]
+    );
+    assert_eq!(refused, vec![edge(2, 1, Analyst), edge(4, 3, Analyst)]);
+    assert!(g.validate().is_ok());
+}
+
+#[test]
+fn the_batch_path_is_atomic_on_an_unknown_ticket() {
+    let mut g = build(2, &[]);
+    let err = g
+        .add_edges(&[
+            edge(0, 1, EdgeKind::Authored),
+            edge(1, 7, EdgeKind::Analyst),
+        ])
+        .unwrap_err();
+    assert_eq!(err, GraphError::UnknownTicket(n(7)));
+    assert_eq!(g.edge_count(), 0);
+}
+
+#[test]
+fn authored_cycles_are_kept_and_reported_by_the_batch_path_in_any_order() {
+    use EdgeKind::{Analyst, Authored};
+    let edges = vec![
+        edge(0, 1, Authored),
+        edge(1, 2, Authored),
+        edge(2, 0, Authored),
+        edge(0, 2, Analyst),
+    ];
+    let baseline = fingerprint(&build_batch(3, &edges).0, &[]);
+    for order in permutations(&edges) {
+        let (g, _) = build_batch(3, &order);
+        assert_eq!(fingerprint(&g, &[]), baseline);
+        assert!(g.validate().is_err());
+        assert!(g.find_cycles().cycles[0].is_authored_only());
+    }
+}
+
+#[test]
+fn adding_conflicting_analyst_edges_one_at_a_time_is_first_wins() {
+    // Pins the documented contract of `add_edge`: it is order-dependent; the canonical path is `add_edges`.
+    let one_at_a_time = |order: [(usize, usize); 2]| {
+        let mut g = build(2, &[]);
+        for (a, b) in order {
+            let _ = g.add_edge(&edge(a, b, EdgeKind::Analyst));
+        }
+        g.edges()
+    };
+    assert_ne!(
+        one_at_a_time([(0, 1), (1, 0)]),
+        one_at_a_time([(1, 0), (0, 1)])
+    );
+    let canonical = |order: [(usize, usize); 2]| {
+        let es: Vec<_> = order
+            .iter()
+            .map(|(a, b)| edge(*a, *b, EdgeKind::Analyst))
+            .collect();
+        build_batch(2, &es).0.edges()
+    };
+    assert_eq!(canonical([(0, 1), (1, 0)]), canonical([(1, 0), (0, 1)]));
+}
+
+#[test]
+fn a_started_ticket_is_not_dispatchable_and_keeps_its_dependents_blocked() {
+    let g = build(3, &[(0, 1, EdgeKind::Authored), (0, 2, EdgeKind::Authored)]);
+    let started: BTreeSet<_> = [n(0)].into_iter().collect();
+    // The dependency-ready set still lists the running ticket 0; the dispatchable set must not.
+    assert_eq!(g.frontier(&done(&[])).unwrap(), vec![n(0)]);
+    assert!(
+        g.frontier_excluding(&done(&[]), &started)
+            .unwrap()
+            .is_empty()
+    );
+    // Once it is done, its dependents are dispatchable; a started dependent is excluded.
+    let started: BTreeSet<_> = [n(1)].into_iter().collect();
+    assert_eq!(
+        g.frontier_excluding(&done(&[0]), &started).unwrap(),
+        vec![n(2)]
+    );
 }
 
 #[test]
@@ -465,6 +636,34 @@ proptest! {
         for cycle in &report.cycles {
             prop_assert!(cycle.tickets.iter().all(|t| cycle.component.contains(t)));
             prop_assert_eq!(&cycle.tickets[0], cycle.component.iter().min().unwrap());
+        }
+    }
+
+    #[test]
+    fn shuffling_any_edge_set_never_changes_the_batch_built_graph(
+        (count, raw) in arbitrary_graph(),
+        seed in any::<u64>(),
+    ) {
+        let edges: Vec<DependencyEdge> = raw
+            .iter()
+            .filter(|(a, b, _)| a != b)
+            .map(|(a, b, e)| edge(*a, *b, kind(*e)))
+            .collect();
+        let (g, refused) = build_batch(count, &edges);
+        let baseline = fingerprint(&g, &refused);
+        let mut shuffled = edges.clone();
+        let mut s = seed;
+        for i in (1..shuffled.len()).rev() {
+            s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            shuffled.swap(i, (s >> 33) as usize % (i + 1));
+        }
+        let (g2, refused2) = build_batch(count, &shuffled);
+        prop_assert_eq!(fingerprint(&g2, &refused2), baseline);
+        // The batch never lets an analyst edge close a cycle, so only authored cycles can remain.
+        prop_assert!(g.find_cycles().cycles.iter().all(|c| c.is_authored_only()));
+        // Every authored edge given is in the graph; every analyst edge is either kept or refused (or shadowed by authored).
+        for e in edges.iter().filter(|e| e.origin() == EdgeKind::Authored) {
+            prop_assert!(g.edges().contains(e));
         }
     }
 
