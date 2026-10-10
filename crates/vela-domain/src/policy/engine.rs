@@ -120,7 +120,7 @@ fn allow_basis_holds(facts: &Facts, trust: TrustState) -> bool {
             | GitForcePush
             | GitDestructive
             | DestructiveDelete
-            | ProtectedPathWrite
+            | ProtectedPathChange
             | Unparseable
     );
     trust == TrustState::Trusted

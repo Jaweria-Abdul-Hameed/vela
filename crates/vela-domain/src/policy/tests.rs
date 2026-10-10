@@ -175,15 +175,15 @@ fn operation_class_table() {
         (
             "copy a.txt .git\\hooks\\pre-commit",
             Deny,
-            ProtectedPathWrite,
+            ProtectedPathChange,
         ),
         (
             "Set-Content .agents\\hooks.json x",
             Deny,
-            ProtectedPathWrite,
+            ProtectedPathChange,
         ),
         ("Set-Content .gemini\\config x", Deny, CredentialAccess),
-        ("mkdir .vela", Deny, ProtectedPathWrite),
+        ("mkdir .vela", Deny, ProtectedPathChange),
         ("copy a.txt C:\\Windows\\a.txt", Ask, FileMutate),
         ("Set-Content notes.txt hi", Ask, FileMutate),
         // Other ASK classes.
@@ -248,9 +248,9 @@ fn file_operations_and_roots() {
         ("write", "src\\file.txt:hidden", Ask, FileWrite),
         ("write", "PROGRA~1\\x", Ask, FileWrite),
         ("read", "C:\\Users\\a\\Documents\\x.txt", Ask, FileRead),
-        ("write", ".git\\config", Deny, ProtectedPathWrite),
-        ("write", ".git/hooks/pre-commit", Deny, ProtectedPathWrite),
-        ("write", ".agents\\hooks.json", Deny, ProtectedPathWrite),
+        ("write", ".git\\config", Deny, ProtectedPathChange),
+        ("write", ".git/hooks/pre-commit", Deny, ProtectedPathChange),
+        ("write", ".agents\\hooks.json", Deny, ProtectedPathChange),
         (
             "write",
             "C:\\Users\\a\\.ssh\\id_rsa",
@@ -563,7 +563,7 @@ fn cmd_specific_commands_are_classified_in_cmd_syntax() {
         &e,
         cmd("copy /y a.txt .git\\config"),
         Deny,
-        ProtectedPathWrite,
+        ProtectedPathChange,
     );
     expect(&e, cmd("set"), Deny, CredentialAccess);
     expect(&e, cmd("set X=1"), Ask, UnknownExecutable);
@@ -956,15 +956,23 @@ fn native_allow_rules_cover_only_what_the_engine_allows() {
         cwd: "C:\\Work\\Repo\\web".into(),
     }));
     let write = rules.iter().find_map(|r| match r {
-        NativeAllowRule::WriteWithin {
-            root,
-            protected_components,
-        } => Some((root, protected_components)),
+        NativeAllowRule::WriteWithin { root, exclusions } => Some((root, exclusions)),
         _ => None,
     });
-    let (root, protected) = write.expect("worktree write rule");
+    let (root, excluded) = write.expect("worktree write rule");
     assert_eq!(root, "C:\\Work\\Repo");
-    assert!(protected.iter().any(|c| c == ".git") && protected.iter().any(|c| c == ".agents"));
+    // The exclusions cover everything policy denies to write: protected locations and credential material.
+    assert!(
+        excluded.components.iter().any(|c| c == ".git")
+            && excluded.components.iter().any(|c| c == ".agents")
+    );
+    assert!(excluded.components.iter().any(|c| c == ".ssh"));
+    assert!(
+        excluded.file_names.iter().any(|c| c == ".env")
+            && excluded.file_names.iter().any(|c| c == "id_rsa")
+    );
+    assert!(excluded.file_extensions.iter().any(|c| c == ".pem"));
+    assert_eq!(excluded.file_prefixes, [".env."]);
     assert_eq!(rules.len(), 4);
     // A profile entry the engine would not allow (here a force push) is never emitted.
     let hostile = engine_with(
@@ -1035,8 +1043,328 @@ fn text_claiming_authority_does_not_change_the_decision() {
             path: ".vela\\policy.json".into(),
         },
         Decision::Deny,
-        OperationClass::ProtectedPathWrite,
+        OperationClass::ProtectedPathChange,
     );
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Regression tests for review iteration 1
+// ---------------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn protected_and_credential_checks_ignore_the_worktrees_own_location() {
+    // A worktree under a directory that is itself a protected or credential name must stay usable.
+    for root in [
+        r"C:\Users\u\.vela\worktrees\run1",
+        r"C:\Users\u\.docker\wt",
+        r"C:\Users\u\.git\wt",
+    ] {
+        let ctx = PolicyContext::new(
+            root,
+            TrustState::Trusted,
+            RunMode::Autonomous,
+            CommandProfile::default(),
+        )
+        .unwrap();
+        let e = PolicyEngine::new(ctx);
+        let write = |p: &str| Operation::FileWrite { path: p.into() };
+        expect(
+            &e,
+            write(r"src\a.rs"),
+            Decision::Allow,
+            OperationClass::FileWrite,
+        );
+        let read = Operation::FileRead {
+            path: r"src\a.rs".into(),
+        };
+        expect(&e, read, Decision::Allow, OperationClass::FileRead);
+        expect(
+            &e,
+            write(r".git\config"),
+            Decision::Deny,
+            OperationClass::ProtectedPathChange,
+        );
+        expect(
+            &e,
+            write(r".ssh\id_rsa"),
+            Decision::Deny,
+            OperationClass::CredentialAccess,
+        );
+        expect(
+            &e,
+            ps("copy a.txt b.txt"),
+            Decision::Ask,
+            OperationClass::FileMutate,
+        );
+        expect(
+            &e,
+            ps(r"copy a.txt .git\hooks\x"),
+            Decision::Deny,
+            OperationClass::ProtectedPathChange,
+        );
+        let abs = ps(&format!(r"Get-Content {root}\src\a.rs"));
+        expect(&e, abs, Decision::Ask, OperationClass::UnknownExecutable);
+    }
+}
+
+#[test]
+fn generic_credential_names_count_only_as_the_final_component() {
+    let e = trusted();
+    let read = |p: &str| Operation::FileRead { path: p.into() };
+    expect(
+        &e,
+        read(r"src\token\mod.rs"),
+        Decision::Allow,
+        OperationClass::FileRead,
+    );
+    expect(
+        &e,
+        read(r"src\credentials\form.rs"),
+        Decision::Allow,
+        OperationClass::FileRead,
+    );
+    expect(
+        &e,
+        read(r"docs\hosts.yml"),
+        Decision::Allow,
+        OperationClass::FileRead,
+    );
+    expect(
+        &e,
+        read(r"config\token"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+    expect(
+        &e,
+        read(r"config\credentials"),
+        Decision::Deny,
+        OperationClass::CredentialAccess,
+    );
+    let gh = read(r"C:\Users\a\AppData\Roaming\gh\hosts.yml");
+    expect(&e, gh, Decision::Deny, OperationClass::CredentialAccess);
+}
+
+#[test]
+fn quoted_arguments_with_shell_characters_survive_storage() {
+    for text in [
+        r#"eslint "src/**/*.js""#,
+        r#"pytest -k "a,b""#,
+        r#"tool "a;b" "x y" """#,
+        r#"tool "a|b" "(c)" "{d}""#,
+    ] {
+        let entry = ProfileEntry::parse(text, Dialect::PowerShell, None, ROOT).unwrap();
+        let canonical = entry.canonical_text();
+        let again = normalize(&canonical, Dialect::Cmd).unwrap();
+        assert_eq!(
+            (again.executable(), again.args()),
+            (entry.executable(), entry.args()),
+            "{text}"
+        );
+        #[cfg(feature = "full")]
+        {
+            let json = serde_json::to_string(&entry).unwrap();
+            let back: ProfileEntry = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, entry);
+        }
+        // And the engine allows exactly it.
+        let e = engine_with(TrustState::Trusted, &[(text, None)]);
+        assert_eq!(decide(&e, &ps(text)).decision, Decision::Allow, "{text}");
+    }
+    // A command that cannot be written canonically is refused at confirmation, not at load.
+    assert_eq!(
+        ProfileEntry::parse("tool '50%'", Dialect::PowerShell, None, ROOT).unwrap_err(),
+        ContextError::UnnormalizableCommand
+    );
+}
+
+#[test]
+fn rooted_slash_paths_are_delete_targets_in_powershell() {
+    use Decision::{Ask, Deny};
+    use OperationClass::*;
+    let e = trusted();
+    expect(
+        &e,
+        ps("Remove-Item /Windows -Recurse"),
+        Deny,
+        DestructiveDelete,
+    );
+    expect(&e, ps("rm -r /Users"), Deny, DestructiveDelete);
+    expect(&e, ps("del /etc"), Deny, DestructiveDelete);
+    // cmd switches are still switches.
+    expect(&e, cmd("del /s /q build"), Ask, RecursiveDelete);
+    expect(&e, cmd("rd /s /q build"), Ask, RecursiveDelete);
+    expect(&e, cmd("copy /y a.txt b.txt"), Ask, FileMutate);
+}
+
+#[test]
+fn deleting_protected_locations_is_denied_like_writing_them() {
+    use Decision::Deny;
+    use OperationClass::*;
+    let e = trusted();
+    let del = |p: &str, recursive: bool| Operation::FileDelete {
+        path: p.into(),
+        recursive,
+    };
+    expect(
+        &e,
+        del(r".git\hooks\pre-commit", false),
+        Deny,
+        ProtectedPathChange,
+    );
+    expect(&e, del(".agents", true), Deny, ProtectedPathChange);
+    expect(&e, del(".git", true), Deny, ProtectedPathChange);
+    expect(&e, ps("rm -r .git"), Deny, ProtectedPathChange);
+    expect(
+        &e,
+        ps(r"Remove-Item .vela\policy.json"),
+        Deny,
+        ProtectedPathChange,
+    );
+    expect(&e, cmd("rd /s /q .git"), Deny, ProtectedPathChange);
+    expect(&e, del("build", true), Decision::Ask, RecursiveDelete);
+}
+
+#[test]
+fn unresolvable_targets_cannot_hide_a_protected_location_or_a_denied_executable() {
+    use Decision::Deny;
+    use OperationClass::*;
+    let e = trusted();
+    expect(
+        &e,
+        ps(r#"copy x ".git\hooks\pre-commit ""#),
+        Deny,
+        ProtectedPathChange,
+    );
+    expect(
+        &e,
+        ps(r#"copy x ".git\hooks\*""#),
+        Deny,
+        ProtectedPathChange,
+    );
+    expect(
+        &e,
+        ps(r#"copy x ".GIT.\config""#),
+        Deny,
+        ProtectedPathChange,
+    );
+    expect(
+        &e,
+        ps(r#"Remove-Item ".agents\*""#),
+        Deny,
+        ProtectedPathChange,
+    );
+    expect(&e, ps("format. D:"), Deny, DestructiveDelete);
+    expect(&e, ps("diskpart."), Deny, DestructiveDelete);
+    expect(&e, ps("cmdkey. /list"), Deny, CredentialAccess);
+    // A trailing dot does not make a profile entry match: the executable text differs.
+    let profiled = engine_with(TrustState::Trusted, &[("npm test", None)]);
+    assert_eq!(decide(&profiled, &ps("npm. test")).decision, Decision::Ask);
+}
+
+#[test]
+fn git_long_option_abbreviations_cannot_bypass_the_deny_tiers() {
+    use Decision::Deny;
+    use OperationClass::*;
+    let e = trusted();
+    for text in [
+        "git push --forc origin main",
+        "git push --force-w origin main",
+        "git push --mirr",
+        "git push --del origin branch",
+        "git push --prun origin",
+        "git -c user.name=x push --forc",
+    ] {
+        expect(&e, ps(text), Deny, GitForcePush);
+    }
+    for text in [
+        "git reset --har HEAD~1",
+        "git reset --hard",
+        "git gc --prun=now",
+        "git switch --discard origin",
+    ] {
+        expect(&e, ps(text), Deny, GitDestructive);
+    }
+    // Lenient options still need the full name.
+    expect(&e, ps("git clean --dry-run"), Decision::Ask, GitInspect);
+    expect(&e, ps("git clean --dry"), Deny, GitDestructive);
+    expect(
+        &e,
+        ps("git push --dry-run origin main"),
+        Decision::Ask,
+        GitPush,
+    );
+}
+
+#[test]
+fn a_rule_set_re_establishes_its_tier_invariants_on_load() {
+    let named = |id: &str, effect: Decision| {
+        user_rule(
+            id,
+            effect,
+            RuleCondition {
+                executable: Some(id.replace('.', "-")),
+                ..RuleCondition::default()
+            },
+        )
+    };
+    // An ASK before the user tier would sit ahead of the built-in DENY tier.
+    let ask_first = vec![
+        named("a.one", Decision::Ask),
+        named("b.two", Decision::Deny),
+    ];
+    assert_eq!(
+        RuleSet::from_rules(ask_first, 1, 1).unwrap_err(),
+        RuleError::InvalidUserTier
+    );
+    // An ALLOW inside the user tier.
+    let allow = Rule {
+        id: RuleId::new("x.allow").unwrap(),
+        reason: "r".into(),
+        effect: Decision::Allow,
+        when: RuleCondition {
+            trust: Some(TrustState::Trusted),
+            profile_match: Some(true),
+            ..RuleCondition::default()
+        },
+    };
+    let allow_in_tier = vec![named("a.one", Decision::Deny), allow];
+    assert_eq!(
+        RuleSet::from_rules(allow_in_tier, 1, 1).unwrap_err(),
+        RuleError::InvalidUserTier
+    );
+    // A tier that lies outside the rules.
+    assert_eq!(
+        RuleSet::from_rules(vec![named("a.one", Decision::Deny)], 0, 2).unwrap_err(),
+        RuleError::InvalidUserTier
+    );
+    // The default set satisfies them.
+    let d = default_rules();
+    RuleSet::from_rules(d.rules().to_vec(), d.user_start(), d.user_len()).unwrap();
+}
+
+#[test]
+fn non_ascii_worktree_paths_match_consistently() {
+    let root = "C:\\Users\\Zo\u{eb}\\Repo";
+    let entry = ProfileEntry::parse("pnpm build", Dialect::PowerShell, Some("web"), root).unwrap();
+    let profile = CommandProfile::new(vec![entry]).unwrap();
+    let ctx = PolicyContext::new(root, TrustState::Trusted, RunMode::Autonomous, profile).unwrap();
+    let e = PolicyEngine::new(ctx);
+    let build = |cwd: &str| Operation::Command {
+        dialect: Dialect::PowerShell,
+        text: "pnpm build".into(),
+        cwd: Some(cwd.into()),
+    };
+    for cwd in [
+        "web",
+        "C:\\Users\\Zo\u{eb}\\Repo\\web",
+        "c:\\users\\zo\u{eb}\\repo\\WEB",
+    ] {
+        assert_eq!(decide(&e, &build(cwd)).decision, Decision::Allow, "{cwd}");
+    }
+    // A different non-ASCII case is a different path to the engine (conservative: never inside by accident).
+    let shouted = build("C:\\Users\\ZO\u{cb}\\Repo\\web");
+    assert_eq!(decide(&e, &shouted).decision, Decision::Ask);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

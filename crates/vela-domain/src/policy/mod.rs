@@ -32,7 +32,7 @@ mod table;
 #[cfg(test)]
 mod tests;
 
-pub use classify::{OperationClass, PROTECTED_COMPONENTS};
+pub use classify::{OperationClass, PROTECTED_COMPONENTS, WriteExclusions, write_exclusions};
 pub use defaults::{default_rules, default_rules_with};
 pub use engine::{DecisionScope, PolicyDecision, PolicyEngine};
 pub use normalizer::{

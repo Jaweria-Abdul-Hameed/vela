@@ -76,10 +76,10 @@ pub fn default_rules_with(
             class(DestructiveDelete),
         ),
         rule(
-            "vela.deny.protected-path-write",
+            "vela.deny.protected-path-change",
             Deny,
-            "writes Git internals or agent and Vela policy locations",
-            class(ProtectedPathWrite),
+            "writes or deletes Git internals or agent and Vela policy locations",
+            class(ProtectedPathChange),
         ),
     ];
     let user_start = rules.len();

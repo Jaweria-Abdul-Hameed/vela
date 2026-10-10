@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::normalizer::{NormalizedCommand, Rejection, normalize};
+use super::normalizer::{Dialect, NormalizedCommand, Rejection, normalize};
 use super::operation::{Operation, PolicyContext, TrustState};
 use super::path::{PathIssue, Placement, Relation, ResolvedPath};
 
@@ -22,8 +22,8 @@ pub enum OperationClass {
     RecursiveDelete,
     /// Delete outside the worktree root, the root itself or an ancestor, or an unrecoverable disk operation.
     DestructiveDelete,
-    /// Write into Git internals or into agent and Vela policy locations (`.git`, `.agents`, `.gemini`, `.vela`).
-    ProtectedPathWrite,
+    /// Write or delete Git internals or agent and Vela policy locations (`.git`, `.agents`, `.gemini`, `.vela`).
+    ProtectedPathChange,
     /// A command that creates, copies, moves or modifies files.
     FileMutate,
     /// Git read-only inspection.
@@ -102,7 +102,7 @@ pub(crate) fn analyze(op: &Operation, ctx: &PolicyContext) -> Facts {
                 Some(raw) => ResolvedPath::resolve(Some(ctx.root()), raw),
                 None => Ok(ctx.root().clone()),
             };
-            command_facts(&command, cwd, ctx)
+            command_facts(&command, cwd, ctx, *dialect)
         }
     }
 }
@@ -126,12 +126,14 @@ fn file_op(raw: &str, ctx: &PolicyContext, kind: FileKind) -> Facts {
         }
     };
     let placement = path.placement(ctx.root());
-    if is_credential_path(&path) {
+    if is_credential_path(&path, ctx.root()) {
         return Facts::of(OperationClass::CredentialAccess, placement);
     }
     let class = match kind {
         FileKind::Read => OperationClass::FileRead,
-        FileKind::Write if is_protected(&path) => OperationClass::ProtectedPathWrite,
+        FileKind::Write | FileKind::Delete(_) if is_protected(&path, ctx.root()) => {
+            OperationClass::ProtectedPathChange
+        }
         FileKind::Write => OperationClass::FileWrite,
         FileKind::Delete(recursive) => delete_class(&[Ok(path.clone())], recursive, ctx),
     };
@@ -150,6 +152,7 @@ pub(crate) fn command_facts_for_parts(
         &command,
         ResolvedPath::resolve(None, cwd),
         ctx,
+        Dialect::Unspecified,
     ))
 }
 
@@ -157,6 +160,7 @@ fn command_facts(
     command: &NormalizedCommand,
     cwd: Result<ResolvedPath, PathIssue>,
     ctx: &PolicyContext,
+    dialect: Dialect,
 ) -> Facts {
     let name = command.lookup_name();
     let cwd_placement = match &cwd {
@@ -164,7 +168,7 @@ fn command_facts(
         Err(_) => Placement::Unresolvable,
     };
     let base = cwd.clone().unwrap_or_else(|_| ctx.root().clone());
-    let (class, targets_placement) = classify_command(command, &name, &base, ctx);
+    let (class, targets_placement) = classify_command(command, &name, &base, ctx, dialect);
     let placement = worst(cwd_placement, targets_placement);
     let profile_match = ctx.trust() == TrustState::Trusted
         && cwd.as_ref().is_ok_and(|dir| {
@@ -198,12 +202,13 @@ fn classify_command(
     name: &str,
     cwd: &ResolvedPath,
     ctx: &PolicyContext,
+    dialect: Dialect,
 ) -> (OperationClass, Placement) {
     use OperationClass::*;
     let lower_args: Vec<String> = cmd.args().iter().map(|a| a.to_lowercase()).collect();
     let none = Placement::InsideRoot;
 
-    if is_credential_command(cmd, name, &lower_args) {
+    if is_credential_command(cmd, name, &lower_args, cwd, ctx.root()) {
         return (CredentialAccess, none);
     }
     if is_security_control(name, &lower_args) {
@@ -217,28 +222,26 @@ fn classify_command(
         return (git_class(cmd.args()), none);
     }
 
-    let targets = target_paths(cmd.args(), cwd);
+    let targets = target_paths(cmd.args(), cwd, dialect);
     let target_placement = targets
         .iter()
-        .fold(Placement::InsideRoot, |acc, t| match t {
+        .fold(Placement::InsideRoot, |acc, t| match &t.path {
             Ok(p) => worst(acc, p.placement(ctx.root())),
             Err(_) => worst(acc, Placement::Unresolvable),
         });
 
-    if DELETERS.contains(&name) {
+    if DELETERS.contains(&name) || FILE_MUTATORS.contains(&name) {
+        if targets.iter().any(|t| t.is_protected(ctx.root())) {
+            return (ProtectedPathChange, target_placement);
+        }
+        if FILE_MUTATORS.contains(&name) {
+            return (FileMutate, target_placement);
+        }
+        let paths: Vec<_> = targets.iter().map(|t| t.path.clone()).collect();
         return (
-            delete_class(&targets, is_recursive(&lower_args), ctx),
+            delete_class(&paths, is_recursive(&lower_args), ctx),
             target_placement,
         );
-    }
-    if FILE_MUTATORS.contains(&name) {
-        let protected = targets.iter().flatten().any(is_protected);
-        let class = if protected {
-            ProtectedPathWrite
-        } else {
-            FileMutate
-        };
-        return (class, target_placement);
     }
     if NESTED_SHELLS.contains(&name) {
         return (NestedShell, none);
@@ -510,7 +513,6 @@ const CREDENTIAL_FILES: &[&str] = &[
     "id_ed25519",
     "authorized_keys",
     ".env",
-    "hosts.yml",
 ];
 const CREDENTIAL_EXTENSIONS: &[&str] = &[
     ".pem",
@@ -541,7 +543,13 @@ const CREDENTIAL_SEQUENCES: &[&[&str]] = &[
     &["gh", "hosts.yml"],
 ];
 
-fn is_credential_command(cmd: &NormalizedCommand, name: &str, lower_args: &[String]) -> bool {
+fn is_credential_command(
+    cmd: &NormalizedCommand,
+    name: &str,
+    lower_args: &[String],
+    cwd: &ResolvedPath,
+    root: &ResolvedPath,
+) -> bool {
     if CREDENTIAL_TOOLS.contains(&name) {
         return true;
     }
@@ -577,26 +585,33 @@ fn is_credential_command(cmd: &NormalizedCommand, name: &str, lower_args: &[Stri
         || lower_args
             .iter()
             .any(|a| a.starts_with("env:") || a.contains("\\env:") || a.contains("/env:"))
-        || cmd.args().iter().any(|a| arg_mentions_credentials(a))
+        || cmd
+            .args()
+            .iter()
+            .any(|a| arg_mentions_credentials(a, cwd, root))
 }
 
-fn arg_mentions_credentials(arg: &str) -> bool {
+fn arg_mentions_credentials(arg: &str, cwd: &ResolvedPath, root: &ResolvedPath) -> bool {
     let lower = arg.to_lowercase();
     let pathlike = lower.contains(['\\', '/']);
+    // A plain path argument is judged below the worktree root, so the worktree's own location never counts.
+    if pathlike && let Ok(path) = ResolvedPath::resolve(Some(cwd), arg) {
+        return segments_are_credentials(&path.components_below(root));
+    }
     let segments: Vec<&str> = lower
         .split(['\\', '/', '='])
         .filter(|s| !s.is_empty())
         .collect();
-    segments_are_credentials(&segments, pathlike)
+    segments_are_credentials(&segments)
 }
 
-fn is_credential_path(path: &ResolvedPath) -> bool {
-    let segments: Vec<String> = path.components_folded();
-    let refs: Vec<&str> = segments.iter().map(String::as_str).collect();
-    segments_are_credentials(&refs, true)
+fn is_credential_path(path: &ResolvedPath, root: &ResolvedPath) -> bool {
+    segments_are_credentials(&path.components_below(root))
 }
 
-fn segments_are_credentials(segments: &[&str], pathlike: bool) -> bool {
+/// True when a path, given as case-folded components, names credential or key material. Generic names (`token`,
+/// `credentials`) count only as the final component, so a source directory with that name is not credential material.
+fn segments_are_credentials(segments: &[&str]) -> bool {
     for seg in segments {
         if CREDENTIAL_DIRS.contains(seg) || CREDENTIAL_FILES.contains(seg) {
             return true;
@@ -609,9 +624,12 @@ fn segments_are_credentials(segments: &[&str], pathlike: bool) -> bool {
         if CREDENTIAL_EXTENSIONS.iter().any(|ext| seg.ends_with(ext)) && seg.len() > 4 {
             return true;
         }
-        if pathlike && WEAK_CREDENTIAL_NAMES.contains(seg) {
-            return true;
-        }
+    }
+    if segments
+        .last()
+        .is_some_and(|last| WEAK_CREDENTIAL_NAMES.contains(last))
+    {
+        return true;
     }
     CREDENTIAL_SEQUENCES
         .iter()
@@ -665,21 +683,47 @@ fn is_security_control(name: &str, lower_args: &[String]) -> bool {
 // Files: targets, deletes, protected locations
 // ---------------------------------------------------------------------------------------------------------------------
 
-fn is_flag(arg: &str) -> bool {
+/// A command argument that names a path, with its resolution.
+struct Target {
+    raw: String,
+    path: Result<ResolvedPath, PathIssue>,
+}
+
+impl Target {
+    /// True when the target is at a protected location. A target the engine could not resolve is judged by its text, so
+    /// a wildcard, trailing dot or short name cannot hide a protected location.
+    fn is_protected(&self, root: &ResolvedPath) -> bool {
+        match &self.path {
+            Ok(p) => is_protected(p, root),
+            Err(_) => raw_mentions_protected(&self.raw, root),
+        }
+    }
+}
+
+/// True for a switch rather than a path. A single-slash word of at most two characters is a switch in every dialect
+/// (`/s`, `/q`); longer ones only in `cmd`, where `/MIR` and `/purge` are switches and `/Windows` is not valid anyway. In
+/// PowerShell a longer `/word` is a rooted path.
+fn is_flag(arg: &str, dialect: Dialect) -> bool {
     if arg == "-" || arg == "--" {
         return true;
     }
     if arg.starts_with('-') {
         return !arg.contains(['\\', '/']) || arg.contains(':');
     }
-    arg.starts_with('/') && arg.len() > 1 && arg.len() <= 16 && !arg[1..].contains(['/', '\\'])
+    let tail = arg
+        .strip_prefix('/')
+        .filter(|t| !t.is_empty() && !t.contains(['/', '\\']));
+    match tail {
+        Some(t) => t.len() <= 2 || (dialect == Dialect::Cmd && t.len() <= 16),
+        None => false,
+    }
 }
 
 /// Paths a command argument list names: bare arguments plus values of `-Param:value` and `key=value` forms.
-fn target_paths(args: &[String], cwd: &ResolvedPath) -> Vec<Result<ResolvedPath, PathIssue>> {
+fn target_paths(args: &[String], cwd: &ResolvedPath, dialect: Dialect) -> Vec<Target> {
     let mut out = Vec::new();
     for arg in args {
-        let candidate: Option<&str> = if is_flag(arg) {
+        let candidate: Option<&str> = if is_flag(arg, dialect) {
             arg.split_once(':')
                 .filter(|_| arg.starts_with('-'))
                 .map(|(_, v)| v)
@@ -692,7 +736,10 @@ fn target_paths(args: &[String], cwd: &ResolvedPath) -> Vec<Result<ResolvedPath,
             Some(arg.as_str())
         };
         if let Some(c) = candidate {
-            out.push(ResolvedPath::resolve(Some(cwd), c));
+            out.push(Target {
+                raw: c.to_string(),
+                path: ResolvedPath::resolve(Some(cwd), c),
+            });
         }
     }
     out
@@ -766,14 +813,58 @@ fn delete_class(
     }
 }
 
-/// Locations an agent must never write: Git internals and the agent, hook and Vela policy directories (ADR-013, ADR-018).
-fn is_protected(path: &ResolvedPath) -> bool {
-    path.has_component(PROTECTED_COMPONENTS)
+/// Locations an agent must never write or delete: Git internals and the agent, hook and Vela policy directories
+/// (ADR-013, ADR-018). Judged below the worktree root.
+fn is_protected(path: &ResolvedPath, root: &ResolvedPath) -> bool {
+    path.components_below(root)
+        .iter()
+        .any(|c| PROTECTED_COMPONENTS.contains(c))
 }
 
-/// Directory names (case-folded) that mark a protected location wherever they appear in a path. The Antigravity adapter
-/// uses the same list to add path-scoped deny rules beside the native worktree write allow (NPP-2, ADR-018).
+/// The text-level check for a target that could not be resolved: any protected directory name in it, ignoring the
+/// trailing dots and spaces Windows would drop, after removing the worktree root prefix when present.
+fn raw_mentions_protected(raw: &str, root: &ResolvedPath) -> bool {
+    let text = raw.to_lowercase().replace('/', "\\");
+    let root_prefix = root.display().to_lowercase();
+    let rest = text.strip_prefix(&root_prefix).unwrap_or(&text);
+    rest.split('\\')
+        .map(|seg| {
+            seg.trim_start_matches(' ')
+                .trim_end_matches([' ', '.'])
+                .to_string()
+        })
+        .any(|seg| PROTECTED_COMPONENTS.contains(&seg.as_str()))
+}
+
+/// Directory names (case-folded) that mark a protected location below the worktree root.
 pub const PROTECTED_COMPONENTS: &[&str] = &[".git", ".agents", ".gemini", ".vela", ".antigravity"];
+
+/// What the native worktree write allow must exclude so it stays within what policy allows (ADR-009 NPP-2): the protected
+/// directories and the credential and key material that policy denies.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WriteExclusions {
+    /// Directory names that are never writable below the root (protected locations and credential directories).
+    pub components: Vec<String>,
+    /// File names that are never writable.
+    pub file_names: Vec<String>,
+    /// File-name prefixes that are never writable (`.env.` except the documented example suffixes).
+    pub file_prefixes: Vec<String>,
+    /// File extensions that are never writable.
+    pub file_extensions: Vec<String>,
+}
+
+/// The exclusions, derived from the same tables the classifier uses.
+pub fn write_exclusions() -> WriteExclusions {
+    let owned = |items: &[&str]| items.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
+    let mut components = owned(PROTECTED_COMPONENTS);
+    components.extend(owned(CREDENTIAL_DIRS));
+    WriteExclusions {
+        components,
+        file_names: owned(CREDENTIAL_FILES),
+        file_prefixes: vec![".env.".to_string()],
+        file_extensions: owned(CREDENTIAL_EXTENSIONS),
+    }
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Git
@@ -826,6 +917,18 @@ fn long(rest: &[String], names: &[&str]) -> bool {
     })
 }
 
+/// Like [`long`], but also true for an abbreviation of a name: Git accepts any unambiguous prefix of a long option, so
+/// `--forc` is `--force`. Used for options that make a command more dangerous, where over-matching only errs toward the
+/// stricter class.
+fn long_abbrev(rest: &[String], names: &[&str]) -> bool {
+    rest.iter().any(|a| {
+        a.strip_prefix("--").is_some_and(|body| {
+            let body = body.split('=').next().unwrap_or("");
+            !body.is_empty() && names.iter().any(|n| n.starts_with(body))
+        })
+    })
+}
+
 fn short(rest: &[String], flag: char) -> bool {
     rest.iter()
         .any(|a| a.starts_with('-') && !a.starts_with("--") && a[1..].contains(flag))
@@ -836,7 +939,7 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
     let positional: Vec<&String> = rest.iter().filter(|a| !a.starts_with('-')).collect();
     match sub {
         "push" => {
-            let force = long(
+            let force = long_abbrev(
                 rest,
                 &[
                     "force",
@@ -854,7 +957,7 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
             if force { GitForcePush } else { GitPush }
         }
         "reset" => {
-            if long(rest, &["hard", "merge"]) {
+            if long_abbrev(rest, &["hard", "merge"]) {
                 GitDestructive
             } else {
                 GitMutate
@@ -882,14 +985,14 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
             }
         }
         "restore" => {
-            if long(rest, &["staged"]) && !long(rest, &["worktree"]) {
+            if long(rest, &["staged"]) && !long_abbrev(rest, &["worktree"]) {
                 GitMutate
             } else {
                 GitDestructive
             }
         }
         "switch" => {
-            if long(rest, &["force", "discard-changes"]) || short(rest, 'f') {
+            if long_abbrev(rest, &["force", "discard-changes"]) || short(rest, 'f') {
                 GitDestructive
             } else {
                 GitMutate
@@ -946,7 +1049,7 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
             _ => GitInspect,
         },
         "gc" => {
-            if long(rest, &["prune", "aggressive"]) {
+            if long_abbrev(rest, &["prune", "aggressive"]) {
                 GitDestructive
             } else {
                 GitMutate
@@ -962,7 +1065,7 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
         }
         "worktree" => match positional.first().map(|s| s.as_str()) {
             Some("list") => GitInspect,
-            Some("remove") | Some("prune") if long(rest, &["force"]) || short(rest, 'f') => {
+            Some("remove") | Some("prune") if long_abbrev(rest, &["force"]) || short(rest, 'f') => {
                 GitDestructive
             }
             _ => GitMutate,
@@ -994,7 +1097,7 @@ fn git_subcommand_class(sub: &str, rest: &[String]) -> OperationClass {
                 "exec",
                 "paginate",
             ];
-            if long(rest, EXEC_FLAGS) || rest.iter().any(|a| a.starts_with("-O")) {
+            if long_abbrev(rest, EXEC_FLAGS) || rest.iter().any(|a| a.starts_with("-O")) {
                 GitMutate
             } else {
                 GitInspect

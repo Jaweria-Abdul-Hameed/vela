@@ -16,7 +16,7 @@ Base (fixed point, recorded): `efc6ef3cd0ddc5fb0c05ccf054382e613c4645f8` (`main`
 | `path.rs` | Lexical Windows path resolution (case-fold, `.`/`..`, UNC, drive forms) and `Placement`; refuses device namespaces, alternate streams, short names, `~`, reserved names. |
 | `normalizer.rs` | `normalize(text, Dialect)` for one simple command in PowerShell or cmd syntax; typed `Rejection` for pipes, redirection, chaining, subexpressions, expansion, escapes, comments, wildcards, quote tricks, invisible and look-alike characters; `Unspecified` requires agreement of both dialects. |
 | `operation.rs` | `Operation`, `TrustState`, `RunMode`, `ProfileEntry` (validated on deserialization), `CommandProfile`, `PolicyContext`. |
-| `classify.rs` | `OperationClass` (21 classes) and the table-driven classifier (Git, deletes, credentials, security controls, protected paths, nested shells, network, system, infrastructure). |
+| `classify.rs` | `OperationClass` (20 classes) and the table-driven classifier (Git, deletes, credentials, security controls, protected paths, nested shells, network, system, infrastructure). |
 | `rule.rs` | `Decision`, `RuleId`, `RuleCondition`, `Rule`, `RuleSet` with creation-time conflict reporting (`Shadowed`, `Redundant`, `Overlap`) and the `ALLOW`-basis invariant. |
 | `defaults.rs` | The ordered default rules and `default_rules_with(user_rules)`. |
 | `engine.rs` | `PolicyEngine::evaluate` and `PolicyDecision {decision, rule_id, reason, scope}`; post-match re-check of the `ALLOW` basis. |
@@ -44,6 +44,27 @@ Run on a Linux cloud host (local Rust works here, unlike the Windows development
 | `cargo fmt --all --check` | 0 | |
 | `cargo clippy --workspace --exclude vela-desktop --exclude fake-approval-window --all-targets --locked -- -D warnings` | 0 | |
 | `cargo build --workspace --exclude ... --locked --all-targets` | 0 | about 21 s |
-| `cargo test --workspace --exclude ... --locked` | 0 | `vela-domain` 172 tests (includes the nested `hook-table` and `fault-injection` configuration run), `vela-testkit` 53 |
-| `cargo test -p vela-domain --lib --locked --no-default-features --features hook-table policy` | 0 | 45 policy tests with only `serde` |
+| `cargo test --workspace --exclude ... --locked` | 0 | `vela-domain` 181 tests (includes the nested `hook-table` and `fault-injection` configuration run), `vela-testkit` 53 |
+| `cargo test -p vela-domain --lib --locked --no-default-features --features hook-table policy` | 0 | 54 policy tests with only `serde` |
 | `node scripts/check-crate-deps.mjs`, `node scripts/check-module-skeleton.mjs` | 0 | |
+
+## Review
+
+Reviewer: the `/code-review` skill (forked execution), invoked as `code-review <fixed_point>...HEAD high`, fixed point `efc6ef3cd0ddc5fb0c05ccf054382e613c4645f8`. The skill returns no severities (REVIEW_PROTOCOL.md); classification below is by the Engineering exit policy. A first invocation with the bare SHA reviewed that commit itself (a docs commit) rather than the range, produced only `CURRENT_STATE.md` findings unrelated to D05, and is not counted as an iteration.
+
+### Iteration 1 (head `7443fbf1e90867a205039ebca0e144b92f03e3c7`): 10 findings, all treated as blocking (correctness or specification), all fixed
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Protected-path and credential checks looked at the worktree root's own components. | Fixed: judged on `components_below(root)`; tested with roots under `.vela`, `.docker`, `.git`. |
+| 2 | `canonical_text` left shell-significant arguments unquoted, so a stored profile entry could not be reloaded. | Fixed: quote unless a plain word; `ProfileEntry::parse` runs the same validation as load. |
+| 3 | Native `WriteWithin` excluded only protected directories, not credential material. | Fixed: `WriteExclusions` (components, file names, prefixes, extensions) from the classifier's own tables. |
+| 4 | `/Windows` was a "flag", so `Remove-Item /Windows -Recurse` was ASK. | Fixed: dialect-aware switch rule (`/x` of up to two characters in every dialect, longer only in `cmd`). |
+| 5 | Deleting a protected location was ASK, writing it DENY. | Fixed: class renamed `ProtectedPathChange`, covers deletes (structured and commands). |
+| 6 | Generic names (`token`, `credentials`) matched at any depth. | Fixed: final component only. `hosts.yml` is credential only under `gh`. |
+| 7 | Unresolvable targets and `format.` (trailing dot) escaped the protected and DENY tables. | Fixed: text-level fallback for unresolved targets; trailing dots and spaces stripped for executable lookup (not for profile matching). A bare wildcard was already rejected by the normalizer (ASK). |
+| 8 | Git long options accepted as abbreviations (`--forc`). | Fixed: danger options match any prefix; lenient options (`--dry-run`, `--staged`) still need the full name. |
+| 9 | `RuleSet::from_rules` did not enforce the tier invariants. | Fixed: only `DENY` before the user tier, nothing that allows inside it, tier within bounds. |
+| 10 | Profile working-directory matching used ASCII case folding "while placement used Unicode". | The premise is inaccurate (both use the ASCII fold of `case_fold_key`), but the two code paths were separate; matching now compares resolved paths, so they cannot diverge. Behavior for non-ASCII case differences is conservative and tested. |
+
+Regression tests: `protected_and_credential_checks_ignore_the_worktrees_own_location`, `generic_credential_names_count_only_as_the_final_component`, `quoted_arguments_with_shell_characters_survive_storage`, `rooted_slash_paths_are_delete_targets_in_powershell`, `deleting_protected_locations_is_denied_like_writing_them`, `unresolvable_targets_cannot_hide_a_protected_location_or_a_denied_executable`, `git_long_option_abbreviations_cannot_bypass_the_deny_tiers`, `a_rule_set_re_establishes_its_tier_invariants_on_load`, `non_ascii_worktree_paths_match_consistently`.

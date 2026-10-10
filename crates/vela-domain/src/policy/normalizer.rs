@@ -133,7 +133,9 @@ impl NormalizedCommand {
 
     /// The executable name used for table lookups: basename, without a script or executable extension.
     pub(crate) fn lookup_name(&self) -> String {
+        // Windows drops trailing dots and spaces from a file name, so `format.` runs `format`.
         let base = self.executable.rsplit(['\\', '/']).next().unwrap_or("");
+        let base = base.trim_end_matches(['.', ' ']);
         for ext in [".exe", ".com", ".cmd", ".bat", ".ps1"] {
             if let Some(stem) = base.strip_suffix(ext) {
                 return stem.to_string();
@@ -142,18 +144,24 @@ impl NormalizedCommand {
         base.to_string()
     }
 
-    /// A canonical one-line form. Arguments with whitespace or none are double-quoted; the grammar guarantees no argument
-    /// contains a quote, so the form re-parses to the same command in both dialects.
+    /// A canonical one-line form for display, profile storage and native rules. Arguments that are not plain words
+    /// (whitespace, shell-significant characters, or none at all) are double-quoted; the grammar guarantees no argument
+    /// contains a double quote, so the form re-parses to the same command under `cmd`, the more permissive bare-word
+    /// grammar. A command that cannot be written that way is refused when it is stored (see `ProfileEntry::parse`).
     pub fn canonical_text(&self) -> String {
         let mut out = self.executable.clone();
         for arg in &self.args {
             out.push(' ');
-            if arg.is_empty() || arg.contains(char::is_whitespace) {
-                out.push('"');
+            let plain = !arg.is_empty()
+                && arg
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || "-_./\\:=+~".contains(c));
+            if plain {
                 out.push_str(arg);
-                out.push('"');
             } else {
+                out.push('"');
                 out.push_str(arg);
+                out.push('"');
             }
         }
         out

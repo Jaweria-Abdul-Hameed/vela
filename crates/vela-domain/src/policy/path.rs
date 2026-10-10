@@ -201,18 +201,19 @@ impl ResolvedPath {
         }
     }
 
-    /// The case-folded components below the prefix.
-    pub(crate) fn components_folded(&self) -> Vec<String> {
-        self.folded().map(str::to_string).collect()
+    /// The case-folded components that count for protected-location and credential checks: those below `root` when the
+    /// path is at or below it (the worktree's own location is not the agent's doing), otherwise all of them.
+    pub(crate) fn components_below(&self, root: &ResolvedPath) -> Vec<&str> {
+        let skip = match self.relation_to(root) {
+            Relation::Equal | Relation::Below => root.parts.len(),
+            Relation::Above | Relation::Disjoint => 0,
+        };
+        self.parts.iter().skip(skip).map(|p| p.0.as_str()).collect()
     }
 
-    fn folded(&self) -> impl Iterator<Item = &str> {
-        self.parts.iter().map(|p| p.0.as_str())
-    }
-
-    /// True when any component equals one of `names` (already case-folded).
-    pub(crate) fn has_component(&self, names: &[&str]) -> bool {
-        self.folded().any(|c| names.contains(&c))
+    /// True when the path equals `other` (same prefix, same folded components).
+    pub(crate) fn same_as(&self, other: &ResolvedPath) -> bool {
+        self.relation_to(other) == Relation::Equal
     }
 }
 
@@ -309,13 +310,17 @@ mod tests {
     }
 
     #[test]
-    fn component_helpers_see_protected_names() {
+    fn components_below_the_root_exclude_the_roots_own_location() {
         let r = root();
         let p = ResolvedPath::resolve(Some(&r), r".GIT\hooks\pre-commit").unwrap();
-        assert!(p.has_component(&[".git"]));
+        assert_eq!(p.components_below(&r), [".git", "hooks", "pre-commit"]);
+        let outside = ResolvedPath::resolve(None, r"C:\Users\a\.ssh\id_rsa").unwrap();
         assert_eq!(
-            p.components_folded(),
-            ["work", "repo", ".git", "hooks", "pre-commit"]
+            outside.components_below(&r),
+            ["users", "a", ".ssh", "id_rsa"]
+        );
+        assert!(
+            p.same_as(&ResolvedPath::resolve(None, r"c:\WORK\repo\.git\HOOKS\pre-commit").unwrap())
         );
     }
 }

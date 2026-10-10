@@ -182,11 +182,12 @@ impl ProfileEntry {
         if dir.placement(&root) != Placement::InsideRoot {
             return Err(ContextError::InvalidProfileDirectory);
         }
-        Ok(ProfileEntry {
+        let entry = ProfileEntry::try_from(RawProfileEntry {
             executable: command.executable().to_string(),
             args: command.args().to_vec(),
             cwd: dir.display(),
-        })
+        })?;
+        Ok(entry)
     }
 
     /// The normalized executable.
@@ -239,11 +240,10 @@ impl CommandProfile {
 
     /// True when `command` run in `cwd` equals an entry exactly.
     pub(crate) fn matches(&self, command: &NormalizedCommand, cwd: &ResolvedPath) -> bool {
-        let shown = cwd.display();
         self.entries.iter().any(|e| {
             e.executable == command.executable()
                 && e.args == command.args()
-                && e.cwd.eq_ignore_ascii_case(&shown)
+                && ResolvedPath::resolve(None, &e.cwd).is_ok_and(|dir| dir.same_as(cwd))
         })
     }
 }

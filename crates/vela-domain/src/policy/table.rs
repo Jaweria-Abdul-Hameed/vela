@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::classify::{PROTECTED_COMPONENTS, command_facts_for_parts};
+use super::classify::{WriteExclusions, command_facts_for_parts, write_exclusions};
 use super::engine::PolicyEngine;
 use super::operation::{
     CommandProfile, ContextError, PolicyContext, ProfileEntry, RunMode, TrustState,
@@ -106,14 +106,14 @@ pub enum NativeAllowRule {
         /// The canonical absolute working directory.
         cwd: String,
     },
-    /// Allow writes below this directory. Policy denies protected locations inside it (the hook enforces that); the adapter
-    /// adds path-scoped deny rules for `protected_components` where the native syntax allows, so the native envelope stays
-    /// within what policy allows (ADR-009 NPP-2).
+    /// Allow writes below this directory. Policy denies protected locations and credential material inside it (the hook
+    /// enforces that); the adapter adds path-scoped deny rules for `exclusions` where the native syntax allows, so the
+    /// native envelope stays within what policy allows (ADR-009 NPP-2).
     WriteWithin {
         /// The canonical worktree root.
         root: String,
-        /// Directory names that are never writable below `root`.
-        protected_components: Vec<String>,
+        /// What is never writable below `root`.
+        exclusions: WriteExclusions,
     },
 }
 
@@ -142,10 +142,7 @@ pub fn native_allow_rules(engine: &PolicyEngine) -> Vec<NativeAllowRule> {
     }
     out.push(NativeAllowRule::WriteWithin {
         root: ctx.worktree_root(),
-        protected_components: PROTECTED_COMPONENTS
-            .iter()
-            .map(|c| (*c).to_string())
-            .collect(),
+        exclusions: write_exclusions(),
     });
     out
 }

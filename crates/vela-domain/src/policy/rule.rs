@@ -167,7 +167,8 @@ pub enum RuleError {
     Shadowed(RuleConflict),
     /// The rule set has more than [`MAX_RULES`] rules.
     TooManyRules,
-    /// The user tier does not lie within the rules.
+    /// The user tier does not lie within the rules, or the tiers hold the wrong outcomes (only `DENY` before the user tier,
+    /// nothing that allows inside it).
     InvalidUserTier,
 }
 
@@ -271,6 +272,16 @@ impl RuleSet {
             .checked_add(user_len)
             .is_none_or(|end| end > rules.len())
         {
+            return Err(RuleError::InvalidUserTier);
+        }
+        // The tiers: only `DENY` before the user tier, and nothing that allows inside it.
+        let tiers_hold = rules[..user_start]
+            .iter()
+            .all(|r| r.effect == Decision::Deny)
+            && rules[user_start..user_start + user_len]
+                .iter()
+                .all(|r| r.effect != Decision::Allow);
+        if !tiers_hold {
             return Err(RuleError::InvalidUserTier);
         }
         let mut set = RuleSet {
