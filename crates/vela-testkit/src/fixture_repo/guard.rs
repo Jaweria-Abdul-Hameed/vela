@@ -273,10 +273,7 @@ mod tests {
             provider(r"C:\Users\Ada\Box Sync\repos"),
             Some(SyncProvider::Box)
         );
-        assert_eq!(
-            provider(r"C:\Users\Ada\Box\repos"),
-            Some(SyncProvider::Box)
-        );
+        assert_eq!(provider(r"C:\Users\Ada\Box\repos"), Some(SyncProvider::Box));
         assert_eq!(
             provider("/Users/ada/Library/CloudStorage/Box-Box/repos"),
             Some(SyncProvider::Box)

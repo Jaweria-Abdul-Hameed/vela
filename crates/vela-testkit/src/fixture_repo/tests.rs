@@ -74,7 +74,10 @@ fn the_specification_fields_agree_with_the_builders() {
     assert_eq!(entry["defect"]["path"], defect.path);
     assert_eq!(entry["defect"]["branch"], defect.branch);
     // Exact tracked file sets for the kinds that only list main (a stray extra file fails).
-    for kind in [FixtureKind::SchemaOverlapPair, FixtureKind::MergeConflictPair] {
+    for kind in [
+        FixtureKind::SchemaOverlapPair,
+        FixtureKind::MergeConflictPair,
+    ] {
         let repo = FixtureRepo::create(kind).unwrap();
         assert_eq!(files_on(&repo, MAIN_BRANCH).len(), 14, "{}", kind.name());
     }

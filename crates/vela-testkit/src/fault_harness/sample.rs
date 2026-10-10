@@ -107,8 +107,8 @@ impl SampleStateMachine {
     fn persist(&self, state: SampleState) -> Result<(), HarnessError> {
         let tmp = self.dir.join(STATE_TMP_FILE);
         let target = self.dir.join(STATE_FILE);
-        let mut file = std::fs::File::create(&tmp)
-            .map_err(|e| io(format!("create {}", tmp.display()), e))?;
+        let mut file =
+            std::fs::File::create(&tmp).map_err(|e| io(format!("create {}", tmp.display()), e))?;
         file.write_all(state.name().as_bytes())
             .and_then(|()| file.sync_all())
             .map_err(|e| io(format!("write {}", tmp.display()), e))?;
@@ -386,7 +386,11 @@ mod tests {
         std::fs::write(scratch.path().join(STATE_TMP_FILE), "committed").unwrap();
         let machine = SampleStateMachine::new(scratch.path());
         let outcome = machine.recover().unwrap();
-        assert_eq!(outcome.found, SampleState::Fresh, "the temporary was never the state");
+        assert_eq!(
+            outcome.found,
+            SampleState::Fresh,
+            "the temporary was never the state"
+        );
         assert!(!scratch.path().join(STATE_TMP_FILE).exists());
     }
 
