@@ -59,6 +59,11 @@ CI runs on the branch (windows-latest; every push):
 | 38061609595 | `99019e2` | FAIL: rustfmt diff |
 | 38061752167 | `7cba6b7` | PASS (both jobs): first code checkpoint |
 | 38062014402 | `2f54390` | PASS (both jobs): review iteration 1 head |
+| 38062601858 | `839fa0a` | FAIL: rustfmt diff |
+| 38062724626 | `3004747` | PASS |
+| 38062964635 | `e79c39b` | PASS: review iteration 2 head (51 tests) |
+| 38063974331 | `858ef0a` | FAIL: rustfmt diff |
+| 38064077495 | `53bf7d7` | PASS: code after review 2 |
 
 ## Write-surface and scope check
 
