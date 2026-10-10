@@ -156,8 +156,8 @@ mod tests {
     };
     use super::*;
     use crate::fixture_repo::ScratchDir;
-    use vela_domain::fault::FaultPoint;
     use std::time::Duration;
+    use vela_domain::fault::FaultPoint;
 
     /// The exact libtest name of the child below.
     const CHILD: &str = "fault_harness::sample::tests::child_sample_state_machine";
