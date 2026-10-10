@@ -284,7 +284,14 @@ mod tests {
 
     #[test]
     fn accessors_return_what_was_recorded() {
-        let result = GateResult::new("cargo clippy", GateStatus::Fail, Some(2), Some(1500), "lint").unwrap();
+        let result = GateResult::new(
+            "cargo clippy",
+            GateStatus::Fail,
+            Some(2),
+            Some(1500),
+            "lint",
+        )
+        .unwrap();
         assert_eq!(result.gate(), "cargo clippy");
         assert_eq!(result.status(), GateStatus::Fail);
         assert_eq!(result.exit_code(), Some(2));
@@ -296,7 +303,8 @@ mod tests {
     /// gate result can always be replayed.
     #[cfg(feature = "full")]
     #[test]
-    fn every_constructible_gate_result_round_trips_and_every_invalid_combination_is_rejected_on_read() {
+    fn every_constructible_gate_result_round_trips_and_every_invalid_combination_is_rejected_on_read()
+     {
         let statuses = [
             GateStatus::Pass,
             GateStatus::Fail,
@@ -316,7 +324,13 @@ mod tests {
                     let read = serde_json::from_str::<GateResult>(&json);
                     match built {
                         Ok(value) => {
-                            assert_eq!(serde_json::from_str::<GateResult>(&serde_json::to_string(&value).unwrap()).unwrap(), value);
+                            assert_eq!(
+                                serde_json::from_str::<GateResult>(
+                                    &serde_json::to_string(&value).unwrap()
+                                )
+                                .unwrap(),
+                                value
+                            );
                             assert_eq!(read.unwrap(), value);
                         }
                         Err(_) => assert!(read.is_err(), "{json} must be rejected on read"),
@@ -335,7 +349,10 @@ mod tests {
             r#"{"gate":"","status":"fail","exit_code":1,"duration_ms":null,"summary":""}"#,
             r#"{"gate":"g","status":"not_applicable","exit_code":0,"duration_ms":null,"summary":""}"#,
         ] {
-            assert!(serde_json::from_str::<GateResult>(forged).is_err(), "{forged}");
+            assert!(
+                serde_json::from_str::<GateResult>(forged).is_err(),
+                "{forged}"
+            );
         }
     }
 

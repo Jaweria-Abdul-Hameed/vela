@@ -520,7 +520,8 @@ mod tests {
         assert!(
             parse_wrapper_names("export const commandNamesByGroup = ['a.b'] as const;").is_empty()
         );
-        let both = "export const commandNamesByGroup = ['x.y'];\nexport const commandNames = ['a.b'];";
+        let both =
+            "export const commandNamesByGroup = ['x.y'];\nexport const commandNames = ['a.b'];";
         assert_eq!(parse_wrapper_names(both), ["a.b"]);
         let urlish = "export const commandNames = ['a.b//c'] as const;";
         assert_eq!(parse_wrapper_names(urlish), ["a.b//c"]);

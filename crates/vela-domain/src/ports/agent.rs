@@ -311,7 +311,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn conversation_ids_accept_provider_style_ids_and_reject_anything_that_could_be_an_option_or_injection() {
+    fn conversation_ids_accept_provider_style_ids_and_reject_anything_that_could_be_an_option_or_injection()
+     {
         for ok in [
             "c-1",
             "4f6a2c1e-9b7d-4a55-8e3f-0a1b2c3d4e5f",

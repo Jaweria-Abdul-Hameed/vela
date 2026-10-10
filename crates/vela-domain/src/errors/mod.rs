@@ -482,7 +482,8 @@ mod tests {
         ];
         for side_effects in effects {
             assert!(side_effects.any());
-            let transient = VelaError::of_class(ErrorClass::ExternalTemporary, "timeout after send");
+            let transient =
+                VelaError::of_class(ErrorClass::ExternalTemporary, "timeout after send");
             assert!(transient.may_retry());
             assert!(!transient.requires_reconciliation());
 
