@@ -768,10 +768,16 @@ mod tests {
             // The hand-maintained `ALL` arrays must list every specified name (an omission would silently drop it
             // from every `ALL`-driven loop and test).
             if let Some(class) = as_class {
-                assert!(ErrorClass::ALL.contains(&class), "{token} missing from ErrorClass::ALL");
+                assert!(
+                    ErrorClass::ALL.contains(&class),
+                    "{token} missing from ErrorClass::ALL"
+                );
             }
             if let Some(code) = as_code {
-                assert!(ErrorCode::ALL.contains(&code), "{token} missing from ErrorCode::ALL");
+                assert!(
+                    ErrorCode::ALL.contains(&code),
+                    "{token} missing from ErrorCode::ALL"
+                );
             }
         }
         assert!(
