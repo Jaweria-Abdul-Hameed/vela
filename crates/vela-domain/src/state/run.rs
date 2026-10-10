@@ -593,7 +593,10 @@ mod tests {
                 add(needs(kind, phase), S::Active(phase));
                 add(needs(kind, phase), S::Cancelled);
                 if kind != InterventionKind::ProviderPolicyBlock {
-                    add(needs(kind, phase), needs(InterventionKind::ProviderPolicyBlock, phase));
+                    add(
+                        needs(kind, phase),
+                        needs(InterventionKind::ProviderPolicyBlock, phase),
+                    );
                 }
             }
         }
@@ -664,12 +667,21 @@ mod tests {
         let gate = needs(InterventionKind::PolicyViolation, P::Running);
         // A gated run cannot enter an ungated STOPPING (that would turn the gate into a plain pause).
         assert!(matches!(
-            gate.table(S::Stopping { resume_state: P::Running, gate: None }, Cause::System),
+            gate.table(
+                S::Stopping {
+                    resume_state: P::Running,
+                    gate: None
+                },
+                Cause::System
+            ),
             Err(TransitionError::Illegal { .. })
         ));
         let stopping = gate
             .table(
-                S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::PolicyViolation) },
+                S::Stopping {
+                    resume_state: P::Running,
+                    gate: Some(InterventionKind::PolicyViolation),
+                },
                 Cause::System,
             )
             .unwrap();
@@ -694,7 +706,9 @@ mod tests {
         // And the resume afterwards still needs the user.
         assert_eq!(
             gate.table(S::Active(P::Running), Cause::System),
-            Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+            Err(TransitionError::ExplicitDecisionRequired {
+                machine: Machine::Run
+            })
         );
     }
 
@@ -703,9 +717,18 @@ mod tests {
         let gate = needs(InterventionKind::AuthRequired, P::Running);
         let block = needs(InterventionKind::ProviderPolicyBlock, P::Running);
         assert_eq!(gate.table(block, Cause::System), Ok(block));
-        assert!(gate.table(needs(InterventionKind::Other, P::Running), Cause::System).is_err());
+        assert!(
+            gate.table(needs(InterventionKind::Other, P::Running), Cause::System)
+                .is_err()
+        );
         assert!(block.table(gate, Cause::UserDecision).is_err());
-        assert!(gate.table(needs(InterventionKind::ProviderPolicyBlock, P::Starting), Cause::System).is_err());
+        assert!(
+            gate.table(
+                needs(InterventionKind::ProviderPolicyBlock, P::Starting),
+                Cause::System
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -717,9 +740,14 @@ mod tests {
         ] {
             assert_eq!(
                 state.table(S::Cancelled, Cause::System),
-                Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+                Err(TransitionError::ExplicitDecisionRequired {
+                    machine: Machine::Run
+                })
             );
-            assert_eq!(state.table(S::Cancelled, Cause::UserDecision), Ok(S::Cancelled));
+            assert_eq!(
+                state.table(S::Cancelled, Cause::UserDecision),
+                Ok(S::Cancelled)
+            );
         }
         // An automatic pause can be cancelled by the system.
         assert_eq!(
@@ -730,11 +758,13 @@ mod tests {
 
     #[test]
     fn stop_all_pauses_with_stop_all_only() {
-        let stopping = S::Stopping { resume_state: P::Running, gate: None };
+        let stopping = S::Stopping {
+            resume_state: P::Running,
+            gate: None,
+        };
         for reason in PausedReason::ALL {
             let result = stopping.table(paused(reason, P::Running), Cause::System);
-            let direct =
-                S::Active(P::Running).table(paused(reason, P::Running), Cause::System);
+            let direct = S::Active(P::Running).table(paused(reason, P::Running), Cause::System);
             let rejected = Err(TransitionError::ReasonNotAllowed {
                 machine: Machine::Run,
                 reason,
@@ -767,7 +797,11 @@ mod tests {
             // Other transitions are not gated by health.
             assert!(
                 running
-                    .transition(paused(PausedReason::Manual, P::Running), Cause::System, health)
+                    .transition(
+                        paused(PausedReason::Manual, P::Running),
+                        Cause::System,
+                        health
+                    )
                     .is_ok()
             );
         }
@@ -831,7 +865,10 @@ mod tests {
         let start = S::Active(P::FinalValidation);
         let stopping = start
             .table(
-                S::Stopping { resume_state: P::FinalValidation, gate: None },
+                S::Stopping {
+                    resume_state: P::FinalValidation,
+                    gate: None,
+                },
                 Cause::UserDecision,
             )
             .unwrap();
@@ -848,7 +885,10 @@ mod tests {
         // A wrong resume_state is a typed error, not a silent rewrite.
         assert!(matches!(
             S::Active(P::Running).table(
-                S::Stopping { resume_state: P::Created, gate: None },
+                S::Stopping {
+                    resume_state: P::Created,
+                    gate: None
+                },
                 Cause::System
             ),
             Err(TransitionError::ResumeStateMismatch { .. })
@@ -907,11 +947,17 @@ mod tests {
             vec![
                 (S::Active(P::Running), Cause::UserDecision),
                 (
-                    S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::ProviderPolicyBlock) },
+                    S::Stopping {
+                        resume_state: P::Running,
+                        gate: Some(InterventionKind::ProviderPolicyBlock)
+                    },
                     Cause::System
                 ),
                 (
-                    S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::ProviderPolicyBlock) },
+                    S::Stopping {
+                        resume_state: P::Running,
+                        gate: Some(InterventionKind::ProviderPolicyBlock)
+                    },
                     Cause::UserDecision
                 ),
                 (S::Failed, Cause::System),
@@ -926,8 +972,14 @@ mod tests {
             })
         );
         for to in [
-            S::Stopping { resume_state: P::Running, gate: None },
-            S::Stopping { resume_state: P::Preflight, gate: Some(InterventionKind::ProviderPolicyBlock) },
+            S::Stopping {
+                resume_state: P::Running,
+                gate: None,
+            },
+            S::Stopping {
+                resume_state: P::Preflight,
+                gate: Some(InterventionKind::ProviderPolicyBlock),
+            },
             paused(PausedReason::Manual, P::Running),
             needs(InterventionKind::Other, P::Running),
             S::Active(P::FinalReview),
@@ -942,7 +994,10 @@ mod tests {
             );
         }
         // Stop All keeps the hold: STOPPING of a block returns only to the block (or fails), never to PAUSED or work.
-        let stopping_block = S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::ProviderPolicyBlock) };
+        let stopping_block = S::Stopping {
+            resume_state: P::Running,
+            gate: Some(InterventionKind::ProviderPolicyBlock),
+        };
         for to in S::all() {
             for cause in [Cause::System, Cause::UserDecision] {
                 assert_eq!(
@@ -953,7 +1008,10 @@ mod tests {
             }
         }
         // A block reached through STOPPING is held the same way.
-        let via_stop = S::Stopping { resume_state: P::Running, gate: None }
+        let via_stop = S::Stopping {
+            resume_state: P::Running,
+            gate: None,
+        }
         .table(block, Cause::System)
         .unwrap();
         assert_eq!(via_stop, block);

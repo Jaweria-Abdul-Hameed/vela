@@ -599,10 +599,7 @@ mod tests {
         ] {
             state = state.table(S::Active(next), Cause::System).unwrap();
         }
-        assert_eq!(
-            state.table(S::Complete, Cause::System),
-            Ok(S::Complete)
-        );
+        assert_eq!(state.table(S::Complete, Cause::System), Ok(S::Complete));
         // CONFLICT_RESOLUTION is entered only from MERGING and cannot skip back to READY_TO_MERGE.
         assert!(
             S::Active(P::ReadyToMerge)
@@ -657,20 +654,29 @@ mod tests {
     fn merge_lane_entry_and_worker_start_need_healthy_integration() {
         let ready = S::Active(P::ReadyToMerge);
         let merging = S::Active(P::Merging);
-        assert_eq!(ready.transition(merging, Cause::System, HEALTHY), Ok(merging));
+        assert_eq!(
+            ready.transition(merging, Cause::System, HEALTHY),
+            Ok(merging)
+        );
         for health in [IntegrationHealth::Unknown, IntegrationHealth::Unhealthy] {
             assert_eq!(
                 ready.transition(merging, Cause::System, health),
-                Err(TransitionError::IntegrationNotHealthy { health: health.name() })
+                Err(TransitionError::IntegrationNotHealthy {
+                    health: health.name()
+                })
             );
             assert_eq!(
                 WorkerStatus::provision(health),
-                Err(TransitionError::IntegrationNotHealthy { health: health.name() })
+                Err(TransitionError::IntegrationNotHealthy {
+                    health: health.name()
+                })
             );
             // Running workers continue up to READY_TO_MERGE and are not gated elsewhere.
-            assert!(S::Active(P::Implementing)
-                .transition(S::Active(P::FocusedValidation), Cause::System, health)
-                .is_ok());
+            assert!(
+                S::Active(P::Implementing)
+                    .transition(S::Active(P::FocusedValidation), Cause::System, health)
+                    .is_ok()
+            );
         }
         assert_eq!(
             WorkerStatus::provision(HEALTHY),
@@ -683,7 +689,13 @@ mod tests {
         let gate = needs(InterventionKind::AuthRequired, P::Implementing);
         let block = needs(InterventionKind::ProviderPolicyBlock, P::Implementing);
         assert_eq!(gate.table(block, Cause::System), Ok(block));
-        assert!(gate.table(needs(InterventionKind::Other, P::Implementing), Cause::System).is_err());
+        assert!(
+            gate.table(
+                needs(InterventionKind::Other, P::Implementing),
+                Cause::System
+            )
+            .is_err()
+        );
         assert!(block.table(gate, Cause::UserDecision).is_err());
     }
 
