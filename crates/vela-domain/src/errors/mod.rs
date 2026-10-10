@@ -759,9 +759,20 @@ mod tests {
             }
             seen += 1;
             let wire = format!("\"{token}\"");
-            let as_class = serde_json::from_str::<ErrorClass>(&wire).is_ok();
-            let as_code = serde_json::from_str::<ErrorCode>(&wire).is_ok();
-            assert!(as_class || as_code, "{token} is not modelled");
+            let as_class = serde_json::from_str::<ErrorClass>(&wire).ok();
+            let as_code = serde_json::from_str::<ErrorCode>(&wire).ok();
+            assert!(
+                as_class.is_some() || as_code.is_some(),
+                "{token} is not modelled"
+            );
+            // The hand-maintained `ALL` arrays must list every specified name (an omission would silently drop it
+            // from every `ALL`-driven loop and test).
+            if let Some(class) = as_class {
+                assert!(ErrorClass::ALL.contains(&class), "{token} missing from ErrorClass::ALL");
+            }
+            if let Some(code) = as_code {
+                assert!(ErrorCode::ALL.contains(&code), "{token} missing from ErrorCode::ALL");
+            }
         }
         assert!(
             seen >= 18,

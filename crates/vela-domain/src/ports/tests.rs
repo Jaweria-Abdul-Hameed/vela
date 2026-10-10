@@ -156,6 +156,7 @@ impl GitMerges for EveryGitCapability {
         &'a self,
         _ctx: &'a GitContext,
         _integration: &'a WorktreePath,
+        _integration_before: &'a CommitSha,
         _source: &'a BranchName,
         expected_head: &'a CommitSha,
     ) -> PortFuture<'a, MergeOutcome> {
@@ -208,7 +209,7 @@ fn wants_one_capability(git: &dyn GitRead) -> Result<RepoStatus, VelaError> {
 
 fn wants_the_original_port(git: &dyn GitAdapter) -> Result<MergeOutcome, VelaError> {
     let branch = BranchName::new("f02/x").unwrap();
-    block_on(git.merge(&ctx(), &path(), &branch, &sha()))
+    block_on(git.merge(&ctx(), &path(), &sha(), &branch, &sha()))
 }
 
 #[test]

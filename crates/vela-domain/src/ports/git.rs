@@ -364,10 +364,15 @@ pub trait GitMerges: Send + Sync {
     /// `review_head_sha` that passed review, `REVIEW_PROTOCOL.md`), refuses with a `VALIDATION_FAILURE` error and merges
     /// nothing. A worker branch that moved after review (a late checkpoint) therefore can never enter integration
     /// unreviewed. The merge lane (S12) passes the reviewed head recorded by the review service.
+    ///
+    /// It is likewise bound to the recorded reset point: the adapter refuses (also `VALIDATION_FAILURE`, nothing
+    /// merged) unless the integration worktree is clean and its head is exactly `integration_before`, the value the lane
+    /// journaled in `MergeStarted`. `discard_unpublished_merge` can then always return to a state the journal knows.
     fn merge<'a>(
         &'a self,
         ctx: &'a GitContext,
         integration: &'a WorktreePath,
+        integration_before: &'a CommitSha,
         source: &'a BranchName,
         expected_head: &'a CommitSha,
     ) -> PortFuture<'a, MergeOutcome>;

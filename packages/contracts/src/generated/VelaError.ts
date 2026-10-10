@@ -7,6 +7,12 @@ import type { SideEffects } from "./SideEffects";
 
 /**
  * The typed error every port returns. It answers the five questions of `ERROR_HANDLING.md`.
+ *
+ * Values are internally consistent: built through [`VelaError::from_code`] or [`VelaError::of_class`] (the fields are
+ * private) and re-checked when deserialized, so a journaled error cannot claim, for example, to be a retryable
+ * transient Vela error while carrying the `PROVIDER_POLICY_BLOCK` code. The rules ([`VelaError::validate`]): with a
+ * code, `class` and `origin` are the code's; without one the origin is Vela; `retry` is `Bounded` only for a retryable
+ * class whose code allows it and when the action had no side effects.
  */
 export type VelaError = { 
 /**

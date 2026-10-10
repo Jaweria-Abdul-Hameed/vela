@@ -27,3 +27,19 @@ each is recorded here for the owning ticket or the user. None blocks F02.
   run and worker state tables of D01), so F02 keeps them as strings. Tightening them to enums later changes the generated contract.
 - **Decision needed from.** The owning tickets (D01, K01): promote each to an enum when its set is implemented, as a documented
   contract change.
+
+## DR-F02-3: Do the approval error codes allow bounded re-detection?
+
+- **Specification facts.** `ERROR_HANDLING.md` lists six approval errors (`APPROVAL_SURFACE_NOT_FOUND`, `APPROVAL_TARGET_AMBIGUOUS`,
+  `APPROVAL_POLICY_UNKNOWN`, `APPROVAL_DELIVERY_FAILED`, `APPROVAL_STALLED`, `APPROVAL_WINDOW_MISMATCH`) and says "Never respond to
+  these by clicking repeatedly. Preserve the worker and surface an intervention when bounded recovery fails." It also says
+  `APPROVAL_SURFACE_UNAVAILABLE` "is not a failure: the worker pauses and reconciles on return". The document does not say whether the
+  "bounded recovery" is a bounded retry of *detection* (looking for the surface again) as opposed to re-*delivery* (clicking again), and
+  the class `EXTERNAL_TEMPORARY` means "bounded retry with backoff".
+- **What F02 did.** The conservative reading: every `ErrorCode::retry()` is `Never`, the stored retry disposition of an approval error is
+  `Never`, and `VelaError::may_retry()` is false for all of them. Two earlier reviews pulled in opposite directions on this
+  (iteration 1 required "never retry" for delivery failures; iteration 5 noted that "bounded recovery" suggests bounded re-detection), which
+  is why it is recorded rather than decided. The fallback is not a safety problem: nothing here ever authorizes a click; it only decides
+  whether the broker's own detection loop may consult `may_retry()`.
+- **Decision needed from.** The user, or the owner of the approval broker (K01): say which of the codes (if any) permit bounded
+  re-detection. The change is one arm of `ErrorCode::retry`, plus its test; no stored data depends on it yet.

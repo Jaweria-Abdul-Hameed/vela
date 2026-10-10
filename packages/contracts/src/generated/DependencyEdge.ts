@@ -3,7 +3,8 @@ import type { EdgeOrigin } from "./EdgeOrigin";
 import type { TicketId } from "./TicketId";
 
 /**
- * A "blocker must finish before blocked" edge between two tickets.
+ * A "blocker must finish before blocked" edge between two tickets. A ticket cannot block itself (that would be a
+ * cycle of length one), so such an edge can neither be constructed nor read back.
  */
 export type DependencyEdge = { 
 /**

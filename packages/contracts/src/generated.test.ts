@@ -31,6 +31,22 @@ describe('generated contracts', () => {
       payload: { reason: 'stop requested' },
       schema_version: 1,
     } satisfies EventEnvelope;
+    const sha = '3e5aafe745ef11887380e0ec9a5dad76fdb3d41d';
+    const merged = {
+      seq: 2,
+      ts: 1_700_000_000_001,
+      run_id: 'run-1',
+      ticket_id: 'F02',
+      worker_id: 'worker-1',
+      kind: 'MergeCompleted',
+      payload: {
+        source_branch: 'f02/domain-primitives',
+        binding: { reviewed_head: sha, merged_source: sha },
+        integration_before: sha,
+        integration_after: sha,
+      },
+      schema_version: 1,
+    } satisfies EventEnvelope;
     const error = {
       class: 'POLICY_BLOCK',
       code: 'PROVIDER_POLICY_BLOCK',
@@ -43,6 +59,7 @@ describe('generated contracts', () => {
     } satisfies VelaError;
     const code: ErrorCode = error.code;
     expect(envelope.kind).toBe('RunPaused');
+    expect(merged.payload.binding.reviewed_head).toBe(merged.payload.binding.merged_source);
     expect(code).toBe('PROVIDER_POLICY_BLOCK');
   });
 
