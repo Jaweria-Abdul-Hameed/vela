@@ -3,11 +3,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::engine::DependencyGraph;
-use super::types::{DependencyEdge, GraphError};
-use crate::ids::TicketId;
-
-/// One edge of a snapshot (same fields as [`DependencyEdge`]; kept as its own name so the stored shape is explicit).
-pub type SnapshotEdge = DependencyEdge;
+use super::types::GraphError;
+use crate::ids::{DependencyEdge, TicketId};
 
 /// The immutable, canonical form of a validated graph. Only a DAG can be snapshotted, and loading a snapshot re-validates it,
 /// so a stored snapshot never smuggles in a cycle or an edge to a missing ticket.
@@ -16,7 +13,7 @@ pub struct GraphSnapshot {
     /// Every ticket, ascending.
     pub tickets: Vec<TicketId>,
     /// Every edge, sorted by (blocker, blocked).
-    pub edges: Vec<SnapshotEdge>,
+    pub edges: Vec<DependencyEdge>,
     /// The topological layers (derived from `tickets` and `edges`; checked on load).
     pub layers: Vec<Vec<TicketId>>,
 }
@@ -31,15 +28,16 @@ impl DependencyGraph {
         })
     }
 
-    /// Rebuilds a graph from a stored snapshot, rejecting duplicate tickets, edges to unknown tickets, cycles and layers that
-    /// do not match the tickets and edges.
+    /// Rebuilds a graph from a stored snapshot, rejecting duplicate tickets, edges to unknown tickets, cycles
+    /// ([`GraphError::Cycle`], whatever the edge origins) and anything not in canonical form (unsorted or duplicated entries, or
+    /// layers that do not match the tickets and edges).
     pub fn from_snapshot(snapshot: &GraphSnapshot) -> Result<Self, GraphError> {
         let mut graph = Self::new();
         for ticket in &snapshot.tickets {
             graph.add_ticket(ticket.clone())?;
         }
         for edge in &snapshot.edges {
-            graph.add_edge(&edge.blocker, &edge.blocked, edge.kind)?;
+            graph.add_edge_unchecked(edge)?;
         }
         let rebuilt = graph.snapshot()?;
         if rebuilt != *snapshot {

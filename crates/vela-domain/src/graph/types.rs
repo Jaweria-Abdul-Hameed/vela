@@ -4,33 +4,12 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::TicketId;
-
-/// Why one ticket blocks another.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum EdgeKind {
-    /// Authored by the user (or the tracker): a deterministic hard blocker. Never removed or rewritten by analysis (FR-007).
-    Explicit,
-    /// Added from evidence of a hazard (shared files, lockfile, schema, declared resource keys). Serializes the pair.
-    InferredHazard,
-}
-
-/// A directed edge: `blocker` must be done before `blocked` may start.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct DependencyEdge {
-    /// The ticket that must finish first.
-    pub blocker: TicketId,
-    /// The ticket that waits.
-    pub blocked: TicketId,
-    /// Why the edge exists.
-    pub kind: EdgeKind,
-}
+use crate::ids::{DependencyEdge, EdgeOrigin, TicketId};
 
 /// One concrete dependency cycle.
 ///
-/// `tickets` is ordered along the edges: each ticket blocks the next and the last blocks the first. A ticket that blocks
-/// itself is a cycle of one.
+/// `tickets` is ordered along the edges: each ticket blocks the next and the last blocks the first. A ticket cannot block
+/// itself (the shared [`DependencyEdge`] cannot be built that way), so a cycle has at least two tickets.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cycle {
     /// The participating tickets in edge order, starting at the smallest id.
@@ -43,10 +22,16 @@ pub struct Cycle {
 }
 
 impl Cycle {
-    /// True when every edge of the cycle is user-authored. A cycle that needs an inferred hazard is a hazard problem, not a
-    /// defect in the user's dependencies, and callers may report the two differently.
-    pub fn is_explicit_only(&self) -> bool {
-        self.edges.iter().all(|e| e.kind == EdgeKind::Explicit)
+    /// True when every edge of the cycle is authored (stated by the ticket or tracker). A cycle that needs an analyst edge is
+    /// caused by analysis, not by the user's dependencies; [`DependencyGraph::drop_cyclic_analyst_edges`] removes those. The
+    /// report shows one cycle per component, so a component can also hold an authored cycle this one does not show: drop the
+    /// analyst edges first and re-run [`DependencyGraph::find_cycles`] before blaming either side.
+    ///
+    /// [`DependencyGraph`]: super::DependencyGraph
+    pub fn is_authored_only(&self) -> bool {
+        self.edges
+            .iter()
+            .all(|e| e.origin() == EdgeOrigin::Authored)
     }
 }
 
@@ -99,9 +84,9 @@ pub enum GraphError {
     DuplicateTicket(TicketId),
     /// The graph contains a cycle (`GRAPH_INVALID`).
     Cycle(CycleReport),
-    /// An inferred-hazard edge was refused because `blocked` already (transitively) blocks `blocker`, or the two are the same
-    /// ticket. A hazard only serializes a pair and never invalidates the graph (FR-007), so the caller treats the pair as
-    /// unordered-but-sequential instead of adding the edge. Add explicit edges first so they are never the ones refused.
+    /// An analyst edge was refused because `blocked` already (transitively) blocks `blocker`. An inferred hazard only
+    /// serializes a pair and never invalidates the graph (FR-007), so the caller treats the pair as sequential-but-unordered
+    /// instead of adding the edge.
     HazardClosesCycle(DependencyEdge),
     /// A stored snapshot is not in canonical form (unsorted or duplicated entries, or layers that do not match its edges).
     SnapshotMismatch,
@@ -115,8 +100,9 @@ impl fmt::Display for GraphError {
             Self::Cycle(report) => report.fmt(f),
             Self::HazardClosesCycle(e) => write!(
                 f,
-                "hazard {} -> {} would close a dependency cycle",
-                e.blocker, e.blocked
+                "analyst edge {} -> {} would close a dependency cycle",
+                e.blocker(),
+                e.blocked()
             ),
             Self::SnapshotMismatch => f.write_str("graph snapshot is not canonical"),
         }

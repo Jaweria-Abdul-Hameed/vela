@@ -18,6 +18,6 @@ mod types;
 #[cfg(feature = "full")]
 pub use engine::DependencyGraph;
 #[cfg(feature = "full")]
-pub use snapshot::{GraphSnapshot, SnapshotEdge};
+pub use snapshot::GraphSnapshot;
 #[cfg(feature = "full")]
-pub use types::{Cycle, CycleReport, DependencyEdge, EdgeKind, GraphError};
+pub use types::{Cycle, CycleReport, GraphError};

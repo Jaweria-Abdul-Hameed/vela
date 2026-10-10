@@ -8,8 +8,8 @@ use petgraph::stable_graph::{NodeIndex, StableDiGraph};
 use petgraph::visit::{EdgeRef, IntoEdgeReferences};
 
 use super::cycle::find_cycles;
-use super::types::{CycleReport, DependencyEdge, EdgeKind, GraphError};
-use crate::ids::TicketId;
+use super::types::{CycleReport, GraphError};
+use crate::ids::{DependencyEdge, EdgeOrigin, TicketId};
 
 /// A graph of tickets and the blocking relationships between them.
 ///
@@ -18,7 +18,7 @@ use crate::ids::TicketId;
 /// Every output is deterministic: ties are broken by ticket id, never by insertion order.
 #[derive(Debug, Clone, Default)]
 pub struct DependencyGraph {
-    graph: StableDiGraph<TicketId, EdgeKind>,
+    graph: StableDiGraph<TicketId, EdgeOrigin>,
     index: BTreeMap<TicketId, NodeIndex>,
 }
 
@@ -64,41 +64,78 @@ impl DependencyGraph {
         }
     }
 
-    /// Adds an edge: `blocker` must be done before `blocked` may start.
+    /// Adds an edge: its blocker must be done before its blocked ticket may start. Both tickets must be in the graph.
     ///
-    /// One edge exists per ordered pair. Adding a pair again keeps the stronger kind, so an explicit edge is never weakened
-    /// or replaced by an inferred hazard (FR-007). An explicit self-edge is accepted and reported as a one-ticket cycle (a
-    /// defect in the user's dependencies). An inferred hazard that would close a cycle, including a self-hazard, is refused
-    /// with [`GraphError::HazardClosesCycle`] and leaves the graph unchanged, so analysis can never make a valid graph invalid.
-    pub fn add_edge(
-        &mut self,
-        blocker: &TicketId,
-        blocked: &TicketId,
-        kind: EdgeKind,
-    ) -> Result<(), GraphError> {
-        let from = self.node(blocker)?;
-        let to = self.node(blocked)?;
-        if kind == EdgeKind::InferredHazard
+    /// One edge exists per ordered pair. Adding a pair again keeps the stronger origin, so an authored edge is never weakened
+    /// or replaced by an analyst edge (FR-007). An analyst edge that would close a cycle is refused with
+    /// [`GraphError::HazardClosesCycle`] and leaves the graph unchanged, so analysis cannot make a valid graph invalid. The
+    /// check sees only the edges added so far: authored edges added later can still close a cycle through an analyst edge, and
+    /// [`drop_cyclic_analyst_edges`](Self::drop_cyclic_analyst_edges) removes those.
+    pub fn add_edge(&mut self, edge: &DependencyEdge) -> Result<(), GraphError> {
+        let from = self.node(edge.blocker())?;
+        let to = self.node(edge.blocked())?;
+        if edge.origin() == EdgeOrigin::Analyst
             && self.graph.find_edge(from, to).is_none()
             && has_path_connecting(&self.graph, to, from, None)
         {
-            return Err(GraphError::HazardClosesCycle(DependencyEdge {
-                blocker: blocker.clone(),
-                blocked: blocked.clone(),
-                kind,
-            }));
+            return Err(GraphError::HazardClosesCycle(edge.clone()));
         }
+        self.insert_edge(from, to, edge.origin());
+        Ok(())
+    }
+
+    /// Inserts without the cycle check (used to reload a stored snapshot, whose validity is checked afterwards).
+    pub(super) fn add_edge_unchecked(&mut self, edge: &DependencyEdge) -> Result<(), GraphError> {
+        let from = self.node(edge.blocker())?;
+        let to = self.node(edge.blocked())?;
+        self.insert_edge(from, to, edge.origin());
+        Ok(())
+    }
+
+    fn insert_edge(&mut self, from: NodeIndex, to: NodeIndex, origin: EdgeOrigin) {
         match self.graph.find_edge(from, to) {
             Some(existing) => {
-                if kind == EdgeKind::Explicit {
-                    self.graph[existing] = EdgeKind::Explicit;
+                if origin == EdgeOrigin::Authored {
+                    self.graph[existing] = EdgeOrigin::Authored;
                 }
             }
             None => {
-                self.graph.add_edge(from, to, kind);
+                self.graph.add_edge(from, to, origin);
             }
         }
-        Ok(())
+    }
+
+    /// Removes the analyst edges that lie on cycles, until every remaining cycle is authored-only, and returns them sorted.
+    /// Authored edges are never touched. The caller treats each returned pair as sequential-but-unordered. A graph whose
+    /// authored edges form a DAG is valid afterwards, whatever order the edges were added in.
+    pub fn drop_cyclic_analyst_edges(&mut self) -> Vec<DependencyEdge> {
+        let mut removed = Vec::new();
+        loop {
+            let report = self.find_cycles();
+            let victims: Vec<DependencyEdge> = report
+                .cycles
+                .iter()
+                .filter_map(|c| {
+                    c.edges
+                        .iter()
+                        .find(|e| e.origin() == EdgeOrigin::Analyst)
+                        .cloned()
+                })
+                .collect();
+            if victims.is_empty() {
+                break;
+            }
+            for edge in victims {
+                if let (Ok(from), Ok(to)) = (self.node(edge.blocker()), self.node(edge.blocked()))
+                    && let Some(id) = self.graph.find_edge(from, to)
+                {
+                    self.graph.remove_edge(id);
+                    removed.push(edge);
+                }
+            }
+        }
+        removed.sort_by(|a, b| (a.blocker(), a.blocked()).cmp(&(b.blocker(), b.blocked())));
+        removed
     }
 
     /// Every edge, sorted by (blocker, blocked).
@@ -106,13 +143,16 @@ impl DependencyGraph {
         let mut edges: Vec<DependencyEdge> = self
             .graph
             .edge_references()
-            .map(|e| DependencyEdge {
-                blocker: self.graph[e.source()].clone(),
-                blocked: self.graph[e.target()].clone(),
-                kind: *e.weight(),
+            .map(|e| {
+                DependencyEdge::new(
+                    self.graph[e.source()].clone(),
+                    self.graph[e.target()].clone(),
+                    *e.weight(),
+                )
+                .expect("the graph holds no self-edge")
             })
             .collect();
-        edges.sort();
+        edges.sort_by(|a, b| (a.blocker(), a.blocked()).cmp(&(b.blocker(), b.blocked())));
         edges
     }
 
