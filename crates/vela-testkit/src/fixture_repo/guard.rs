@@ -90,10 +90,7 @@ impl std::error::Error for GuardError {}
 /// Classifies one path component (a single directory or file name, not a path).
 pub fn classify_component(component: &str) -> Option<SyncProvider> {
     // Windows ignores trailing dots and spaces in a component, so `OneDrive.` is the OneDrive folder.
-    let c = component
-        .trim_end_matches(['.', ' '])
-        .trim()
-        .to_lowercase();
+    let c = component.trim_end_matches(['.', ' ']).trim().to_lowercase();
     if c.is_empty() {
         return None;
     }

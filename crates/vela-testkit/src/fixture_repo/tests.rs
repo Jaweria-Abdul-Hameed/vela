@@ -376,15 +376,19 @@ enum Step {
 /// (external diff), log -p (textconv), add (clean filter), commit (pre-commit, reference-transaction), checkout
 /// (post-checkout, smudge filter), and a real merge (post-merge).
 const WORKOUT: &[Step] = &[
-    Step::Write("payload v2
-"),
+    Step::Write(
+        "payload v2
+",
+    ),
     Step::Git(&["status", "--porcelain"]),
     Step::Git(&["diff"]),
     Step::Git(&["add", "-A"]),
     Step::Git(&["commit", "-m", "second"]),
     Step::Git(&["checkout", "-b", "other"]),
-    Step::Write("payload v3
-"),
+    Step::Write(
+        "payload v3
+",
+    ),
     Step::Git(&["add", "-A"]),
     Step::Git(&["commit", "-m", "third"]),
     Step::Git(&["log", "-p", "-1"]),
@@ -424,7 +428,8 @@ fn neutralized_git_never_runs_a_hostile_payload() {
     );
     // The workout really happened: main now holds the merge of the third payload version.
     assert_eq!(
-        repo.git(&["show", &format!("main:{HOSTILE_PAYLOAD_PATH}")]).unwrap(),
+        repo.git(&["show", &format!("main:{HOSTILE_PAYLOAD_PATH}")])
+            .unwrap(),
         "payload v3"
     );
 }
