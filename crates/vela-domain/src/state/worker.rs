@@ -84,7 +84,7 @@ impl WorkerPhase {
 }
 
 /// The transitions between payload-free worker phases (section 3), one entry per arrow.
-const PHASE_EDGES: [(WorkerPhase, WorkerPhase); 13] = [
+const PHASE_EDGES: [(WorkerPhase, WorkerPhase); 14] = [
     (WorkerPhase::Provisioning, WorkerPhase::ContextLoading),
     (WorkerPhase::ContextLoading, WorkerPhase::Implementing),
     (WorkerPhase::Implementing, WorkerPhase::FocusedValidation),
@@ -98,6 +98,8 @@ const PHASE_EDGES: [(WorkerPhase, WorkerPhase); 13] = [
     (WorkerPhase::Merging, WorkerPhase::ConflictResolution),
     (WorkerPhase::ConflictResolution, WorkerPhase::Checkpointing),
     (WorkerPhase::Merging, WorkerPhase::IntegrationValidation),
+    // Section 5 step 7: a failed integration validation discards the merge and returns the worker to FIXING.
+    (WorkerPhase::IntegrationValidation, WorkerPhase::Fixing),
 ];
 
 /// A worker state. `PAUSED` and `NEEDS_HUMAN` record the `resume_state` they return to.
@@ -188,8 +190,10 @@ impl WorkerState {
         states
     }
 
-    /// Applies one transition. Returns the new state (equal to `to`) or a typed error. `cause` matters only for
-    /// leaving a `PROVIDER_POLICY_BLOCK`.
+    /// Applies one transition. Returns the new state (equal to `to`) or a typed error. `cause` matters when leaving a
+    /// state that waits for a human: a resume from `NEEDS_HUMAN` needs `Cause::UserDecision` (a `PROVIDER_POLICY_BLOCK`
+    /// resolves only that way), as does a resume from `PAUSED` unless the reason is automatic (`CAPACITY`,
+    /// `INTERACTIVE_SESSION_UNAVAILABLE`).
     pub fn transition(self, to: Self, cause: Cause) -> Result<Self, TransitionError> {
         if self.is_terminal() {
             return Err(TransitionError::Terminal {
@@ -201,16 +205,8 @@ impl WorkerState {
             && kind.is_held()
         {
             return match to {
-                Self::Cancelled => Ok(to),
-                Self::Active(phase) if phase == resume_state => {
-                    if cause == Cause::UserDecision {
-                        Ok(to)
-                    } else {
-                        Err(TransitionError::ExplicitDecisionRequired {
-                            machine: Machine::Worker,
-                        })
-                    }
-                }
+                Self::Cancelled | Self::Failed => Ok(to),
+                Self::Active(phase) if phase == resume_state => require_user(cause).map(|()| to),
                 _ => Err(TransitionError::ProviderPolicyBlockHeld {
                     machine: Machine::Worker,
                     to: to.name(),
@@ -239,18 +235,60 @@ impl WorkerState {
             (
                 Self::Paused {
                     resume_state: held, ..
+                },
+                Self::NeedsHuman { kind, resume_state },
+            ) => {
+                same(to, held, resume_state)?;
+                if kind.is_worker_level() {
+                    Ok(to)
+                } else {
+                    Err(TransitionError::KindNotAllowed {
+                        machine: Machine::Worker,
+                        kind,
+                        rule: KindRule::WrongLevel,
+                    })
                 }
-                | Self::NeedsHuman {
+            }
+            (
+                Self::Paused {
+                    reason,
+                    resume_state: held,
+                },
+                Self::Active(target),
+            ) => {
+                same(to, held, target)?;
+                if reason.resumes_automatically() {
+                    Ok(to)
+                } else {
+                    require_user(cause).map(|()| to)
+                }
+            }
+            (
+                Self::NeedsHuman {
                     resume_state: held, ..
                 },
                 Self::Active(target),
-            ) => same(to, held, target),
+            ) => {
+                same(to, held, target)?;
+                require_user(cause).map(|()| to)
+            }
             _ => Err(TransitionError::Illegal {
                 machine: Machine::Worker,
                 from: self.name(),
                 to: to.name(),
             }),
         }
+    }
+}
+
+/// A resume out of a human-gated state needs an explicit user decision.
+fn require_user(cause: Cause) -> Result<(), TransitionError> {
+    if cause == Cause::UserDecision {
+        Ok(())
+    } else {
+        Err(TransitionError::ExplicitDecisionRequired {
+            machine: Machine::Worker,
+        })
     }
 }
 
@@ -273,16 +311,53 @@ fn same(
 }
 
 /// A worker's state together with the `WAITING_APPROVAL` overlay (section 3.1): the overlay is not a state; the worker
-/// keeps its state (its own `resume_state`) while waiting.
+/// keeps its state (its own `resume_state`) while waiting. The overlay exists only on an agent-driven state, so it ends
+/// when the worker leaves that state for `PAUSED`, `NEEDS_HUMAN`, `FAILED` or `CANCELLED`; the pending approval request
+/// itself is owned by the approval broker, not by this machine. The fields are private so an inconsistent value
+/// cannot be built (deserialization is validated the same way).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "WorkerStatusParts")]
 pub struct WorkerStatus {
-    /// The worker state.
-    pub state: WorkerState,
-    /// Whether the worker is waiting for an approval decision.
-    pub waiting_approval: bool,
+    state: WorkerState,
+    waiting_approval: bool,
+}
+
+/// The unvalidated form of [`WorkerStatus`] used for deserialization.
+#[derive(Deserialize)]
+struct WorkerStatusParts {
+    state: WorkerState,
+    waiting_approval: bool,
+}
+
+impl TryFrom<WorkerStatusParts> for WorkerStatus {
+    type Error = TransitionError;
+
+    fn try_from(parts: WorkerStatusParts) -> Result<Self, Self::Error> {
+        Self::from_parts(parts.state, parts.waiting_approval)
+    }
 }
 
 impl WorkerStatus {
+    /// A status from its parts; the overlay is accepted only on an agent-driven state.
+    pub fn from_parts(state: WorkerState, waiting_approval: bool) -> Result<Self, TransitionError> {
+        let status = Self::new(state);
+        if waiting_approval {
+            status.begin_approval_wait()
+        } else {
+            Ok(status)
+        }
+    }
+
+    /// The worker state.
+    pub const fn state(&self) -> WorkerState {
+        self.state
+    }
+
+    /// Whether the worker is waiting for an approval decision.
+    pub const fn waiting_approval(&self) -> bool {
+        self.waiting_approval
+    }
+
     /// A status with no overlay.
     pub const fn new(state: WorkerState) -> Self {
         Self {
@@ -375,6 +450,7 @@ mod tests {
             S::Active(P::Checkpointing),
         );
         add(S::Active(P::Merging), S::Active(P::IntegrationValidation));
+        add(S::Active(P::IntegrationValidation), S::Active(P::Fixing));
         add(S::Active(P::IntegrationValidation), S::Complete);
         // Every non-terminal state can reach the exceptional states.
         for phase in P::ALL {
@@ -385,15 +461,19 @@ mod tests {
                 add(paused(reason, phase), S::Active(phase));
                 add(paused(reason, phase), S::Failed);
                 add(paused(reason, phase), S::Cancelled);
+                // A pause can escalate to a human gate (for example a provider policy block found while paused).
+                for kind in InterventionKind::ALL {
+                    if kind.is_worker_level() {
+                        add(paused(reason, phase), needs(kind, phase));
+                    }
+                }
             }
             for kind in InterventionKind::ALL {
                 if kind.is_worker_level() {
                     add(S::Active(phase), needs(kind, phase));
                     add(needs(kind, phase), S::Active(phase));
                     add(needs(kind, phase), S::Cancelled);
-                    if kind != InterventionKind::ProviderPolicyBlock {
-                        add(needs(kind, phase), S::Failed);
-                    }
+                    add(needs(kind, phase), S::Failed);
                 }
             }
         }
@@ -477,6 +557,58 @@ mod tests {
     }
 
     #[test]
+    fn leaving_a_human_gate_needs_a_user_decision_unless_the_pause_is_automatic() {
+        for state in S::all() {
+            for to in S::all() {
+                let by_user = state.transition(to, Cause::UserDecision);
+                let by_system = state.transition(to, Cause::System);
+                let automatic = matches!(
+                    state,
+                    S::Paused { reason, .. } if reason.resumes_automatically()
+                );
+                let resume = matches!((state, to), (S::Paused { .. } | S::NeedsHuman { .. }, S::Active(_)));
+                if resume && by_user.is_ok() && !automatic {
+                    assert_eq!(
+                        by_system,
+                        Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Worker }),
+                        "{state:?} -> {to:?}"
+                    );
+                } else {
+                    assert_eq!(by_user, by_system, "{state:?} -> {to:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn failed_integration_validation_returns_to_fixing() {
+        let mut state = S::Active(P::IntegrationValidation);
+        for next in [P::Fixing, P::Validating, P::Checkpointing, P::Reviewing, P::ReadyToMerge, P::Merging] {
+            state = state.transition(S::Active(next), Cause::System).unwrap();
+        }
+        assert_eq!(state, S::Active(P::Merging));
+    }
+
+    #[test]
+    fn a_capacity_pause_can_escalate_to_a_provider_policy_block() {
+        let capacity = paused(PausedReason::Capacity, P::Implementing);
+        let block = needs(InterventionKind::ProviderPolicyBlock, P::Implementing);
+        assert_eq!(capacity.transition(block, Cause::System), Ok(block));
+        // The reverse (de-escalation) is not a transition.
+        assert!(block.transition(capacity, Cause::UserDecision).is_err());
+    }
+
+    #[cfg(feature = "full")]
+    #[test]
+    fn status_serde_rejects_an_inconsistent_overlay() {
+        let bad = r#"{"state":{"PAUSED":{"reason":"MANUAL","resume_state":"IMPLEMENTING"}},"waiting_approval":true}"#;
+        assert!(serde_json::from_str::<WorkerStatus>(bad).is_err());
+        let ok = r#"{"state":{"ACTIVE":"IMPLEMENTING"},"waiting_approval":true}"#;
+        assert!(serde_json::from_str::<WorkerStatus>(ok).unwrap().waiting_approval());
+        assert!(WorkerStatus::from_parts(S::Active(P::Provisioning), true).is_err());
+    }
+
+    #[test]
     fn terminal_states_have_no_exits() {
         for terminal in [S::Complete, S::Failed, S::Cancelled] {
             for to in S::all() {
@@ -503,6 +635,8 @@ mod tests {
             exits,
             vec![
                 (S::Active(P::Implementing), Cause::UserDecision),
+                (S::Failed, Cause::System),
+                (S::Failed, Cause::UserDecision),
                 (S::Cancelled, Cause::System),
                 (S::Cancelled, Cause::UserDecision)
             ]
@@ -514,7 +648,6 @@ mod tests {
             })
         );
         for to in [
-            S::Failed,
             S::Complete,
             paused(PausedReason::Capacity, P::Implementing),
             needs(InterventionKind::AuthRequired, P::Implementing),
@@ -534,8 +667,8 @@ mod tests {
     fn waiting_approval_is_an_overlay_that_keeps_the_state() {
         let status = WorkerStatus::new(S::Active(P::Implementing));
         let waiting = status.begin_approval_wait().unwrap();
-        assert!(waiting.waiting_approval);
-        assert_eq!(waiting.state, S::Active(P::Implementing));
+        assert!(waiting.waiting_approval());
+        assert_eq!(waiting.state(), S::Active(P::Implementing));
         assert_eq!(
             waiting.begin_approval_wait(),
             Err(TransitionError::OverlayAlreadyActive)
@@ -600,7 +733,8 @@ mod tests {
     }
 
     proptest! {
-        /// No sequence of legal transitions (with the overlay toggled at random) leaves the enumerated state space.
+        /// Walking only legal transitions (with the overlay toggled at random) never leaves the enumerated state
+        /// space, and a held block is left only through the explicit exits.
         #[test]
         fn legal_sequences_stay_in_the_mapped_state_space(picks in proptest::collection::vec((any::<prop::sample::Index>(), any::<bool>(), 0u8..4), 0..200)) {
             let universe = S::all();
@@ -608,27 +742,36 @@ mod tests {
             let mut status = WorkerStatus::new(S::Active(P::Provisioning));
             for (index, user, action) in picks {
                 let before = status;
-                let result = match action {
-                    0 => status.begin_approval_wait(),
-                    1 => status.end_approval_wait(),
+                let cause = if user { Cause::UserDecision } else { Cause::System };
+                let next = match action {
+                    0 => status.begin_approval_wait().ok(),
+                    1 => status.end_approval_wait().ok(),
                     _ => {
-                        let target = universe[index.index(universe.len())];
-                        let cause = if user { Cause::UserDecision } else { Cause::System };
-                        status.transition(target, cause)
+                        let legal: Vec<S> = universe
+                            .iter()
+                            .copied()
+                            .filter(|target| status.transition(*target, cause).is_ok())
+                            .collect();
+                        if legal.is_empty() {
+                            prop_assert!(status.state.is_terminal() || status.waiting_approval);
+                            None
+                        } else {
+                            status.transition(legal[index.index(legal.len())], cause).ok()
+                        }
                     }
                 };
-                match result {
-                    Ok(next) => {
-                        prop_assert!(known.contains(&next.state));
-                        if let S::NeedsHuman { kind: InterventionKind::ProviderPolicyBlock, resume_state } = before.state
-                            && next.state != before.state
-                        {
-                            prop_assert!(next.state == S::Cancelled || (next.state == S::Active(resume_state) && user));
-                        }
-                        status = next;
-                    }
-                    Err(_) => prop_assert_eq!(status, before),
+                let Some(next) = next else { continue };
+                prop_assert!(known.contains(&next.state));
+                prop_assert_eq!(WorkerStatus::from_parts(next.state, next.waiting_approval), Ok(next));
+                if let S::NeedsHuman { kind: InterventionKind::ProviderPolicyBlock, resume_state } = before.state
+                    && next.state != before.state
+                {
+                    prop_assert!(
+                        matches!(next.state, S::Cancelled | S::Failed)
+                            || (next.state == S::Active(resume_state) && user)
+                    );
                 }
+                status = next;
             }
         }
     }

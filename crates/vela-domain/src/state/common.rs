@@ -31,6 +31,12 @@ impl PausedReason {
         Self::AwaitingRecoveryConfirmation,
     ];
 
+    /// Whether a pause for this reason ends without a human decision (capacity returns, the interactive session
+    /// comes back). Every other reason waits for an explicit user resume.
+    pub const fn resumes_automatically(self) -> bool {
+        matches!(self, Self::Capacity | Self::InteractiveSessionUnavailable)
+    }
+
     /// The specification name (also the wire form).
     pub const fn name(self) -> &'static str {
         match self {
@@ -134,11 +140,6 @@ impl InterventionKind {
             self,
             Self::GraphInvalid | Self::IntegrationUnknown | Self::IntegrationUnhealthy
         )
-    }
-
-    /// Whether a run can be `NEEDS_HUMAN` with this kind (every kind; see decision request DR-D01-2).
-    pub const fn is_run_level(self) -> bool {
-        true
     }
 
     /// Whether this kind never leaves automatically (only an explicit user resolve to `resume_state`, or a cancel).

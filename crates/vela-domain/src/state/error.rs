@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::common::InterventionKind;
+use super::common::{InterventionKind, PausedReason};
 
 /// Which machine rejected the transition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -64,7 +64,8 @@ pub enum TransitionError {
         /// The rule that rejected it.
         rule: KindRule,
     },
-    /// A `PROVIDER_POLICY_BLOCK` resolve was attempted without an explicit user decision.
+    /// A resume or resolve out of a human-gated state (`NEEDS_HUMAN`, or `PAUSED` for a reason that waits for the user,
+    /// including every `PROVIDER_POLICY_BLOCK` resolve) was attempted without an explicit user decision.
     ExplicitDecisionRequired {
         /// The machine.
         machine: Machine,
@@ -75,6 +76,19 @@ pub enum TransitionError {
         machine: Machine,
         /// The requested state name.
         to: &'static str,
+    },
+    /// The pause reason is not allowed for this transition (for example `STOP_ALL` is reached only through
+    /// `STOPPING`, and `STOPPING` resolves to `PAUSED` only with that reason).
+    ReasonNotAllowed {
+        /// The machine.
+        machine: Machine,
+        /// The rejected reason.
+        reason: PausedReason,
+    },
+    /// `RUNNING` cannot advance to `FINAL_REVIEW` unless integration health is `HEALTHY`.
+    IntegrationNotHealthy {
+        /// The health value that was supplied.
+        health: &'static str,
     },
     /// `WAITING_APPROVAL` can overlay only an agent-driven worker state.
     OverlayNotAllowed {
@@ -125,13 +139,19 @@ impl fmt::Display for TransitionError {
             Self::ExplicitDecisionRequired { machine } => {
                 write!(
                     f,
-                    "{machine:?} PROVIDER_POLICY_BLOCK resolves only by explicit user decision"
+                    "{machine:?} resume out of a human-gated state needs an explicit user decision"
                 )
             }
             Self::ProviderPolicyBlockHeld { machine, to } => write!(
                 f,
                 "{machine:?} PROVIDER_POLICY_BLOCK exits only by resolve to resume_state or cancel, not to {to}"
             ),
+            Self::ReasonNotAllowed { machine, reason } => {
+                write!(f, "{machine:?} pause reason {} not allowed here", reason.name())
+            }
+            Self::IntegrationNotHealthy { health } => {
+                write!(f, "integration health is {health}; RUNNING cannot advance to FINAL_REVIEW")
+            }
             Self::OverlayNotAllowed { state } => {
                 write!(f, "WAITING_APPROVAL cannot overlay {state}")
             }

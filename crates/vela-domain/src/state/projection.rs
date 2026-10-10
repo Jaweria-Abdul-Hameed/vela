@@ -137,7 +137,7 @@ pub struct TicketProjection {
 
 /// Projects a worker (state and overlay) onto the ticket state and its sub-indicators.
 pub const fn project_worker(status: &WorkerStatus) -> TicketProjection {
-    let (review_stalled, approval_stalled) = match status.state {
+    let (review_stalled, approval_stalled) = match status.state() {
         WorkerState::NeedsHuman { kind, .. } => (
             matches!(kind, InterventionKind::ReviewStalled),
             matches!(kind, InterventionKind::ApprovalStalled),
@@ -145,9 +145,9 @@ pub const fn project_worker(status: &WorkerStatus) -> TicketProjection {
         _ => (false, false),
     };
     TicketProjection {
-        state: TicketState::from_worker_state(&status.state),
+        state: TicketState::from_worker_state(&status.state()),
         indicators: SubIndicators {
-            waiting_approval: status.waiting_approval,
+            waiting_approval: status.waiting_approval(),
             review_stalled,
             approval_stalled,
         },
@@ -520,22 +520,31 @@ mod tests {
             let universe = WorkerState::all();
             let mut status = WorkerStatus::new(WorkerState::Active(P::Provisioning));
             for (index, user, action) in picks {
+                let cause = if user { Cause::UserDecision } else { Cause::System };
                 let next = match action {
-                    0 => status.begin_approval_wait(),
-                    1 => status.end_approval_wait(),
-                    _ => status.transition(
-                        universe[index.index(universe.len())],
-                        if user { Cause::UserDecision } else { Cause::System },
-                    ),
+                    0 => status.begin_approval_wait().ok(),
+                    1 => status.end_approval_wait().ok(),
+                    _ => {
+                        let legal: Vec<WorkerState> = universe
+                            .iter()
+                            .copied()
+                            .filter(|target| status.transition(*target, cause).is_ok())
+                            .collect();
+                        if legal.is_empty() {
+                            None
+                        } else {
+                            status.transition(legal[index.index(legal.len())], cause).ok()
+                        }
+                    }
                 };
-                if let Ok(next) = next {
+                if let Some(next) = next {
                     status = next;
                 }
                 let projection = project_worker(&status);
                 prop_assert!(TicketState::ALL.contains(&projection.state));
-                prop_assert_eq!(projection.state == T::Done, status.state == WorkerState::Complete);
+                prop_assert_eq!(projection.state == T::Done, status.state() == WorkerState::Complete);
                 prop_assert!(UiNodeState::ALL.contains(&UiNode::from_projection(&projection).state));
-                prop_assert_eq!(projection.indicators.waiting_approval, status.waiting_approval);
+                prop_assert_eq!(projection.indicators.waiting_approval, status.waiting_approval());
             }
         }
     }

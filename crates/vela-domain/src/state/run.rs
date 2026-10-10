@@ -86,9 +86,15 @@ const PHASE_EDGES: [(RunPhase, RunPhase); 12] = [
 pub enum RunState {
     /// A payload-free, resumable state.
     Active(RunPhase),
-    /// Stop All is quiescing; becomes `PAUSED` or `NEEDS_HUMAN`.
+    /// Stop All is quiescing; becomes `PAUSED` (reason `STOP_ALL`) or `NEEDS_HUMAN`.
     Stopping {
         /// The state the run was in when Stop All began.
+        resume_state: RunPhase,
+    },
+    /// Stop All is quiescing a run that was `NEEDS_HUMAN` with kind `PROVIDER_POLICY_BLOCK`. The hold is preserved: it
+    /// can only return to that block (or fail), never to `PAUSED` or an active state.
+    StoppingProviderBlock {
+        /// The state the run returns to once the block is resolved.
         resume_state: RunPhase,
     },
     /// Paused for a reason.
@@ -114,11 +120,12 @@ pub enum RunState {
 }
 
 impl RunState {
-    /// The specification name of the state (without payload).
+    /// The specification name of the state (without payload). The serde form of the enum is structural; the persisted
+    /// or contract wire form is fixed by the ticket that exports it.
     pub const fn name(&self) -> &'static str {
         match self {
             Self::Active(phase) => phase.name(),
-            Self::Stopping { .. } => "STOPPING",
+            Self::Stopping { .. } | Self::StoppingProviderBlock { .. } => "STOPPING",
             Self::Paused { .. } => "PAUSED",
             Self::NeedsHuman { .. } => "NEEDS_HUMAN",
             Self::Completed => "COMPLETED",
@@ -136,6 +143,7 @@ impl RunState {
     pub const fn resume_state(&self) -> Option<RunPhase> {
         match self {
             Self::Stopping { resume_state }
+            | Self::StoppingProviderBlock { resume_state }
             | Self::Paused { resume_state, .. }
             | Self::NeedsHuman { resume_state, .. } => Some(*resume_state),
             _ => None,
@@ -148,6 +156,9 @@ impl RunState {
         for phase in RunPhase::ALL {
             states.push(Self::Active(phase));
             states.push(Self::Stopping {
+                resume_state: phase,
+            });
+            states.push(Self::StoppingProviderBlock {
                 resume_state: phase,
             });
             for reason in PausedReason::ALL {
@@ -167,8 +178,30 @@ impl RunState {
         states
     }
 
+    /// Like [`RunState::transition`], and additionally enforces the integration-health precondition of
+    /// `RUNNING` to `FINAL_REVIEW` (section 1.1: integration health is `HEALTHY`). The other precondition, that every
+    /// in-scope ticket is `DONE`, is not run state and stays with the Orchestrator.
+    pub fn transition_with_health(
+        self,
+        to: Self,
+        cause: Cause,
+        health: IntegrationHealth,
+    ) -> Result<Self, TransitionError> {
+        if self == Self::Active(RunPhase::Running)
+            && to == Self::Active(RunPhase::FinalReview)
+            && !health.permits_final_review()
+        {
+            return Err(TransitionError::IntegrationNotHealthy {
+                health: health.name(),
+            });
+        }
+        self.transition(to, cause)
+    }
+
     /// Applies one transition. Returns the new state (equal to `to`) or a typed error; the specification's transition
-    /// table is the only source of legality. `cause` matters only for leaving a `PROVIDER_POLICY_BLOCK`.
+    /// table is the only source of legality. `cause` matters when leaving a state that waits for a human: a resume
+    /// from `NEEDS_HUMAN` needs `Cause::UserDecision`, as does a resume from `PAUSED` unless the reason is automatic
+    /// (`CAPACITY`, `INTERACTIVE_SESSION_UNAVAILABLE`); a `PROVIDER_POLICY_BLOCK` resolves only by user decision.
     pub fn transition(self, to: Self, cause: Cause) -> Result<Self, TransitionError> {
         if self.is_terminal() {
             return Err(TransitionError::Terminal {
@@ -180,16 +213,11 @@ impl RunState {
             && kind.is_held()
         {
             return match to {
-                Self::Cancelled => Ok(to),
-                Self::Active(phase) if phase == resume_state => {
-                    if cause == Cause::UserDecision {
-                        Ok(to)
-                    } else {
-                        Err(TransitionError::ExplicitDecisionRequired {
-                            machine: Machine::Run,
-                        })
-                    }
-                }
+                Self::Cancelled | Self::Failed => Ok(to),
+                Self::StoppingProviderBlock {
+                    resume_state: stopping,
+                } if stopping == resume_state => Ok(to),
+                Self::Active(phase) if phase == resume_state => require_user(cause).map(|()| to),
                 _ => Err(TransitionError::ProviderPolicyBlockHeld {
                     machine: Machine::Run,
                     to: to.name(),
@@ -198,6 +226,13 @@ impl RunState {
         }
         match (self, to) {
             (_, Self::Failed) => Ok(to),
+            (
+                Self::StoppingProviderBlock { resume_state: held },
+                Self::NeedsHuman {
+                    kind: InterventionKind::ProviderPolicyBlock,
+                    resume_state,
+                },
+            ) => same(to, held, resume_state),
             (Self::Active(RunPhase::FinalValidation), Self::Completed) => Ok(to),
             (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => {
                 Ok(to)
@@ -212,8 +247,21 @@ impl RunState {
                 },
                 Self::Stopping { resume_state },
             ) => same(to, held, resume_state),
-            (Self::Active(RunPhase::Running), Self::Paused { resume_state, .. }) => {
-                same(to, RunPhase::Running, resume_state)
+            (
+                Self::Active(RunPhase::Running),
+                Self::Paused {
+                    reason,
+                    resume_state,
+                },
+            ) => {
+                same(to, RunPhase::Running, resume_state)?;
+                if reason == PausedReason::StopAll {
+                    return Err(TransitionError::ReasonNotAllowed {
+                        machine: Machine::Run,
+                        reason,
+                    });
+                }
+                Ok(to)
             }
             (
                 Self::Active(from @ (RunPhase::Running | RunPhase::Analyzing | RunPhase::Starting)),
@@ -226,8 +274,21 @@ impl RunState {
                 graph_invalid_rule(kind, from)?;
                 Ok(to)
             }
-            (Self::Stopping { resume_state: held }, Self::Paused { resume_state, .. }) => {
-                same(to, held, resume_state)
+            (
+                Self::Stopping { resume_state: held },
+                Self::Paused {
+                    reason,
+                    resume_state,
+                },
+            ) => {
+                same(to, held, resume_state)?;
+                if reason != PausedReason::StopAll {
+                    return Err(TransitionError::ReasonNotAllowed {
+                        machine: Machine::Run,
+                        reason,
+                    });
+                }
+                Ok(to)
             }
             (Self::Stopping { resume_state: held }, Self::NeedsHuman { kind, resume_state }) => {
                 same(to, held, resume_state)?;
@@ -237,12 +298,36 @@ impl RunState {
             (
                 Self::Paused {
                     resume_state: held, ..
+                },
+                Self::NeedsHuman { kind, resume_state },
+            ) => {
+                same(to, held, resume_state)?;
+                graph_invalid_rule(kind, held)?;
+                Ok(to)
+            }
+            (
+                Self::Paused {
+                    reason,
+                    resume_state: held,
+                },
+                Self::Active(target),
+            ) => {
+                same(to, held, target)?;
+                if reason.resumes_automatically() {
+                    Ok(to)
+                } else {
+                    require_user(cause).map(|()| to)
                 }
-                | Self::NeedsHuman {
+            }
+            (
+                Self::NeedsHuman {
                     resume_state: held, ..
                 },
                 Self::Active(target),
-            ) => same(to, held, target),
+            ) => {
+                same(to, held, target)?;
+                require_user(cause).map(|()| to)
+            }
             (Self::Paused { .. } | Self::NeedsHuman { .. }, Self::Cancelled) => Ok(to),
             _ => Err(TransitionError::Illegal {
                 machine: Machine::Run,
@@ -250,6 +335,17 @@ impl RunState {
                 to: to.name(),
             }),
         }
+    }
+}
+
+/// A resume out of a human-gated state needs an explicit user decision.
+fn require_user(cause: Cause) -> Result<(), TransitionError> {
+    if cause == Cause::UserDecision {
+        Ok(())
+    } else {
+        Err(TransitionError::ExplicitDecisionRequired {
+            machine: Machine::Run,
+        })
     }
 }
 
@@ -380,7 +476,10 @@ mod tests {
         add(S::Active(P::FinalValidation), S::Completed);
         // Running pauses; Running, Starting need a human; Analyzing needs a human only for GRAPH_INVALID.
         for reason in PausedReason::ALL {
-            add(S::Active(P::Running), paused(reason, P::Running));
+            // STOP_ALL is reached only through STOPPING.
+            if reason != PausedReason::StopAll {
+                add(S::Active(P::Running), paused(reason, P::Running));
+            }
         }
         for kind in InterventionKind::ALL {
             if kind != InterventionKind::GraphInvalid {
@@ -407,21 +506,39 @@ mod tests {
                         resume_state: phase,
                     },
                 );
-                // STOPPING resolves to PAUSED.
-                add(
-                    S::Stopping {
-                        resume_state: phase,
-                    },
-                    paused(reason, phase),
-                );
+                // STOPPING resolves to PAUSED with reason STOP_ALL (section 6).
+                if reason == PausedReason::StopAll {
+                    add(
+                        S::Stopping {
+                            resume_state: phase,
+                        },
+                        paused(reason, phase),
+                    );
+                }
             }
             for kind in InterventionKind::ALL {
-                add(
-                    needs(kind, phase),
-                    S::Stopping {
-                        resume_state: phase,
-                    },
-                );
+                // A held provider policy block keeps its hold through STOPPING.
+                if kind == InterventionKind::ProviderPolicyBlock {
+                    add(
+                        needs(kind, phase),
+                        S::StoppingProviderBlock {
+                            resume_state: phase,
+                        },
+                    );
+                    add(
+                        S::StoppingProviderBlock {
+                            resume_state: phase,
+                        },
+                        needs(kind, phase),
+                    );
+                } else {
+                    add(
+                        needs(kind, phase),
+                        S::Stopping {
+                            resume_state: phase,
+                        },
+                    );
+                }
                 // STOPPING resolves to NEEDS_HUMAN (GRAPH_INVALID belongs to ANALYZING only).
                 if kind != InterventionKind::GraphInvalid || phase == P::Analyzing {
                     add(
@@ -432,10 +549,15 @@ mod tests {
                     );
                 }
             }
-            // Resume returns to resume_state; a cancel ends the run.
+            // Resume returns to resume_state; a cancel ends the run; a pause can escalate to a human gate.
             for reason in PausedReason::ALL {
                 add(paused(reason, phase), S::Active(phase));
                 add(paused(reason, phase), S::Cancelled);
+                for kind in InterventionKind::ALL {
+                    if kind != InterventionKind::GraphInvalid || phase == P::Analyzing {
+                        add(paused(reason, phase), needs(kind, phase));
+                    }
+                }
             }
             for kind in InterventionKind::ALL {
                 add(needs(kind, phase), S::Active(phase));
@@ -448,19 +570,6 @@ mod tests {
                 add(state, S::Failed);
             }
         }
-        // PROVIDER_POLICY_BLOCK leaves only by resolve to resume_state or cancel (no FAILED, no STOPPING).
-        legal.retain(|(from, to)| {
-            !matches!(
-                (from, to),
-                (
-                    S::NeedsHuman {
-                        kind: InterventionKind::ProviderPolicyBlock,
-                        ..
-                    },
-                    S::Failed | S::Stopping { .. }
-                )
-            )
-        });
         legal
     }
 
@@ -468,7 +577,7 @@ mod tests {
     fn every_transition_pair_matches_the_specification_table() {
         let legal = spec_pairs();
         let states = S::all();
-        assert_eq!(states.len(), 10 * (1 + 1 + 6 + 16) + 3);
+        assert_eq!(states.len(), 10 * (1 + 1 + 1 + 6 + 16) + 3);
         let mut accepted = 0;
         for from in &states {
             for to in &states {
@@ -485,30 +594,67 @@ mod tests {
     }
 
     #[test]
-    fn system_cause_differs_only_for_provider_policy_block_resolve() {
+    fn leaving_a_human_gate_needs_a_user_decision_unless_the_pause_is_automatic() {
         let states = S::all();
         for from in &states {
             for to in &states {
                 let by_user = from.transition(*to, Cause::UserDecision);
                 let by_system = from.transition(*to, Cause::System);
-                let held = matches!(
+                let automatic = matches!(
                     from,
-                    S::NeedsHuman {
-                        kind: InterventionKind::ProviderPolicyBlock,
-                        ..
-                    }
-                ) && matches!(to, S::Active(_));
-                if held && by_user.is_ok() {
+                    S::Paused { reason, .. } if reason.resumes_automatically()
+                );
+                let resume = matches!(
+                    (from, to),
+                    (S::Paused { .. } | S::NeedsHuman { .. }, S::Active(_))
+                );
+                if resume && by_user.is_ok() && !automatic {
                     assert_eq!(
                         by_system,
-                        Err(TransitionError::ExplicitDecisionRequired {
-                            machine: Machine::Run
-                        })
+                        Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run }),
+                        "{from:?} -> {to:?}"
                     );
                 } else {
                     assert_eq!(by_user, by_system, "{from:?} -> {to:?}");
                 }
             }
+        }
+    }
+
+    #[test]
+    fn stop_all_pauses_with_stop_all_only() {
+        let stopping = S::Stopping { resume_state: P::Running };
+        for reason in PausedReason::ALL {
+            let result = stopping.transition(paused(reason, P::Running), Cause::System);
+            let direct = S::Active(P::Running).transition(paused(reason, P::Running), Cause::System);
+            let rejected = Err(TransitionError::ReasonNotAllowed { machine: Machine::Run, reason });
+            if reason == PausedReason::StopAll {
+                assert!(result.is_ok());
+                assert_eq!(direct, rejected);
+            } else {
+                assert_eq!(result, rejected);
+                assert!(direct.is_ok());
+            }
+        }
+    }
+
+    #[test]
+    fn final_review_needs_healthy_integration() {
+        let running = S::Active(P::Running);
+        let review = S::Active(P::FinalReview);
+        assert_eq!(
+            running.transition_with_health(review, Cause::System, IntegrationHealth::Healthy),
+            Ok(review)
+        );
+        for health in [IntegrationHealth::Unknown, IntegrationHealth::Unhealthy] {
+            assert_eq!(
+                running.transition_with_health(review, Cause::System, health),
+                Err(TransitionError::IntegrationNotHealthy { health: health.name() })
+            );
+            // Other transitions are not gated by health.
+            assert!(running
+                .transition_with_health(paused(PausedReason::Manual, P::Running), Cause::System, health)
+                .is_ok());
         }
     }
 
@@ -649,6 +795,10 @@ mod tests {
             exits,
             vec![
                 (S::Active(P::Running), Cause::UserDecision),
+                (S::StoppingProviderBlock { resume_state: P::Running }, Cause::System),
+                (S::StoppingProviderBlock { resume_state: P::Running }, Cause::UserDecision),
+                (S::Failed, Cause::System),
+                (S::Failed, Cause::UserDecision),
                 (S::Cancelled, Cause::System),
                 (S::Cancelled, Cause::UserDecision)
             ]
@@ -660,9 +810,11 @@ mod tests {
             })
         );
         for to in [
-            S::Failed,
             S::Stopping {
                 resume_state: P::Running,
+            },
+            S::StoppingProviderBlock {
+                resume_state: P::Preflight,
             },
             paused(PausedReason::Manual, P::Running),
             needs(InterventionKind::Other, P::Running),
@@ -676,6 +828,17 @@ mod tests {
                     to: to.name()
                 })
             );
+        }
+        // Stop All keeps the hold: STOPPING of a block returns only to the block (or fails), never to PAUSED or work.
+        let stopping_block = S::StoppingProviderBlock { resume_state: P::Running };
+        for to in S::all() {
+            for cause in [Cause::System, Cause::UserDecision] {
+                assert_eq!(
+                    stopping_block.transition(to, cause).is_ok(),
+                    to == block || to == S::Failed,
+                    "{to:?}"
+                );
+            }
         }
         // A block reached through STOPPING is held the same way.
         let via_stop = S::Stopping {
@@ -706,7 +869,7 @@ mod tests {
 
     #[cfg(feature = "full")]
     #[test]
-    fn serde_round_trip_uses_specification_names() {
+    fn serde_round_trip_keeps_specification_names() {
         let state = needs(InterventionKind::ProviderPolicyBlock, P::FinalReview);
         let json = serde_json::to_string(&state).unwrap();
         assert!(
@@ -717,27 +880,45 @@ mod tests {
     }
 
     proptest! {
-        /// No sequence of legal transitions reaches a state outside the enumerated set, a state that is not
-        /// well-formed, or a held block that escaped without the explicit exits.
+        /// Walking only legal transitions never reaches a state outside the enumerated set, and a held block is left
+        /// only through the explicit exits (resolve by user decision, cancel, fail, or the held STOPPING).
         #[test]
         fn legal_sequences_stay_in_the_mapped_state_space(picks in proptest::collection::vec((any::<prop::sample::Index>(), any::<bool>()), 0..200)) {
             let universe = S::all();
             let known: HashSet<S> = universe.iter().copied().collect();
             let mut state = S::Active(P::Created);
             for (index, user) in picks {
-                let target = universe[index.index(universe.len())];
                 let cause = if user { Cause::UserDecision } else { Cause::System };
-                let before = state;
-                if let Ok(next) = state.transition(target, cause) {
-                    prop_assert!(known.contains(&next));
-                    if let S::NeedsHuman { kind: InterventionKind::ProviderPolicyBlock, resume_state } = before {
-                        prop_assert!(next == S::Cancelled || (next == S::Active(resume_state) && user));
-                    }
-                    state = next;
-                } else {
-                    prop_assert_eq!(state, before);
+                let legal: Vec<S> = universe
+                    .iter()
+                    .copied()
+                    .filter(|target| state.transition(*target, cause).is_ok())
+                    .collect();
+                if legal.is_empty() {
+                    prop_assert!(state.is_terminal());
+                    break;
                 }
-                prop_assert!(known.contains(&state));
+                let before = state;
+                let next = legal[index.index(legal.len())];
+                prop_assert_eq!(before.transition(next, cause), Ok(next));
+                prop_assert!(known.contains(&next));
+                match before {
+                    S::NeedsHuman { kind: InterventionKind::ProviderPolicyBlock, resume_state } => {
+                        prop_assert!(
+                            matches!(next, S::Cancelled | S::Failed)
+                                || next == S::StoppingProviderBlock { resume_state }
+                                || (next == S::Active(resume_state) && user)
+                        );
+                    }
+                    S::StoppingProviderBlock { resume_state } => {
+                        prop_assert!(
+                            next == S::Failed
+                                || next == needs(InterventionKind::ProviderPolicyBlock, resume_state)
+                        );
+                    }
+                    _ => {}
+                }
+                state = next;
             }
         }
     }
