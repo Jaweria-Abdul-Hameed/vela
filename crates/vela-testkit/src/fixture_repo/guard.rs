@@ -158,7 +158,7 @@ pub fn classify_path_with_roots(
 pub fn sync_roots_from_env() -> Vec<(SyncProvider, PathBuf)> {
     ["OneDrive", "OneDriveConsumer", "OneDriveCommercial"]
         .iter()
-        .filter_map(|name| std::env::var_os(name))
+        .filter_map(std::env::var_os)
         .filter(|value| !value.is_empty())
         .map(|value| (SyncProvider::OneDrive, PathBuf::from(value)))
         .collect()
