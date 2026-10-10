@@ -289,7 +289,11 @@ fn strip_ts_comments(source: &str) -> String {
 pub fn parse_wrapper_names(source: &str) -> Vec<String> {
     const MARKER: &str = "export const commandNames";
     let code = strip_ts_comments(source);
-    let Some(start) = code.find(MARKER) else {
+    // The marker must be the whole identifier: `commandNamesByGroup` is a different declaration.
+    let Some(start) = code.match_indices(MARKER).map(|(at, _)| at).find(|at| {
+        !code[at + MARKER.len()..]
+            .starts_with(|c: char| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+    }) else {
         return Vec::new();
     };
     let rest = &code[start + MARKER.len()..];
@@ -512,6 +516,12 @@ mod tests {
 
         // A marker inside a comment does not declare commands; a comment marker inside a string is not a comment.
         assert!(parse_wrapper_names("// export const commandNames = ['a.b'];").is_empty());
+        // A longer identifier that merely starts with the marker is a different declaration.
+        assert!(
+            parse_wrapper_names("export const commandNamesByGroup = ['a.b'] as const;").is_empty()
+        );
+        let both = "export const commandNamesByGroup = ['x.y'];\nexport const commandNames = ['a.b'];";
+        assert_eq!(parse_wrapper_names(both), ["a.b"]);
         let urlish = "export const commandNames = ['a.b//c'] as const;";
         assert_eq!(parse_wrapper_names(urlish), ["a.b//c"]);
     }

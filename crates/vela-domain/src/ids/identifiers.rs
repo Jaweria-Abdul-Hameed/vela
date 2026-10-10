@@ -173,8 +173,11 @@ validated_string! {
 validated_string! {
     /// The filesystem path of a Vela-managed worktree, carried as a string (the domain performs no I/O).
     ///
-    /// Only emptiness and NUL bytes are rejected here; whether the path exists, is inside the managed root, or is short
-    /// enough is decided by the Git adapter and preflight, which can touch the filesystem.
+    /// Rejected here: an empty path, control characters (NUL included), `..` components, Windows reserved device names
+    /// (`CON`, `NUL`, `COM1`, ... with or without an extension) and components ending in a dot or space, the characters
+    /// `< > " | ? *`, and any colon other than a leading drive (`C:`, optionally behind `\\?\`). Both `/` and `\`
+    /// separate components. Whether the path exists, is inside the managed root, or is short enough is decided by the Git
+    /// adapter and preflight, which can touch the filesystem.
     WorktreePath,
     validate_worktree_path
 }

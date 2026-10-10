@@ -87,13 +87,7 @@ impl Sample for ReviewSeverity {
 }
 impl Sample for GateResult {
     fn sample() -> Self {
-        Self {
-            gate: "cargo test".to_owned(),
-            status: GateStatus::Pass,
-            exit_code: Some(0),
-            duration_ms: Some(42),
-            summary: "ok".to_owned(),
-        }
+        Self::new("cargo test", GateStatus::Pass, Some(0), Some(42), "ok").unwrap()
     }
 }
 impl Sample for VelaError {

@@ -156,8 +156,12 @@ impl GitMerges for EveryGitCapability {
         _ctx: &'a GitContext,
         _integration: &'a WorktreePath,
         _source: &'a BranchName,
+        expected_head: &'a CommitSha,
     ) -> PortFuture<'a, MergeOutcome> {
-        ready(Ok(MergeOutcome::Merged { head: sha() }))
+        ready(Ok(MergeOutcome::Merged {
+            head: sha(),
+            merged_source: expected_head.clone(),
+        }))
     }
     fn abort_merge<'a>(
         &'a self,
@@ -203,7 +207,7 @@ fn wants_one_capability(git: &dyn GitRead) -> Result<RepoStatus, VelaError> {
 
 fn wants_the_original_port(git: &dyn GitAdapter) -> Result<MergeOutcome, VelaError> {
     let branch = BranchName::new("f02/x").unwrap();
-    block_on(git.merge(&ctx(), &path(), &branch))
+    block_on(git.merge(&ctx(), &path(), &branch, &sha()))
 }
 
 #[test]
@@ -216,7 +220,13 @@ fn a_double_implementing_only_one_capability_compiles_and_works() {
 fn capability_traits_compose_into_the_original_port_name() {
     // `EveryGitCapability` never mentions `GitAdapter`; the blanket implementation makes it one.
     let merged = wants_the_original_port(&EveryGitCapability).unwrap();
-    assert_eq!(merged, MergeOutcome::Merged { head: sha() });
+    assert_eq!(
+        merged,
+        MergeOutcome::Merged {
+            head: sha(),
+            merged_source: sha()
+        }
+    );
     // A full adapter is usable wherever a single capability is wanted (the supertrait relationship).
     let as_adapter: &dyn GitAdapter = &EveryGitCapability;
     let as_read: &dyn GitRead = &EveryGitCapability;
@@ -253,7 +263,7 @@ impl AgentSession for OnlySession {
     ) -> PortFuture<'a, TurnResult> {
         sink.on_event(AgentEvent::TurnFinished);
         ready(Ok(TurnResult {
-            conversation: Some(ConversationId("c-1".into())),
+            conversation: Some(ConversationId::new("c-1").unwrap()),
             finished: true,
         }))
     }

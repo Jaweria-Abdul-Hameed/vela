@@ -139,7 +139,7 @@ impl Trailer {
     /// Validates the key (`[A-Za-z][A-Za-z0-9-]*`) and the value (non-empty, no line breaks or control characters).
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Result<Self, IdError> {
         let (key, value) = (key.into(), value.into());
-        if key.is_empty() || value.is_empty() {
+        if key.is_empty() || value.trim().is_empty() {
             return Err(IdError::Empty);
         }
         if !key.starts_with(|c: char| c.is_ascii_alphabetic()) {
@@ -224,13 +224,12 @@ pub struct WorktreeInfo {
     pub head: CommitSha,
 }
 
-/// A checkpoint commit message: a subject plus run and ticket trailers.
+/// A checkpoint commit message: a subject plus run and ticket trailers. Built only through [`CheckpointMessage::new`],
+/// so the subject is always a single line.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckpointMessage {
-    /// Commit subject: a single line.
-    pub subject: String,
-    /// Validated trailers (run, ticket, worker).
-    pub trailers: Vec<Trailer>,
+    subject: String,
+    trailers: Vec<Trailer>,
 }
 
 impl CheckpointMessage {
@@ -245,15 +244,28 @@ impl CheckpointMessage {
         }
         Ok(Self { subject, trailers })
     }
+
+    /// The commit subject: a non-empty single line.
+    pub fn subject(&self) -> &str {
+        &self.subject
+    }
+
+    /// The validated trailers (run, ticket, worker).
+    pub fn trailers(&self) -> &[Trailer] {
+        &self.trailers
+    }
 }
 
 /// Result of a merge attempt in the integration worktree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MergeOutcome {
-    /// The merge completed cleanly; the new integration head.
+    /// The merge completed cleanly.
     Merged {
         /// The integration head after the merge.
         head: CommitSha,
+        /// The source commit that was merged. Always equal to the `expected_head` the caller passed (the merge is
+        /// refused otherwise), reported so the journal records exactly what entered integration.
+        merged_source: CommitSha,
     },
     /// The merge stopped on textual conflicts and the worktree is mid-merge. Resolve and complete it, or call
     /// [`GitMerges::abort_merge`].
@@ -347,12 +359,17 @@ pub trait GitCheckpoints: Send + Sync {
 
 /// Merge-lane operations in the integration worktree.
 pub trait GitMerges: Send + Sync {
-    /// Merges `source` into the integration worktree with a non-fast-forward merge commit.
+    /// Merges `source` into the integration worktree with a non-fast-forward merge commit, **bound to the reviewed
+    /// commit**: the adapter first resolves the tip of `source` and, if it is not exactly `expected_head` (the
+    /// `review_head_sha` that passed review, `REVIEW_PROTOCOL.md`), refuses with a `VALIDATION_FAILURE` error and merges
+    /// nothing. A worker branch that moved after review (a late checkpoint) therefore can never enter integration
+    /// unreviewed. The merge lane (S12) passes the reviewed head recorded by the review service.
     fn merge<'a>(
         &'a self,
         ctx: &'a GitContext,
         integration: &'a WorktreePath,
         source: &'a BranchName,
+        expected_head: &'a CommitSha,
     ) -> PortFuture<'a, MergeOutcome>;
     /// Leaves a merge that stopped on conflicts, restoring the integration worktree to its pre-merge state. Calling it
     /// when no merge is in progress succeeds.
@@ -460,6 +477,7 @@ mod tests {
         for (key, value) in [
             ("", "v"),
             ("k", ""),
+            ("k", "   "),
             ("1k", "v"),
             ("k:", "v"),
             ("k k", "v"),
@@ -476,5 +494,12 @@ mod tests {
         assert!(CheckpointMessage::new("chore: checkpoint", Vec::new()).is_ok());
         assert!(CheckpointMessage::new("", Vec::new()).is_err());
         assert!(CheckpointMessage::new("a\nb", Vec::new()).is_err());
+        let message = CheckpointMessage::new(
+            "chore: checkpoint",
+            vec![Trailer::new("Ticket", "F02").unwrap()],
+        )
+        .unwrap();
+        assert_eq!(message.subject(), "chore: checkpoint");
+        assert_eq!(message.trailers()[0].key(), "Ticket");
     }
 }

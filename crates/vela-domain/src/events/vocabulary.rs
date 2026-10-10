@@ -192,7 +192,7 @@ event_vocabulary! {
     WorkerCompleted => WorkerCompletedPayload {
         /// The worker's final head.
         head: CommitSha,
-        /// The gates that passed for it.
+        /// The gate results recorded for it (callers use `GateResult::is_pass` to decide).
         gates: Vec<GateResult>,
     },
     /// The merge lane started merging a worker.

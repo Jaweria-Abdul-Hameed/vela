@@ -58,23 +58,29 @@ pub enum GateStatus {
 
 /// The recorded result of one gate (`AGENTS.md`: command, exit code, duration, summary).
 ///
-/// A `Pass` with a non-zero exit code is a contradiction: it is rejected by [`GateResult::new`] and when deserializing
-/// (so a journaled record cannot claim it), and [`GateResult::is_pass`] never treats such a value as a pass even if the
-/// public fields were assigned directly.
+/// Every value of this type is internally consistent, so everything that can be serialized into the journal can be read
+/// back during replay. The fields are private; the only ways to obtain a value are [`GateResult::new`] and
+/// deserialization, and both apply the same rules:
+///
+/// - the gate name is not empty;
+/// - `Pass` has exit code 0 or none (a pass with a failing exit code is a contradiction);
+/// - `Fail` has a non-zero exit code or none (a failure with exit code 0 is a contradiction);
+/// - `NotApplicable` ran nothing, so it has no exit code and no duration;
+/// - `Blocked` may carry whatever exit code the blocked tool reported.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "full", derive(ts_rs::TS))]
 pub struct GateResult {
     /// The gate or command that ran.
-    pub gate: String,
+    gate: String,
     /// Outcome class.
-    pub status: GateStatus,
+    status: GateStatus,
     /// Process exit code when the gate ran a process.
-    pub exit_code: Option<i32>,
+    exit_code: Option<i32>,
     /// Wall-clock duration in milliseconds, when known.
     #[cfg_attr(feature = "full", ts(type = "number | null"))]
-    pub duration_ms: Option<u64>,
+    duration_ms: Option<u64>,
     /// Short human-readable summary (never raw secrets).
-    pub summary: String,
+    summary: String,
 }
 
 /// Why a [`GateResult`] was rejected.
@@ -84,6 +90,10 @@ pub enum GateResultError {
     EmptyGate,
     /// `status` is `Pass` but the exit code is not 0.
     PassWithFailingExitCode(i32),
+    /// `status` is `Fail` but the exit code is 0.
+    FailWithZeroExitCode,
+    /// `status` is `NotApplicable` but an exit code or duration was recorded.
+    NotApplicableWithRun,
 }
 
 impl std::fmt::Display for GateResultError {
@@ -92,6 +102,10 @@ impl std::fmt::Display for GateResultError {
             Self::EmptyGate => f.write_str("a gate result needs a gate name"),
             Self::PassWithFailingExitCode(code) => {
                 write!(f, "a gate recorded as pass has exit code {code}")
+            }
+            Self::FailWithZeroExitCode => f.write_str("a gate recorded as fail has exit code 0"),
+            Self::NotApplicableWithRun => {
+                f.write_str("a gate recorded as not applicable has an exit code or duration")
             }
         }
     }
@@ -108,33 +122,60 @@ impl GateResult {
         duration_ms: Option<u64>,
         summary: impl Into<String>,
     ) -> Result<Self, GateResultError> {
-        let result = Self {
-            gate: gate.into(),
+        let gate = gate.into();
+        if gate.trim().is_empty() {
+            return Err(GateResultError::EmptyGate);
+        }
+        match (status, exit_code) {
+            (GateStatus::Pass, Some(code)) if code != 0 => {
+                return Err(GateResultError::PassWithFailingExitCode(code));
+            }
+            (GateStatus::Fail, Some(0)) => return Err(GateResultError::FailWithZeroExitCode),
+            (GateStatus::NotApplicable, Some(_)) => {
+                return Err(GateResultError::NotApplicableWithRun);
+            }
+            _ => {}
+        }
+        if status == GateStatus::NotApplicable && duration_ms.is_some() {
+            return Err(GateResultError::NotApplicableWithRun);
+        }
+        Ok(Self {
+            gate,
             status,
             exit_code,
             duration_ms,
             summary: summary.into(),
-        };
-        result.validate()?;
-        Ok(result)
+        })
     }
 
-    fn validate(&self) -> Result<(), GateResultError> {
-        if self.gate.trim().is_empty() {
-            return Err(GateResultError::EmptyGate);
-        }
-        match (self.status, self.exit_code) {
-            (GateStatus::Pass, Some(code)) if code != 0 => {
-                Err(GateResultError::PassWithFailingExitCode(code))
-            }
-            _ => Ok(()),
-        }
+    /// The gate or command that ran.
+    pub fn gate(&self) -> &str {
+        &self.gate
     }
 
-    /// True only for a gate that ran and passed. `Blocked` and `NotApplicable` are never a pass, and a recorded exit
-    /// code other than 0 contradicts a pass, so such a record is not one.
+    /// The outcome class.
+    pub fn status(&self) -> GateStatus {
+        self.status
+    }
+
+    /// The exit code, when the gate ran a process.
+    pub fn exit_code(&self) -> Option<i32> {
+        self.exit_code
+    }
+
+    /// The wall-clock duration in milliseconds, when known.
+    pub fn duration_ms(&self) -> Option<u64> {
+        self.duration_ms
+    }
+
+    /// The summary.
+    pub fn summary(&self) -> &str {
+        &self.summary
+    }
+
+    /// True only for a gate that ran and passed. `Blocked` and `NotApplicable` are never a pass.
     pub fn is_pass(&self) -> bool {
-        self.status == GateStatus::Pass && matches!(self.exit_code, None | Some(0))
+        self.status == GateStatus::Pass
     }
 }
 
@@ -196,48 +237,106 @@ mod tests {
         assert!(ReviewSeverity::High.is_blocking_candidate());
     }
 
-    #[test]
-    fn only_a_gate_that_ran_and_passed_is_a_pass() {
-        let gate = |status| GateResult {
-            gate: "cargo test".into(),
-            status,
-            exit_code: None,
-            duration_ms: None,
-            summary: String::new(),
-        };
-        assert!(gate(GateStatus::Pass).is_pass());
-        assert!(!gate(GateStatus::Fail).is_pass());
-        assert!(!gate(GateStatus::Blocked).is_pass());
-        assert!(!gate(GateStatus::NotApplicable).is_pass());
-        let mut contradictory = gate(GateStatus::Pass);
-        contradictory.exit_code = Some(1);
-        assert!(!contradictory.is_pass());
-        contradictory.exit_code = Some(0);
-        assert!(contradictory.is_pass());
+    fn gate(status: GateStatus, exit_code: Option<i32>) -> Result<GateResult, GateResultError> {
+        GateResult::new("cargo test", status, exit_code, None, "")
     }
 
     #[test]
-    fn contradictory_gate_records_are_rejected_at_construction() {
-        assert!(GateResult::new("cargo test", GateStatus::Pass, Some(0), None, "ok").is_ok());
-        assert!(GateResult::new("cargo test", GateStatus::Pass, None, None, "ok").is_ok());
+    fn only_a_gate_that_ran_and_passed_is_a_pass() {
+        assert!(gate(GateStatus::Pass, None).unwrap().is_pass());
+        assert!(gate(GateStatus::Pass, Some(0)).unwrap().is_pass());
+        assert!(!gate(GateStatus::Fail, Some(1)).unwrap().is_pass());
+        assert!(!gate(GateStatus::Blocked, Some(101)).unwrap().is_pass());
+        assert!(!gate(GateStatus::NotApplicable, None).unwrap().is_pass());
+    }
+
+    #[test]
+    fn contradictory_gate_records_cannot_be_constructed() {
         assert_eq!(
-            GateResult::new("cargo test", GateStatus::Pass, Some(1), None, "ok"),
+            gate(GateStatus::Pass, Some(1)),
             Err(GateResultError::PassWithFailingExitCode(1))
         );
-        assert!(GateResult::new("cargo test", GateStatus::Fail, Some(1), None, "no").is_ok());
+        assert_eq!(
+            gate(GateStatus::Pass, Some(-1)),
+            Err(GateResultError::PassWithFailingExitCode(-1))
+        );
+        assert_eq!(
+            gate(GateStatus::Fail, Some(0)),
+            Err(GateResultError::FailWithZeroExitCode)
+        );
+        assert_eq!(
+            gate(GateStatus::NotApplicable, Some(0)),
+            Err(GateResultError::NotApplicableWithRun)
+        );
+        assert_eq!(
+            GateResult::new("x", GateStatus::NotApplicable, None, Some(5), ""),
+            Err(GateResultError::NotApplicableWithRun)
+        );
         assert_eq!(
             GateResult::new(" ", GateStatus::Fail, None, None, ""),
             Err(GateResultError::EmptyGate)
         );
+        // Consistent records, including a failure with no exit code (killed) and a blocked tool's own code.
+        assert!(gate(GateStatus::Fail, None).is_ok());
+        assert!(gate(GateStatus::Fail, Some(101)).is_ok());
+        assert!(gate(GateStatus::Blocked, None).is_ok());
+    }
+
+    #[test]
+    fn accessors_return_what_was_recorded() {
+        let result = GateResult::new("cargo clippy", GateStatus::Fail, Some(2), Some(1500), "lint").unwrap();
+        assert_eq!(result.gate(), "cargo clippy");
+        assert_eq!(result.status(), GateStatus::Fail);
+        assert_eq!(result.exit_code(), Some(2));
+        assert_eq!(result.duration_ms(), Some(1500));
+        assert_eq!(result.summary(), "lint");
+    }
+
+    /// Everything that can be constructed serializes to a value that deserializes to the same record, so a journaled
+    /// gate result can always be replayed.
+    #[cfg(feature = "full")]
+    #[test]
+    fn every_constructible_gate_result_round_trips_and_every_invalid_combination_is_rejected_on_read() {
+        let statuses = [
+            GateStatus::Pass,
+            GateStatus::Fail,
+            GateStatus::Blocked,
+            GateStatus::NotApplicable,
+        ];
+        for status in statuses {
+            for exit_code in [None, Some(0), Some(1), Some(-1), Some(101)] {
+                for duration in [None, Some(0), Some(9)] {
+                    let built = GateResult::new("g", status, exit_code, duration, "s");
+                    let json = format!(
+                        r#"{{"gate":"g","status":{},"exit_code":{},"duration_ms":{},"summary":"s"}}"#,
+                        serde_json::to_string(&status).unwrap(),
+                        serde_json::to_string(&exit_code).unwrap(),
+                        serde_json::to_string(&duration).unwrap(),
+                    );
+                    let read = serde_json::from_str::<GateResult>(&json);
+                    match built {
+                        Ok(value) => {
+                            assert_eq!(serde_json::from_str::<GateResult>(&serde_json::to_string(&value).unwrap()).unwrap(), value);
+                            assert_eq!(read.unwrap(), value);
+                        }
+                        Err(_) => assert!(read.is_err(), "{json} must be rejected on read"),
+                    }
+                }
+            }
+        }
     }
 
     #[cfg(feature = "full")]
     #[test]
-    fn a_pass_with_a_failing_exit_code_cannot_be_deserialized() {
-        let forged = r#"{"gate":"cargo test","status":"pass","exit_code":1,"duration_ms":null,"summary":""}"#;
-        assert!(serde_json::from_str::<GateResult>(forged).is_err());
-        let honest = r#"{"gate":"cargo test","status":"fail","exit_code":1,"duration_ms":null,"summary":""}"#;
-        assert!(serde_json::from_str::<GateResult>(honest).is_ok());
+    fn forged_gate_json_is_rejected_on_read() {
+        for forged in [
+            r#"{"gate":"g","status":"pass","exit_code":1,"duration_ms":null,"summary":""}"#,
+            r#"{"gate":"g","status":"fail","exit_code":0,"duration_ms":null,"summary":""}"#,
+            r#"{"gate":"","status":"fail","exit_code":1,"duration_ms":null,"summary":""}"#,
+            r#"{"gate":"g","status":"not_applicable","exit_code":0,"duration_ms":null,"summary":""}"#,
+        ] {
+            assert!(serde_json::from_str::<GateResult>(forged).is_err(), "{forged}");
+        }
     }
 
     #[cfg(feature = "full")]
@@ -255,13 +354,14 @@ mod tests {
         );
         assert_eq!(serde_json::from_str::<DependencyEdge>(&json).unwrap(), edge);
 
-        let gate = GateResult {
-            gate: "cargo clippy".into(),
-            status: GateStatus::Blocked,
-            exit_code: Some(101),
-            duration_ms: Some(1500),
-            summary: "os error 4551".into(),
-        };
+        let gate = GateResult::new(
+            "cargo clippy",
+            GateStatus::Blocked,
+            Some(101),
+            Some(1500),
+            "os error 4551",
+        )
+        .unwrap();
         let json = serde_json::to_string(&gate).unwrap();
         assert_eq!(serde_json::from_str::<GateResult>(&json).unwrap(), gate);
         assert_eq!(

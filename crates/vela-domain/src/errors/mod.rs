@@ -237,6 +237,16 @@ pub struct SideEffects {
     pub pushed: bool,
     /// A merge was completed.
     pub merged: bool,
+    /// The action may have taken effect but Vela cannot tell (for example a timeout or a crash after the request was
+    /// sent). Such an outcome must be reconciled against the real state before anything is retried.
+    pub uncertain: bool,
+}
+
+impl SideEffects {
+    /// True when the failed action committed, pushed or merged, or when its outcome is uncertain.
+    pub fn any(self) -> bool {
+        self.committed || self.pushed || self.merged || self.uncertain
+    }
 }
 
 /// The typed error every port returns. It answers the five questions of `ERROR_HANDLING.md`.
@@ -299,12 +309,20 @@ impl VelaError {
         Self::of_class(ErrorClass::InternalBug, what_failed)
     }
 
+    /// True when the failed action may already have had an effect (it committed, pushed or merged, or its outcome is
+    /// uncertain). The state must then be reconciled against Git and the journal; the action is never blindly repeated.
+    pub fn requires_reconciliation(&self) -> bool {
+        self.side_effects.any()
+    }
+
     /// Whether Vela may retry, derived from the invariants rather than from the stored fields: a provider policy block,
-    /// a provider-originated error, any error with a code that never retries, and every class except
-    /// `EXTERNAL_TEMPORARY` are never retried, even if a deserialized or hand-built value says otherwise. Retry loops
-    /// must use this, not the `retry` field.
+    /// a provider-originated error, any error with a code that never retries, every class except `EXTERNAL_TEMPORARY`,
+    /// and any error whose action had side effects or an uncertain outcome are never blindly retried, even if a
+    /// deserialized or hand-built value says otherwise ("never retry destructive or non-idempotent actions blindly").
+    /// Retry loops must use this, not the `retry` field.
     pub fn may_retry(&self) -> bool {
         self.retry == RetryDisposition::Bounded
+            && !self.requires_reconciliation()
             && self.class.is_retryable()
             && self.origin == ErrorOrigin::Vela
             && self
@@ -319,10 +337,14 @@ impl VelaError {
         self
     }
 
-    /// Records what had already been committed, pushed or merged (answer 3).
+    /// Records what had already been committed, pushed or merged, or that the outcome is uncertain (answer 3). Any
+    /// recorded effect also sets the stored retry disposition to `Never`.
     #[must_use]
     pub fn with_side_effects(mut self, side_effects: SideEffects) -> Self {
         self.side_effects = side_effects;
+        if side_effects.any() {
+            self.retry = RetryDisposition::Never;
+        }
         self
     }
 
@@ -436,6 +458,48 @@ mod tests {
         let mut provider = VelaError::of_class(ErrorClass::ExternalTemporary, "x");
         provider.origin = ErrorOrigin::Provider;
         assert!(!provider.may_retry());
+    }
+
+    #[test]
+    fn an_error_after_a_side_effect_or_with_an_uncertain_outcome_is_never_blindly_retried() {
+        let effects = [
+            SideEffects {
+                committed: true,
+                ..SideEffects::default()
+            },
+            SideEffects {
+                pushed: true,
+                ..SideEffects::default()
+            },
+            SideEffects {
+                merged: true,
+                ..SideEffects::default()
+            },
+            SideEffects {
+                uncertain: true,
+                ..SideEffects::default()
+            },
+        ];
+        for side_effects in effects {
+            assert!(side_effects.any());
+            let transient = VelaError::of_class(ErrorClass::ExternalTemporary, "timeout after send");
+            assert!(transient.may_retry());
+            assert!(!transient.requires_reconciliation());
+
+            let after = transient.with_side_effects(side_effects);
+            assert!(after.requires_reconciliation());
+            assert!(!after.may_retry(), "{side_effects:?}");
+            assert_eq!(after.retry, RetryDisposition::Never);
+
+            // A value whose stored fields claim otherwise (hand-built or read back) is still not retried.
+            let mut forged = after.clone();
+            forged.retry = RetryDisposition::Bounded;
+            assert!(!forged.may_retry(), "{side_effects:?}");
+        }
+        assert!(!SideEffects::default().any());
+        let clean = VelaError::of_class(ErrorClass::ExternalTemporary, "x")
+            .with_side_effects(SideEffects::default());
+        assert!(clean.may_retry());
     }
 
     #[test]

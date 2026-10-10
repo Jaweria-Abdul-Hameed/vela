@@ -5,7 +5,7 @@
 //! crate. [`AgentAdapter`] is the original port name: a supertrait of the three capabilities with a blanket
 //! implementation.
 
-use crate::ids::{CommitSha, WorkerId, WorktreePath};
+use crate::ids::{CommitSha, IdError, WorkerId, WorktreePath};
 
 use super::PortFuture;
 
@@ -47,9 +47,53 @@ impl SessionRef {
     }
 }
 
-/// Opaque identifier of a provider conversation (recorded for visibility and resume, ADR-020).
+/// Identifier of a provider conversation (recorded for visibility and resume, ADR-020).
+///
+/// The value comes from provider output and is later passed back to the provider to resume the conversation, so it is
+/// validated where it enters Vela: adapters build it with [`ConversationId::new`] and treat an error as a malformed
+/// event (the turn fails with evidence). Only `[A-Za-z0-9._-]`, starting with a letter or digit, at most 128 bytes, is
+/// accepted, so a stored id can never be read as a command-line option or carry whitespace or control characters. The
+/// type has no unchecked constructor and every `conversation` field in this module uses it, so a malformed id cannot be
+/// propagated into a later [`TurnRequest`]. If the real provider format turns out to need more characters, widen the
+/// rule here (the spike for conversation visibility, ADR-020, records the observed format).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ConversationId(pub String);
+pub struct ConversationId(String);
+
+impl ConversationId {
+    /// Validates provider-reported text as a conversation id.
+    pub fn new(value: impl Into<String>) -> Result<Self, IdError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(IdError::Empty);
+        }
+        if value.len() > 128 {
+            return Err(IdError::TooLong { max: 128 });
+        }
+        if let Some(found) = value
+            .chars()
+            .find(|c| !(c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-')))
+        {
+            return Err(IdError::InvalidCharacter { found });
+        }
+        if !value.starts_with(|c: char| c.is_ascii_alphanumeric()) {
+            return Err(IdError::Malformed(
+                "a conversation id must start with a letter or digit",
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    /// The id as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for ConversationId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 /// A capability a provider adapter can offer (`ADAPTERS.md` capability contract).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -261,3 +305,62 @@ pub trait AgentReviewer: Send + Sync {
 pub trait AgentAdapter: AgentSession + AgentProfile + AgentReviewer {}
 
 impl<T> AgentAdapter for T where T: ?Sized + AgentSession + AgentProfile + AgentReviewer {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversation_ids_accept_provider_style_ids_and_reject_anything_that_could_be_an_option_or_injection() {
+        for ok in [
+            "c-1",
+            "4f6a2c1e-9b7d-4a55-8e3f-0a1b2c3d4e5f",
+            "conv_01.v2",
+            "A",
+        ] {
+            assert_eq!(ConversationId::new(ok).unwrap().as_str(), ok);
+        }
+        for bad in [
+            "",
+            "-x",
+            "--dangerous-flag=1",
+            "--conversation",
+            ".hidden",
+            "a b",
+            "a\tb",
+            "a\nb",
+            "a\0b",
+            "a/b",
+            "a\\b",
+            "a:b",
+            "a;b",
+            "a$b",
+            "a`b",
+            "é",
+        ] {
+            assert!(ConversationId::new(bad).is_err(), "{bad:?}");
+        }
+        assert!(ConversationId::new("x".repeat(128)).is_ok());
+        assert_eq!(
+            ConversationId::new("x".repeat(129)),
+            Err(IdError::TooLong { max: 128 })
+        );
+    }
+
+    #[test]
+    fn a_conversation_id_can_only_reach_a_later_request_through_validation() {
+        // Provider output is untrusted: the only way to get a `ConversationId` is `new`, so a request that resumes a
+        // reported conversation can only carry a validated id.
+        let reported = "--upload-pack=evil";
+        let resume = ConversationId::new(reported).ok();
+        assert!(resume.is_none());
+        let request = TurnRequest {
+            worker: WorkerId::new("w-1").unwrap(),
+            worktree: WorktreePath::new("/repo").unwrap(),
+            prompt: String::new(),
+            conversation: resume,
+            timeout_ms: 1,
+        };
+        assert!(request.conversation.is_none());
+    }
+}

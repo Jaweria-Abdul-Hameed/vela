@@ -128,10 +128,15 @@ impl PathComponent {
     /// Deterministically turns any text into a safe component.
     ///
     /// Characters outside `[a-z0-9._-]` are replaced by `~` and two hex digits per UTF-8 byte; uppercase letters are
-    /// lowercased. When anything had to change (case, encoding, a bad start or end, a reserved name, truncation to
-    /// [`MAX_COMPONENT_LEN`]) a `~` plus a stable hash of the *original* text is appended, so distinct originals map to
-    /// distinct components, including originals that differ only in case. Text that is already a safe component maps to
-    /// itself. Because identifiers cannot contain `~`, an encoded name never equals a literal identifier.
+    /// lowercased. When anything had to change (case, encoding, a bad start or end, a reserved name, truncation) a `~`
+    /// plus a stable hash of the *original* text is appended, so distinct originals map to distinct components,
+    /// including originals that differ only in case.
+    ///
+    /// **Identity guarantee:** text that consists only of `[a-z0-9._-]`, starts with a letter or digit, does not end
+    /// with a dot, contains no `..`, is not a reserved device name and is at most [`MAX_COMPONENT_LEN`] bytes maps to
+    /// itself, so `PathComponent::encode(s) == PathComponent::new(s)` for every such `s`, at every length up to the
+    /// limit. (`new` additionally accepts `~`, which only encoded names contain.) Because identifiers cannot contain
+    /// `~`, an encoded name never equals a literal identifier.
     pub fn encode(original: &str) -> Self {
         let mut body = String::with_capacity(original.len());
         let mut changed = false;
@@ -163,11 +168,16 @@ impl PathComponent {
             body.push_str("~2e");
             changed = true;
         }
-        if body.len() > MAX_COMPONENT_LEN - SUFFIX_LEN {
-            // The body is ASCII by construction, so truncating at a byte index is on a character boundary. The hash
-            // keeps truncated names distinct.
+        if body.len() > MAX_COMPONENT_LEN {
+            // Only text longer than the limit is shortened (text of up to MAX_COMPONENT_LEN bytes keeps its identity).
+            // The body is ASCII by construction, so truncating at a byte index is on a character boundary; the
+            // truncated body plus the suffix is exactly MAX_COMPONENT_LEN bytes, and the hash keeps truncated names
+            // distinct.
             body.truncate(MAX_COMPONENT_LEN - SUFFIX_LEN);
             changed = true;
+        } else if changed && body.len() + SUFFIX_LEN > MAX_COMPONENT_LEN {
+            // A changed name (case, encoding) near the limit must still fit once the suffix is added.
+            body.truncate(MAX_COMPONENT_LEN - SUFFIX_LEN);
         }
         if is_windows_reserved_name(&body) {
             // `con.txt` is still the console device; the stem itself must change, so the hash goes before the first dot.
@@ -313,6 +323,41 @@ mod tests {
                 panic!("{previous:?} and {original:?} both map to {key}");
             }
         }
+    }
+
+    #[test]
+    fn safe_text_up_to_the_limit_is_its_own_component_at_every_length() {
+        for len in [1, 2, 52, 53, 54, 55, 60, 63, 64] {
+            let text = "x".repeat(len);
+            let encoded = PathComponent::encode(&text);
+            assert_eq!(encoded.as_str(), text, "len {len}");
+            assert_eq!(PathComponent::new(text.as_str()), Ok(encoded), "len {len}");
+        }
+        // A safe text with dots and dashes, 64 bytes long, is also unchanged.
+        let mixed = format!("a{}z", "-.".repeat(31));
+        assert_eq!(mixed.len(), 64);
+        assert_eq!(PathComponent::encode(&mixed).as_str(), mixed);
+    }
+
+    #[test]
+    fn text_over_the_limit_or_needing_a_change_near_it_stays_within_the_limit_and_distinct() {
+        let sixty_five = "x".repeat(65);
+        let encoded = PathComponent::encode(&sixty_five);
+        assert_eq!(encoded.as_str().len(), MAX_COMPONENT_LEN);
+        assert_ne!(encoded.as_str(), sixty_five);
+        // Uppercase text of 54..=64 bytes needs a suffix, which must still fit.
+        for len in [53, 54, 60, 64] {
+            let upper = "X".repeat(len);
+            let encoded = PathComponent::encode(&upper);
+            assert!(encoded.as_str().len() <= MAX_COMPONENT_LEN, "len {len}");
+            assert!(PathComponent::new(encoded.as_str()).is_ok(), "len {len}");
+            assert_ne!(encoded, PathComponent::encode(&"x".repeat(len)));
+        }
+        // Distinct over-long originals stay distinct.
+        assert_ne!(
+            PathComponent::encode(&format!("{}a", "x".repeat(70))),
+            PathComponent::encode(&format!("{}b", "x".repeat(70)))
+        );
     }
 
     #[test]
