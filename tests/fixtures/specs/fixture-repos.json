@@ -1,0 +1,59 @@
+{
+  "$comment": "Specification of the FixtureRepo kinds (F03). The test kit's tests build every kind and compare the real Git state against this file; adding a kind means adding an entry here plus a builder, never editing the builder core.",
+  "default_branch": "main",
+  "kinds": [
+    {
+      "kind": "multi_package",
+      "branches": ["main"],
+      "main_commits": 1,
+      "files_on_main": [
+        "package.json",
+        "README.md",
+        "packages/core/src/index.js",
+        "packages/util/src/range.js",
+        "packages/app/src/main.js",
+        "packages/store/schema.sql",
+        "packages/store/migrations/0001_init.sql"
+      ]
+    },
+    {
+      "kind": "seeded_tickets",
+      "branches": ["main"],
+      "main_commits": 2,
+      "files_on_main": ["tickets/TKT-001.md", "tickets/TKT-002.md", "tickets/TKT-003.md", "packages/core/src/index.js"]
+    },
+    {
+      "kind": "seeded_review_defect",
+      "branches": ["main", "feature/range-rewrite"],
+      "main_commits": 1,
+      "files_on_main": ["packages/util/src/range.js"],
+      "defect": {
+        "branch": "feature/range-rewrite",
+        "path": "packages/util/src/range.js",
+        "description": "range() stops one short: the loop uses '<' where the contract (inclusive on both ends) needs '<='."
+      }
+    },
+    {
+      "kind": "schema_overlap_pair",
+      "branches": ["main", "ticket/schema-a", "ticket/schema-b"],
+      "main_commits": 1,
+      "files_on_main": ["packages/store/schema.sql", "packages/store/migrations/0001_init.sql"],
+      "shared_path": "packages/store/schema.sql",
+      "merge": "clean"
+    },
+    {
+      "kind": "merge_conflict_pair",
+      "branches": ["main", "ticket/conflict-a", "ticket/conflict-b"],
+      "main_commits": 1,
+      "files_on_main": ["packages/core/src/index.js"],
+      "shared_path": "packages/core/src/index.js",
+      "merge": "conflict"
+    },
+    {
+      "kind": "hostile_local_config",
+      "branches": ["main"],
+      "main_commits": 1,
+      "files_on_main": [".gitattributes", "README.md", "data/payload.dat"]
+    }
+  ]
+}

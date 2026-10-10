@@ -15,3 +15,9 @@ vela-process.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process", "io-util"] }
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+# `fault-injection` is what makes `fault_point!` abort when armed; this crate's own harness tests need it live. It is a
+# dev-dependency feature, so it is active only when test targets are built (`cargo test`, `--all-targets`), never in a
+# plain `cargo build --workspace --release`. Crates that run crash tests enable the feature in their own dev-dependencies.
+vela-domain = { workspace = true, features = ["fault-injection"] }

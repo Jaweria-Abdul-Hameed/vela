@@ -1,0 +1,2 @@
+# Fixture inputs are byte-stable on every host: the fixture builder writes them into repositories verbatim.
+* text eol=lf
