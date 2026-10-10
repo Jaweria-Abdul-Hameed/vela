@@ -134,7 +134,10 @@ impl StreamRedactor {
     }
 }
 
-/// Whether `line` starts a private key block that it does not also end.
+/// Whether `line` ends with the `BEGIN` marker of a private key, so the key itself is on the lines that follow.
+///
+/// A key that is written on one line (inside a JSON string, with escaped line breaks) continues after the marker and
+/// is redacted with its line; it opens nothing.
 fn opens_private_key(line: &str) -> bool {
     let Some(begin) = line.rfind(PEM_BEGIN) else {
         return false;
@@ -143,7 +146,8 @@ fn opens_private_key(line: &str) -> bool {
     let Some(label_end) = label.find(PEM_DASHES) else {
         return false;
     };
-    label[..label_end].contains(PRIVATE_KEY) && !label[label_end..].contains(PEM_END)
+    label[..label_end].contains(PRIVATE_KEY)
+        && label[label_end + PEM_DASHES.len()..].trim().is_empty()
 }
 
 /// The text after the `-----END ... -----` marker of `line`, if it has one.
@@ -241,6 +245,15 @@ mod tests {
         assert_eq!(
             feed(&mut stream(), text.as_bytes(), 6),
             "[REDACTED]\n\nerror: build failed\nMIIE\n"
+        );
+    }
+
+    #[test]
+    fn a_private_key_inside_one_json_line_does_not_swallow_the_next_lines() {
+        let text = "{\"text\":\"-----BEGIN RSA PRIVATE KEY-----\\nMIIE\\nAAAA\",\"n\":1}\nMIIE\n";
+        assert_eq!(
+            feed(&mut stream(), text.as_bytes(), 8),
+            "{\"text\":\"[REDACTED]\",\"n\":1}\nMIIE\n"
         );
     }
 

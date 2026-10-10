@@ -1,11 +1,16 @@
 //! Correlation ids: run, ticket, worker, operation (`OBSERVABILITY.md` "Logs").
 //!
 //! The ids are fields of a `tracing` span. A record emitted while the span is entered carries them, whichever crate
-//! emits it, so adapters and the process runner need no knowledge of runs or workers. A future keeps its span across
+//! emits it, so adapters and the process runner need no knowledge of runs or workers. A future keeps its ids across
 //! `.await` points when it is wrapped with [`CorrelationIds::scope`]; a task spawned with [`spawn_correlated`] inherits
-//! the span of the task that spawned it.
+//! the ids of the task that spawned it.
+//!
+//! The ids in force are also held in a task-local, so inheritance does not depend on what the installed subscriber
+//! can report about the current span, and [`CorrelationIds::current`] can stamp them on anything else (a journal
+//! entry, a process record).
 
 use tokio::task::JoinHandle;
+use tokio::task::futures::TaskLocalFuture;
 use tracing::instrument::Instrumented;
 use tracing::{Instrument, Level, Span, field};
 use vela_domain::ids::{OperationId, RunId, TicketId, WorkerId};
@@ -20,6 +25,11 @@ pub const TICKET_ID_FIELD: &str = "ticket_id";
 pub const WORKER_ID_FIELD: &str = "worker_id";
 /// The span field holding the operation id.
 pub const OPERATION_ID_FIELD: &str = "operation_id";
+
+tokio::task_local! {
+    /// The ids in force for the running task (see [`CorrelationIds::current`]).
+    static CURRENT: CorrelationIds;
+}
 
 /// The identifiers that tie a log record, a process and a journal entry to the work they belong to.
 ///
@@ -84,7 +94,24 @@ impl CorrelationIds {
             && self.operation.is_none()
     }
 
-    /// A span carrying these ids, as a child of the current span.
+    /// The ids in force where this is called: those of the innermost enclosing [`scope`](Self::scope) or
+    /// [`in_scope`](Self::in_scope), which already include the ids of the scopes around it. Empty outside any scope.
+    pub fn current() -> Self {
+        CURRENT.try_with(Clone::clone).unwrap_or_default()
+    }
+
+    /// These ids, with every id that is not set here taken from `outer`.
+    #[must_use]
+    pub fn or(self, outer: Self) -> Self {
+        Self {
+            run: self.run.or(outer.run),
+            ticket: self.ticket.or(outer.ticket),
+            worker: self.worker.or(outer.worker),
+            operation: self.operation.or(outer.operation),
+        }
+    }
+
+    /// A span carrying these ids.
     ///
     /// The span has the highest level, so no level filter can remove the ids from the records inside it.
     pub fn span(&self) -> Span {
@@ -111,26 +138,32 @@ impl CorrelationIds {
         span
     }
 
-    /// Runs `future` with these ids attached to every record it emits, across all of its `.await` points.
-    pub fn scope<F: Future>(&self, future: F) -> Instrumented<F> {
-        future.instrument(self.span())
+    /// Runs `future` with these ids, added to the ids already in force, attached to every record it emits across
+    /// all of its `.await` points.
+    pub fn scope<F: Future>(&self, future: F) -> Instrumented<TaskLocalFuture<Self, F>> {
+        let ids = self.clone().or(Self::current());
+        let span = ids.span();
+        CURRENT.scope(ids, future).instrument(span)
     }
 
-    /// Runs `work` with these ids attached to every record it emits.
+    /// Runs `work` with these ids, added to the ids already in force, attached to every record it emits.
     pub fn in_scope<T>(&self, work: impl FnOnce() -> T) -> T {
-        self.span().in_scope(work)
+        let ids = self.clone().or(Self::current());
+        let span = ids.span();
+        CURRENT.sync_scope(ids, || span.in_scope(work))
     }
 }
 
 /// Spawns `future` on the runtime with the correlation ids of the task that spawns it.
 ///
-/// A plain `tokio::spawn` starts with no span, so records of the new task would lose their ids.
+/// A plain `tokio::spawn` starts with no ids, so records of the new task would lose them. Threads and blocking tasks
+/// do not inherit either: pass [`CorrelationIds::current`] to them and open a scope there.
 pub fn spawn_correlated<F>(future: F) -> JoinHandle<F::Output>
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    tokio::spawn(future.in_current_span())
+    tokio::spawn(CorrelationIds::current().scope(future))
 }
 
 #[cfg(test)]
@@ -151,7 +184,6 @@ mod tests {
     struct SpanData {
         parent: Option<u64>,
         fields: Fields,
-        metadata: &'static Metadata<'static>,
     }
 
     #[derive(Default)]
@@ -213,11 +245,7 @@ mod tests {
             };
             let mut fields = Fields::new();
             attributes.record(&mut Collect(&mut fields));
-            let data = SpanData {
-                parent,
-                fields,
-                metadata: attributes.metadata(),
-            };
+            let data = SpanData { parent, fields };
             self.recorded.lock().unwrap().spans.insert(id, data);
             span::Id::from_u64(id)
         }
@@ -265,15 +293,6 @@ mod tests {
                     entered.remove(position);
                 }
             });
-        }
-
-        fn current_span(&self) -> span::Current {
-            let current = ENTERED.with(|entered| entered.borrow().last().copied());
-            let recorded = self.recorded.lock().unwrap();
-            match current.and_then(|id| recorded.spans.get(&id).map(|data| (id, data.metadata))) {
-                Some((id, metadata)) => span::Current::new(span::Id::from_u64(id), metadata),
-                None => span::Current::none(),
-            }
         }
     }
 
@@ -343,6 +362,37 @@ mod tests {
         }
         let outside = capture.event("outside");
         assert!(!outside.contains_key(RUN_ID_FIELD), "{outside:?}");
+    }
+
+    #[tokio::test]
+    async fn the_ids_in_force_can_be_read_back() {
+        assert!(CorrelationIds::current().is_empty());
+        let run = CorrelationIds::for_run(RunId::new("run-1").unwrap());
+        let worker = CorrelationIds::new().with_worker(WorkerId::new("worker-1").unwrap());
+        let both = run.clone().with_worker(WorkerId::new("worker-1").unwrap());
+
+        run.scope(async {
+            assert_eq!(CorrelationIds::current(), run);
+            worker
+                .scope(async {
+                    tokio::task::yield_now().await;
+                    assert_eq!(CorrelationIds::current(), both);
+                    let inherited = spawn_correlated(async { CorrelationIds::current() });
+                    assert_eq!(inherited.await.unwrap(), both);
+                    let lost = tokio::spawn(async { CorrelationIds::current() });
+                    assert!(lost.await.unwrap().is_empty());
+                })
+                .await;
+            worker.in_scope(|| assert_eq!(CorrelationIds::current(), both));
+            // An inner scope may replace an id for its own duration; the outer one is back afterwards.
+            let other = CorrelationIds::for_run(RunId::new("run-2").unwrap());
+            other.in_scope(|| assert_eq!(CorrelationIds::current(), other));
+            assert_eq!(CorrelationIds::current(), run);
+        })
+        .await;
+        assert!(CorrelationIds::current().is_empty());
+        assert_eq!(worker.clone().or(run.clone()), both);
+        assert_eq!(run.clone().or(worker), both);
     }
 
     #[tokio::test]

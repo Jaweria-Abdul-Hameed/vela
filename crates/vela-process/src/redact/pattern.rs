@@ -140,8 +140,10 @@ struct Hit {
 }
 
 impl Hit {
-    fn non_empty(start: usize, end: usize) -> Option<Self> {
-        (end > start).then_some(Self { start, end })
+    /// The value at `start..end`, unless it is empty or is already the marker. Only a value that is exactly the
+    /// marker is left alone, so a secret cannot hide behind a marker written in front of it.
+    fn value(bytes: &[u8], start: usize, end: usize) -> Option<Self> {
+        (end > start && &bytes[start..end] != REDACTED.as_bytes()).then_some(Self { start, end })
     }
 }
 
@@ -423,7 +425,7 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
     }
 
     let rest = &bytes[at..];
-    if rest.is_empty() || rest.starts_with(REDACTED.as_bytes()) {
+    if rest.is_empty() {
         return None;
     }
     let line_end = at
@@ -436,7 +438,7 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
     if rest.starts_with(b"\\\"") {
         let start = at + 2;
         let end = find(&bytes[start..line_end], b"\\\"").map_or(line_end, |offset| start + offset);
-        return Hit::non_empty(start, end);
+        return Hit::value(bytes, start, end);
     }
     if let quote @ (b'"' | b'\'') = rest[0] {
         let start = at + 1;
@@ -444,7 +446,7 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
         while end < line_end && bytes[end] != quote {
             end += if bytes[end] == b'\\' { 2 } else { 1 };
         }
-        return Hit::non_empty(start, end.min(line_end));
+        return Hit::value(bytes, start, end.min(line_end));
     }
     if separator == b' ' && rest[0] == b'-' {
         return None;
@@ -479,7 +481,7 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
     if not_a_secret {
         return None;
     }
-    Hit::non_empty(at, end)
+    Hit::value(bytes, at, end)
 }
 
 fn word_end(bytes: &[u8], from: usize, limit: usize) -> usize {
@@ -705,6 +707,9 @@ mod tests {
                 "Set-Cookie: [REDACTED]",
             ),
             ("password='unterminated value", "password='[REDACTED]"),
+            // A marker in front of a secret does not protect it.
+            ("password=[REDACTED]hunter2 x", "password=[REDACTED] x"),
+            ("token: [REDACTED] and more", "token: [REDACTED]"),
             ("?access_token=abc&page=2", "?access_token=[REDACTED]"),
             // Source code is indistinguishable from configuration, so a type annotation is redacted too.
             (
