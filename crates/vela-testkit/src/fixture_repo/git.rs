@@ -147,7 +147,10 @@ impl GitRepo {
         // try to spawn an empty program); they go right after the subcommand so a trailing `--` pathspec still works.
         match args.split_first() {
             Some((sub, rest)) if matches!(*sub, "diff" | "log" | "show") => {
-                command.arg(sub).args(["--no-ext-diff", "--no-textconv"]).args(rest);
+                command
+                    .arg(sub)
+                    .args(["--no-ext-diff", "--no-textconv"])
+                    .args(rest);
             }
             _ => {
                 command.args(args);
