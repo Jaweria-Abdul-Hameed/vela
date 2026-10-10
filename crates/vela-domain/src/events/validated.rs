@@ -34,13 +34,21 @@ pub enum EventValueError {
 impl fmt::Display for EventValueError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::GateDidNotPass { gate } => write!(f, "gate {gate:?} is listed as passed but did not pass"),
-            Self::GateDidNotFail { gate } => write!(f, "gate {gate:?} is recorded as the failing gate but did not fail"),
+            Self::GateDidNotPass { gate } => {
+                write!(f, "gate {gate:?} is listed as passed but did not pass")
+            }
+            Self::GateDidNotFail { gate } => write!(
+                f,
+                "gate {gate:?} is recorded as the failing gate but did not fail"
+            ),
             Self::MergedSourceIsNotTheReviewedHead => {
                 f.write_str("the merged source commit differs from the reviewed head")
             }
             Self::UnsupportedSchemaVersion(version) => {
-                write!(f, "unsupported event schema version {version} (this build reads 1..={EVENT_SCHEMA_VERSION})")
+                write!(
+                    f,
+                    "unsupported event schema version {version} (this build reads 1..={EVENT_SCHEMA_VERSION})"
+                )
             }
         }
     }
@@ -118,7 +126,10 @@ pub struct MergeBinding {
 
 impl MergeBinding {
     /// Accepts the pair only if the merged source is the reviewed head.
-    pub fn new(reviewed_head: CommitSha, merged_source: CommitSha) -> Result<Self, EventValueError> {
+    pub fn new(
+        reviewed_head: CommitSha,
+        merged_source: CommitSha,
+    ) -> Result<Self, EventValueError> {
         if reviewed_head == merged_source {
             Ok(Self {
                 reviewed_head,
@@ -200,7 +211,11 @@ mod tests {
     #[test]
     fn passed_gates_accept_only_passing_gates() {
         assert!(PassedGates::new(Vec::new()).is_ok());
-        let ok = PassedGates::new(vec![gate(GateStatus::Pass, Some(0)), gate(GateStatus::Pass, None)]).unwrap();
+        let ok = PassedGates::new(vec![
+            gate(GateStatus::Pass, Some(0)),
+            gate(GateStatus::Pass, None),
+        ])
+        .unwrap();
         assert_eq!(ok.as_slice().len(), 2);
         for bad in [
             gate(GateStatus::Fail, Some(1)),
@@ -253,7 +268,9 @@ mod tests {
         );
         assert_eq!(
             SchemaVersion::new(EVENT_SCHEMA_VERSION + 1),
-            Err(EventValueError::UnsupportedSchemaVersion(EVENT_SCHEMA_VERSION + 1))
+            Err(EventValueError::UnsupportedSchemaVersion(
+                EVENT_SCHEMA_VERSION + 1
+            ))
         );
         assert_eq!(
             SchemaVersion::new(u32::MAX),
@@ -267,19 +284,25 @@ mod tests {
         let passed = PassedGates::new(vec![gate(GateStatus::Pass, Some(0))]).unwrap();
         let json = serde_json::to_string(&passed).unwrap();
         assert_eq!(serde_json::from_str::<PassedGates>(&json).unwrap(), passed);
-        let forged = json.replace("\"pass\"", "\"fail\"").replace("\"exit_code\":0", "\"exit_code\":1");
+        let forged = json
+            .replace("\"pass\"", "\"fail\"")
+            .replace("\"exit_code\":0", "\"exit_code\":1");
         assert!(forged.contains("\"fail\""));
         assert!(serde_json::from_str::<PassedGates>(&forged).is_err());
 
         let failed = FailedGate::new(gate(GateStatus::Fail, Some(1))).unwrap();
         let json = serde_json::to_string(&failed).unwrap();
         assert_eq!(serde_json::from_str::<FailedGate>(&json).unwrap(), failed);
-        let forged = r#"{"gate":"g","status":"pass","exit_code":0,"duration_ms":null,"summary":""}"#;
+        let forged =
+            r#"{"gate":"g","status":"pass","exit_code":0,"duration_ms":null,"summary":""}"#;
         assert!(serde_json::from_str::<FailedGate>(forged).is_err());
 
         let binding = MergeBinding::new(sha('a'), sha('a')).unwrap();
         let json = serde_json::to_string(&binding).unwrap();
-        assert_eq!(serde_json::from_str::<MergeBinding>(&json).unwrap(), binding);
+        assert_eq!(
+            serde_json::from_str::<MergeBinding>(&json).unwrap(),
+            binding
+        );
         let forged = format!(
             r#"{{"reviewed_head":"{}","merged_source":"{}"}}"#,
             sha('a'),
@@ -287,7 +310,10 @@ mod tests {
         );
         assert!(serde_json::from_str::<MergeBinding>(&forged).is_err());
 
-        assert_eq!(serde_json::to_string(&SchemaVersion::current()).unwrap(), "1");
+        assert_eq!(
+            serde_json::to_string(&SchemaVersion::current()).unwrap(),
+            "1"
+        );
         assert!(serde_json::from_str::<SchemaVersion>("0").is_err());
         assert!(serde_json::from_str::<SchemaVersion>("2").is_err());
         assert!(serde_json::from_str::<SchemaVersion>("-1").is_err());

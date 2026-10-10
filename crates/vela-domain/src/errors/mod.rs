@@ -406,9 +406,13 @@ impl VelaError {
                     return Err(InconsistentError("the class does not match the error code"));
                 }
                 if self.origin != code.origin() {
-                    return Err(InconsistentError("the origin does not match the error code"));
+                    return Err(InconsistentError(
+                        "the origin does not match the error code",
+                    ));
                 }
-                if self.retry == RetryDisposition::Bounded && code.retry() != RetryDisposition::Bounded {
+                if self.retry == RetryDisposition::Bounded
+                    && code.retry() != RetryDisposition::Bounded
+                {
                     return Err(InconsistentError("this error code is never retried"));
                 }
             }
@@ -634,12 +638,11 @@ mod tests {
             let error = VelaError::of_class(class, "x");
             assert_eq!(error.validate(), Ok(()), "{class:?}");
         }
-        let with_effects = VelaError::of_class(ErrorClass::ExternalTemporary, "x").with_side_effects(
-            SideEffects {
+        let with_effects = VelaError::of_class(ErrorClass::ExternalTemporary, "x")
+            .with_side_effects(SideEffects {
                 pushed: true,
                 ..SideEffects::default()
-            },
-        );
+            });
         assert_eq!(with_effects.validate(), Ok(()));
     }
 

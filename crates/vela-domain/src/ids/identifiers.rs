@@ -370,7 +370,18 @@ mod tests {
     #[test]
     fn every_accepted_id_is_usable_as_a_branch_name_component() {
         let accepted = [
-            "F02", "f02", "A", "9", "a.b", "a_b", "a-b", "x-", "gh#42", "Run-1", "a.lockx", "z".repeat(60).as_str(),
+            "F02",
+            "f02",
+            "A",
+            "9",
+            "a.b",
+            "a_b",
+            "a-b",
+            "x-",
+            "gh#42",
+            "Run-1",
+            "a.lockx",
+            "z".repeat(60).as_str(),
         ];
         for id in accepted {
             assert!(RunId::new(id).is_ok(), "{id}");

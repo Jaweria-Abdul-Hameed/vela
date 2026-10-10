@@ -10,8 +10,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::errors::VelaError;
 use super::validated::{FailedGate, MergeBinding, PassedGates};
+use crate::errors::VelaError;
 use crate::ids::{BranchName, CommitSha, GateResult, ReviewSeverity, WorktreePath};
 
 macro_rules! event_vocabulary {

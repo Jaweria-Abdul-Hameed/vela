@@ -402,7 +402,9 @@ mod tests {
     #[test]
     fn a_ticket_cannot_block_itself() {
         let f02 = || TicketId::new("F02").unwrap();
-        assert!(DependencyEdge::new(TicketId::new("F01").unwrap(), f02(), EdgeOrigin::Analyst).is_ok());
+        assert!(
+            DependencyEdge::new(TicketId::new("F01").unwrap(), f02(), EdgeOrigin::Analyst).is_ok()
+        );
         assert_eq!(
             DependencyEdge::new(f02(), f02(), EdgeOrigin::Authored),
             Err(IdError::Malformed("a ticket cannot block itself"))

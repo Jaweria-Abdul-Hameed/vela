@@ -98,8 +98,10 @@ impl Sample for PassedGates {
 }
 impl Sample for FailedGate {
     fn sample() -> Self {
-        Self::new(GateResult::new("cargo test", GateStatus::Fail, Some(1), Some(42), "failed").unwrap())
-            .unwrap()
+        Self::new(
+            GateResult::new("cargo test", GateStatus::Fail, Some(1), Some(42), "failed").unwrap(),
+        )
+        .unwrap()
     }
 }
 impl Sample for MergeBinding {

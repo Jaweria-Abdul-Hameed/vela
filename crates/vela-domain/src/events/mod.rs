@@ -231,7 +231,8 @@ mod tests {
         for (status, code) in [("fail", 1), ("blocked", 101), ("pass", 1)] {
             assert!(
                 !parses_with(event(), |v| {
-                    v["payload"]["gates"] = serde_json::json!([gate_json("pass", 0), gate_json(status, code)]);
+                    v["payload"]["gates"] =
+                        serde_json::json!([gate_json("pass", 0), gate_json(status, code)]);
                 }),
                 "{status} {code}"
             );

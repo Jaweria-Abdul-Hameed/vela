@@ -407,11 +407,12 @@ mod tests {
             }
         }
         const FRAGMENTS: [&str; 24] = [
-            "a", "b", "Z", "7", "-", "_", ".", "..", "~", "#", " ", "/", "\\", ":", "con", "NUL", "com1",
-            "Lpt3", "é", "名", "\u{0}", "?", "*", "run-1",
+            "a", "b", "Z", "7", "-", "_", ".", "..", "~", "#", " ", "/", "\\", ":", "con", "NUL",
+            "com1", "Lpt3", "é", "名", "\u{0}", "?", "*", "run-1",
         ];
         let mut rng = Rng(0x5eed);
-        let mut seen: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+        let mut seen: std::collections::BTreeMap<String, String> =
+            std::collections::BTreeMap::new();
         for _ in 0..6000 {
             let pieces = (rng.step() % 40) as usize;
             let mut original = String::new();
@@ -440,7 +441,10 @@ mod tests {
             // 4. Distinct originals never share a component, not even case-insensitively.
             let key = encoded.as_str().to_ascii_lowercase();
             if let Some(previous) = seen.insert(key.clone(), original.clone()) {
-                assert_eq!(previous, original, "{previous:?} and {original:?} both map to {key}");
+                assert_eq!(
+                    previous, original,
+                    "{previous:?} and {original:?} both map to {key}"
+                );
             }
         }
     }
