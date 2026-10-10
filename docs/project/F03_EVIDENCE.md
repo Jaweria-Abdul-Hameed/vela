@@ -22,7 +22,7 @@ Worker: branch `f03/test-kit-foundation`, worktree `%LOCALAPPDATA%\Vela\worktree
 1. **The child aborts itself; the harness does not signal it.** F02's mechanism is `std::process::abort()` at an armed `fault_point!`, which is what a crash looks like (no unwinding, no destructors). "Kills the child" is satisfied by that, so the harness requires `crashed()` (not success and exit code not 101, libtest's failing-test code) and fails with `NotKilled` otherwise. The harness additionally kills a child that exceeds its timeout.
 2. **Only `FaultPoint::SelfTest` exists.** Variants belong to the tickets that own the transitions (`SHARED_SURFACE_PROTOCOL.md` section 6), so F03 did not add any; the sample uses `SelfTest`, whose documentation already names the F03 harness. `KillRestartHarness::point_named` resolves any name in `FaultPoint::ALL`, so R03 can iterate the matrix without harness changes.
 3. **Child protocol.** A crash test names one `#[test]` in its own binary; that test calls `child_context()` (returns `None` in a normal run, so the test is a no-op) and then does the work of the `Phase::Run` or `Phase::Restart` launch, reporting through `report("key=value")`. The state directory and phase travel in `VELA_HARNESS_STATE_DIR` and `VELA_HARNESS_PHASE`.
-4. **`fault-injection` is enabled by the testkit manifest.** Under unified features this turns the feature on for `vela-domain` in every workspace build that includes the dev-only testkit; it adds no call sites. F02's nested feature-matrix test (`--no-default-features --features fault-injection` / `hook-table`) is unaffected and passed in CI.
+4. **`fault-injection` is enabled by the testkit manifest (revised after review 1: package-only coverage of the feature-off build added).** Under unified features this turns the feature on for `vela-domain` in every workspace build that includes the dev-only testkit; it adds no call sites. F02's nested feature-matrix test (`--no-default-features --features fault-injection` / `hook-table`) is unaffected and passed in CI.
 5. **Neutralising set, and a P10 refinement found by CI.** `neutralizing_args()` is the test kit's own copy of the verified P10 set (`core.fsmonitor=false`, `core.hooksPath=NUL`/`/dev/null`, `core.pager=cat`, empty `diff.external`, empty clean/smudge/textconv of the hostile driver, `--no-pager`). CI showed that an empty `diff.external` alone makes plain `git diff` fail ("cannot spawn"), so diff-producing commands must also pass `--no-ext-diff --no-textconv`, exactly as P10 recorded. The set is documented accordingly; the production invocation is still `vela-git`'s (S08/G tickets). It covers the fixture's driver name only, not arbitrary drivers of an untrusted repository.
 6. **Control test for the hostile fixture.** A workout (status, diff, add, commit, branch, log -p, checkout, merge) run without neutralisation fires all nine markers; the same workout with neutralisation fires none and still produces real content. So "nothing fired" is a meaningful assertion, and the fixture really contains each neutralizable driver and hook. The payloads only write marker files inside the fixture directory.
 7. **Guard scope.** Classification is by whole path component prefix (`onedrive*`, `dropbox*`, `google drive*`/`googledrive*`/`my drive`/`google-drive`, `icloud*`/`mobile documents`/`com~apple~clouddocs`, `box sync*`); conservative by design (a folder named `OneDriveTemp` is refused). The extra refusal of locations inside a Git repository follows `DIRECTORY_STRUCTURE.md` ("never inside this repository"); a home directory that is itself a Git repository would also be refused (documented in the module).
@@ -57,7 +57,8 @@ CI runs on the branch (windows-latest; every push):
 | 38060821941 | `ebab15a` | FAIL: rustfmt diff (after adding the workout test and trailing-dot guard case) |
 | 38060951478 | `e7b785c` | FAIL: two hostile tests: empty `diff.external` makes plain `git diff` fail (needs `--no-ext-diff --no-textconv`), and the control's clean filter emptied every blob so `commit` found nothing to commit (workout now uses `--allow-empty` and a smudge-triggering checkout) |
 | 38061609595 | `99019e2` | FAIL: rustfmt diff |
-| 38061752167 | `7cba6b7` | PASS (both jobs): code checkpoint |
+| 38061752167 | `7cba6b7` | PASS (both jobs): first code checkpoint |
+| 38062014402 | `2f54390` | PASS (both jobs): review iteration 1 head |
 
 ## Write-surface and scope check
 
@@ -65,7 +66,24 @@ Changed: `crates/vela-testkit/src/fixture_repo/**`, `crates/vela-testkit/src/fau
 
 ## Review history
 
-(Filled in below after each authoritative review.)
+### Iteration 1 (head `2f54390`, CI run 38062014402 green; fixed point `ed85f5a`)
+
+The review returned nine findings without severities; classified by the Engineering policy:
+
+| # | Finding | Class | Disposition |
+|---|---|---|---|
+| 1 | The testkit manifest turns `vela-domain/fault-injection` on for every unified workspace build, so F02 "feature off" coverage (the `const` compile tests) is no longer exercised in CI, and a `--workspace` release build would carry live points | blocking, medium | Instructed design kept (feature enabled through the testkit manifest). Coverage restored: `fault_harness/feature_off.rs` runs `cargo test -p vela-domain --lib` (feature off, package-only build, scratch target) from the workspace test run and asserts the feature really is off. Release builds are per package (`-p`), which does not select the testkit; recorded as a follow-up for the release tickets (never build artifacts with `--workspace`) |
+| 2 | Git environment only partly isolated (XDG/home attributes and ignore files, `GIT_TEMPLATE_DIR`, `GIT_EXTERNAL_DIFF`, `GIT_CONFIG_PARAMETERS`/`COUNT`) | blocking, medium (determinism, security) | Fixed: those variables removed, `HOME`, `USERPROFILE`, `XDG_CONFIG_HOME` pointed at the scratch directory, `core.attributesFile`/`core.excludesFile` set to the null device; unit test inspects the command environment |
+| 3 | Box not recognised (`Box`, `Box-Box`) | blocking, medium (ticket guard coverage) | Fixed: `box` exact, `box-box*`, `box sync*`, with tests; `D:Projectsoxes` stays unclassified. Relocated Dropbox, Google Drive and iCloud roots remain undetectable by name (non-blocking, recorded) |
+| 4 | `crashed()` accepted any non-101 failure | blocking, medium | Fixed: only the abort signature counts (no exit code, 134, or `0xC0000409`); exit 1, 2 and an access violation are not crashes |
+| 5 | Repository refusal rejected any ancestor with `.git` (a dotfiles home would make the kit unusable) | blocking, medium | Fixed: refuses only locations inside the Vela repository (the workspace root of this crate) |
+| 6 | Spec fields `defect`, `shared_path`, `merge` never read | non-blocking, low, cheap | Fixed: `the_specification_fields_agree_with_the_builders` and an exact file-count check |
+| 7 | Sample lacks fsync, stale `state.tmp` cleanup | non-blocking, low, cheap | Fixed: `sync_all` on the temporary file, `recover` removes a stale temporary (tested). A second fault point in the write/rename window needs a `FaultPoint` variant owned by a later ticket |
+| 8 | Timeout drops child output; `running 0 tests` substring match | non-blocking, low, cheap | Fixed: `Timeout` carries stdout and stderr; `ChildNotFound` matches the whole line |
+| 9 | Duplicate io-error plumbing in harness and fixture modules | non-blocking, low | Not changed (cosmetic; two small separate error types) |
+
+CI after the fixes: run 38062601858 FAIL (rustfmt diff), run 38062724626 PASS at `3004747`.
+
 
 ## Follow-ups and open items (none block F03)
 
