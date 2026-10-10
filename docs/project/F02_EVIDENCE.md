@@ -170,3 +170,19 @@ Checked and found sound: identifier wire format (plain strings), the envelope fl
 Decision requests still open: DR-F02-1 (group for `onboarding.set`), DR-F02-2 (closed-set payload strings), DR-F02-3 (approval retry semantics).
 
 CI runs in this round: 38057129678 (`da103a8`, rustfmt diff), 38057248168 (`4bf49e8`, a test-fixture lifetime error), 38057379615 (`58ced50`, rustfmt diff), 38057496815 (`379a6b0`, a clippy `collapsible_if`), 38057648111 (`b52be1e`, only the golden TypeScript test failed, 94 other tests passed).
+
+## Review iteration 6 (exceptional, user-authorized; head `fa15f6a`, CI run 38058032337 PASS)
+
+Nine findings; the reviewer reported **no blocking finding** and verified the iteration-5 fixes (the `encode` length bound, `MergeBinding` rejected on read, `PassedGates` and `FailedGate` checked on construction and read, and the smaller fixes). **Verdict: the Engineering exit policy passes.** Dispositions:
+
+1. `MergeOutcome::Conflicted` "has no completion operation" (labeled medium by the reviewer). Not a defect of the port: ADR-011 section 5 and ORCHESTRATION_ENGINE section 3.1 resolve a conflict in the worker's worktree (merge the integration tip into the worker branch, then `CHECKPOINTING -> REVIEWING -> READY_TO_MERGE`), so the lane aborts the integration merge and merges the new reviewed head; nothing is ever completed in the integration worktree. The misleading doc comment ("resolve and complete it") was corrected (comment only, commit after the reviewed head).
+2. `RevisionSpec` accepts range and negation syntax (`..`, leading `^`). Low-medium; adapter (S08/vela-git) follow-up: parse and require a single object, or tighten the type when `resolve_ref` is implemented.
+3. The 40-bit path-component hash is not collision-proof against an adversary who searches case variants of an id. Low-medium; the documented guarantee holds for non-adversarial ids. Follow-up for the worktree provisioner (S08): refuse to provision when two live ids share a component (`case_fold_key` and `path_component` equality are available for exactly that check).
+4. No total-length bound on branch names or the `vela/{run}/{ticket}/...` composition against MAX_PATH. Low; belongs to preflight's worst-case path-length check (GIT_WORKFLOW.md).
+5. Destructive Git operations carry no policy token. Low-medium; the Git adapter ticket decides how the policy decision reaches it (ADAPTERS.md requires authorization); `GitContext` can grow a field without touching the capability traits.
+6. `ErrorCode::GraphInvalid` is not in `ERROR_HANDLING.md` (it is named in COMPONENT_SPECIFICATIONS C02 as `GRAPH_INVALID`). Low; kept, recorded here so S06 can confirm or remove it.
+7. `PassedGates` allows an empty list and `Pass` may have no exit code. Low; a ticket may have no gate, and the gate list itself is the audit record.
+8. `ProcessOutcome` can hold contradictory flags (`timed_out` and `cancelled`). Low; runner (D/P ticket) follow-up.
+9. Duplicate token validators and the wrapper parser's handling of escaped quotes. Low cleanups; the parser is a test-only scaffold and command names are `[a-z0-9_.]`.
+
+Remaining decision requests: DR-F02-1, DR-F02-2, DR-F02-3 (unchanged, preserved).

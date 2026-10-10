@@ -267,8 +267,11 @@ pub enum MergeOutcome {
         /// refused otherwise), reported so the journal records exactly what entered integration.
         merged_source: CommitSha,
     },
-    /// The merge stopped on textual conflicts and the worktree is mid-merge. Resolve and complete it, or call
-    /// [`GitMerges::abort_merge`].
+    /// The merge stopped on textual conflicts and the integration worktree is mid-merge. The lane calls
+    /// [`GitMerges::abort_merge`]; the conflict is then resolved in the *worker's* worktree (the integration tip is
+    /// merged into the worker branch, ADR-011 section 5), which returns through checkpoint and review to a new
+    /// reviewed head, and the lane merges that head. A conflicted merge is never completed inside the integration
+    /// worktree, so no operation for that exists on this port.
     Conflicted {
         /// The conflicting paths.
         paths: Vec<String>,
