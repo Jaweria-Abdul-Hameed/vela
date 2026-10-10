@@ -18,7 +18,7 @@ No ts-rs DTO is exported, so no contract regeneration was needed.
 
 ## Acceptance criteria
 
-1. Every section 1.1 and worker-machine transition is implemented and every other is rejected: `run::tests::every_transition_pair_matches_the_specification_table` and `worker::tests::every_transition_pair_matches_the_specification_table` compare all (from, to) pairs over the full enumerated state space (243 run states, 255 worker states) with an independently written oracle of the specification; `every_specification_row_is_accepted` names each table row.
+1. Every section 1.1 and worker-machine transition is implemented and every other is rejected: `run::tests::every_transition_pair_matches_the_specification_table` and `worker::tests::every_transition_pair_matches_the_specification_table` compare all (from, to) pairs over the full enumerated state space (243 run states, 243 worker states) with an independently written oracle of the specification; `every_specification_row_is_accepted` names each table row.
 2. Projection covers every worker state and intervention kind: `projection::tests` (every phase, every pause reason, all 16 kinds, UI mapping, every ticket state reachable).
 3. `PROVIDER_POLICY_BLOCK` (worker and run): `provider_policy_block_exits_only_by_explicit_resolve_or_cancel` enumerates all targets and both causes; the only exits are `Active(resume_state)` by `UserDecision` and `CANCELLED`. It also projects to `NEEDS_HUMAN`, never `RATE_LIMITED`.
 4. Property tests (proptest): random legal walks of the run machine, of the worker machine (with the overlay), and of the worker projection never leave the enumerated state space, never leave a held block except through the explicit exits, and always project to a ticket and UI node state.
