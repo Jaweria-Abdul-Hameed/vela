@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::common::{Cause, InterventionKind, PausedReason};
 use super::error::{KindRule, Machine, TransitionError};
+use super::run::IntegrationHealth;
 
 /// A worker state that carries no payload and can be recorded as a `resume_state`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -192,9 +193,28 @@ impl WorkerState {
 
     /// Applies one transition. Returns the new state (equal to `to`) or a typed error. `cause` matters when leaving a
     /// state that waits for a human: a resume from `NEEDS_HUMAN` needs `Cause::UserDecision` (a `PROVIDER_POLICY_BLOCK`
-    /// resolves only that way), as does a resume from `PAUSED` unless the reason is automatic (`CAPACITY`,
-    /// `INTERACTIVE_SESSION_UNAVAILABLE`).
-    pub fn transition(self, to: Self, cause: Cause) -> Result<Self, TransitionError> {
+    /// resolves only that way), as does a resume or cancel of `PAUSED` unless the reason is automatic (`CAPACITY`,
+    /// `INTERACTIVE_SESSION_UNAVAILABLE`); cancelling a `NEEDS_HUMAN` worker needs it too. `FAILED` is a system outcome.
+    /// Section 5 step 2 gates `READY_TO_MERGE` to `MERGING` on integration health `HEALTHY`.
+    pub fn transition(
+        self,
+        to: Self,
+        cause: Cause,
+        health: IntegrationHealth,
+    ) -> Result<Self, TransitionError> {
+        if self == Self::Active(WorkerPhase::ReadyToMerge)
+            && to == Self::Active(WorkerPhase::Merging)
+            && !health.permits_merge_lane()
+        {
+            return Err(TransitionError::IntegrationNotHealthy {
+                health: health.name(),
+            });
+        }
+        self.table(to, cause)
+    }
+
+    /// The structural transition table (no health precondition).
+    fn table(self, to: Self, cause: Cause) -> Result<Self, TransitionError> {
         if self.is_terminal() {
             return Err(TransitionError::Terminal {
                 machine: Machine::Worker,
@@ -205,7 +225,8 @@ impl WorkerState {
             && kind.is_held()
         {
             return match to {
-                Self::Cancelled | Self::Failed => Ok(to),
+                Self::Failed => Ok(to),
+                Self::Cancelled => require_user(cause).map(|()| to),
                 Self::Active(phase) if phase == resume_state => require_user(cause).map(|()| to),
                 _ => Err(TransitionError::ProviderPolicyBlockHeld {
                     machine: Machine::Worker,
@@ -214,7 +235,26 @@ impl WorkerState {
             };
         }
         match (self, to) {
-            (_, Self::Failed | Self::Cancelled) => Ok(to),
+            (_, Self::Failed) => Ok(to),
+            (Self::Active(_), Self::Cancelled) => Ok(to),
+            (Self::Paused { reason, .. }, Self::Cancelled) => {
+                if reason.resumes_automatically() {
+                    Ok(to)
+                } else {
+                    require_user(cause).map(|()| to)
+                }
+            }
+            (Self::NeedsHuman { .. }, Self::Cancelled) => require_user(cause).map(|()| to),
+            // A human gate can escalate to a provider policy block (it is then held).
+            (
+                Self::NeedsHuman {
+                    resume_state: held, ..
+                },
+                Self::NeedsHuman {
+                    kind: InterventionKind::ProviderPolicyBlock,
+                    resume_state,
+                },
+            ) => same(to, held, resume_state),
             (Self::Active(WorkerPhase::IntegrationValidation), Self::Complete) => Ok(to),
             (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => {
                 Ok(to)
@@ -358,6 +398,17 @@ impl WorkerStatus {
         self.waiting_approval
     }
 
+    /// A new worker in `PROVISIONING`. While integration health is not `HEALTHY` no new worker starts (section 1.2).
+    pub fn provision(health: IntegrationHealth) -> Result<Self, TransitionError> {
+        if health.permits_worker_start() {
+            Ok(Self::new(WorkerState::Active(WorkerPhase::Provisioning)))
+        } else {
+            Err(TransitionError::IntegrationNotHealthy {
+                health: health.name(),
+            })
+        }
+    }
+
     /// A status with no overlay.
     pub const fn new(state: WorkerState) -> Self {
         Self {
@@ -394,14 +445,19 @@ impl WorkerStatus {
     /// Applies a state transition. While waiting for approval only the exceptional targets are reachable (for example
     /// `NEEDS_HUMAN` with kind `APPROVAL_ASK`, recording the prior state as `resume_state`); the overlay then ends.
     /// Approval handling never advances the state by itself.
-    pub fn transition(self, to: WorkerState, cause: Cause) -> Result<Self, TransitionError> {
+    pub fn transition(
+        self,
+        to: WorkerState,
+        cause: Cause,
+        health: IntegrationHealth,
+    ) -> Result<Self, TransitionError> {
         if self.waiting_approval && !to.is_exceptional() {
             return Err(TransitionError::OverlayBlocksAdvance {
                 from: self.state.name(),
                 to: to.name(),
             });
         }
-        Ok(Self::new(self.state.transition(to, cause)?))
+        Ok(Self::new(self.state.transition(to, cause, health)?))
     }
 }
 
@@ -412,6 +468,8 @@ mod tests {
     use proptest::prelude::*;
 
     use super::*;
+
+    const HEALTHY: IntegrationHealth = IntegrationHealth::Healthy;
 
     use WorkerPhase as P;
     use WorkerState as S;
@@ -474,6 +532,13 @@ mod tests {
                     add(needs(kind, phase), S::Active(phase));
                     add(needs(kind, phase), S::Cancelled);
                     add(needs(kind, phase), S::Failed);
+                    if kind != InterventionKind::ProviderPolicyBlock {
+                        // A human gate can escalate to a provider policy block.
+                        add(
+                            needs(kind, phase),
+                            needs(InterventionKind::ProviderPolicyBlock, phase),
+                        );
+                    }
                 }
             }
         }
@@ -488,7 +553,7 @@ mod tests {
         let mut accepted = 0;
         for from in &states {
             for to in &states {
-                let result = from.transition(*to, Cause::UserDecision);
+                let result = from.table(*to, Cause::UserDecision);
                 assert_eq!(
                     result.is_ok(),
                     legal.contains(&(*from, *to)),
@@ -511,7 +576,7 @@ mod tests {
             InterventionKind::IntegrationUnhealthy,
         ] {
             assert_eq!(
-                S::Active(P::Implementing).transition(needs(kind, P::Implementing), Cause::System),
+                S::Active(P::Implementing).table(needs(kind, P::Implementing), Cause::System),
                 Err(TransitionError::KindNotAllowed {
                     machine: Machine::Worker,
                     kind,
@@ -532,26 +597,26 @@ mod tests {
             P::Merging,
             P::IntegrationValidation,
         ] {
-            state = state.transition(S::Active(next), Cause::System).unwrap();
+            state = state.table(S::Active(next), Cause::System).unwrap();
         }
         assert_eq!(
-            state.transition(S::Complete, Cause::System),
+            state.table(S::Complete, Cause::System),
             Ok(S::Complete)
         );
         // CONFLICT_RESOLUTION is entered only from MERGING and cannot skip back to READY_TO_MERGE.
         assert!(
             S::Active(P::ReadyToMerge)
-                .transition(S::Active(P::ConflictResolution), Cause::System)
+                .table(S::Active(P::ConflictResolution), Cause::System)
                 .is_err()
         );
         assert!(
             S::Active(P::ConflictResolution)
-                .transition(S::Active(P::ReadyToMerge), Cause::System)
+                .table(S::Active(P::ReadyToMerge), Cause::System)
                 .is_err()
         );
         assert!(
             S::Active(P::ConflictResolution)
-                .transition(S::Active(P::Reviewing), Cause::System)
+                .table(S::Active(P::Reviewing), Cause::System)
                 .is_err()
         );
     }
@@ -560,17 +625,20 @@ mod tests {
     fn leaving_a_human_gate_needs_a_user_decision_unless_the_pause_is_automatic() {
         for state in S::all() {
             for to in S::all() {
-                let by_user = state.transition(to, Cause::UserDecision);
-                let by_system = state.transition(to, Cause::System);
+                let by_user = state.table(to, Cause::UserDecision);
+                let by_system = state.table(to, Cause::System);
                 let automatic = matches!(
                     state,
                     S::Paused { reason, .. } if reason.resumes_automatically()
                 );
-                let resume = matches!(
+                let leaves_gate = matches!(
                     (state, to),
-                    (S::Paused { .. } | S::NeedsHuman { .. }, S::Active(_))
+                    (
+                        S::Paused { .. } | S::NeedsHuman { .. },
+                        S::Active(_) | S::Cancelled
+                    )
                 );
-                if resume && by_user.is_ok() && !automatic {
+                if leaves_gate && by_user.is_ok() && !automatic {
                     assert_eq!(
                         by_system,
                         Err(TransitionError::ExplicitDecisionRequired {
@@ -586,6 +654,40 @@ mod tests {
     }
 
     #[test]
+    fn merge_lane_entry_and_worker_start_need_healthy_integration() {
+        let ready = S::Active(P::ReadyToMerge);
+        let merging = S::Active(P::Merging);
+        assert_eq!(ready.transition(merging, Cause::System, HEALTHY), Ok(merging));
+        for health in [IntegrationHealth::Unknown, IntegrationHealth::Unhealthy] {
+            assert_eq!(
+                ready.transition(merging, Cause::System, health),
+                Err(TransitionError::IntegrationNotHealthy { health: health.name() })
+            );
+            assert_eq!(
+                WorkerStatus::provision(health),
+                Err(TransitionError::IntegrationNotHealthy { health: health.name() })
+            );
+            // Running workers continue up to READY_TO_MERGE and are not gated elsewhere.
+            assert!(S::Active(P::Implementing)
+                .transition(S::Active(P::FocusedValidation), Cause::System, health)
+                .is_ok());
+        }
+        assert_eq!(
+            WorkerStatus::provision(HEALTHY),
+            Ok(WorkerStatus::new(S::Active(P::Provisioning)))
+        );
+    }
+
+    #[test]
+    fn a_human_gate_can_escalate_to_a_provider_policy_block_but_not_back() {
+        let gate = needs(InterventionKind::AuthRequired, P::Implementing);
+        let block = needs(InterventionKind::ProviderPolicyBlock, P::Implementing);
+        assert_eq!(gate.table(block, Cause::System), Ok(block));
+        assert!(gate.table(needs(InterventionKind::Other, P::Implementing), Cause::System).is_err());
+        assert!(block.table(gate, Cause::UserDecision).is_err());
+    }
+
+    #[test]
     fn failed_integration_validation_returns_to_fixing() {
         let mut state = S::Active(P::IntegrationValidation);
         for next in [
@@ -596,7 +698,7 @@ mod tests {
             P::ReadyToMerge,
             P::Merging,
         ] {
-            state = state.transition(S::Active(next), Cause::System).unwrap();
+            state = state.table(S::Active(next), Cause::System).unwrap();
         }
         assert_eq!(state, S::Active(P::Merging));
     }
@@ -605,9 +707,9 @@ mod tests {
     fn a_capacity_pause_can_escalate_to_a_provider_policy_block() {
         let capacity = paused(PausedReason::Capacity, P::Implementing);
         let block = needs(InterventionKind::ProviderPolicyBlock, P::Implementing);
-        assert_eq!(capacity.transition(block, Cause::System), Ok(block));
+        assert_eq!(capacity.table(block, Cause::System), Ok(block));
         // The reverse (de-escalation) is not a transition.
-        assert!(block.transition(capacity, Cause::UserDecision).is_err());
+        assert!(block.table(capacity, Cause::UserDecision).is_err());
     }
 
     #[cfg(feature = "full")]
@@ -629,7 +731,7 @@ mod tests {
         for terminal in [S::Complete, S::Failed, S::Cancelled] {
             for to in S::all() {
                 assert!(matches!(
-                    terminal.transition(to, Cause::UserDecision),
+                    terminal.table(to, Cause::UserDecision),
                     Err(TransitionError::Terminal { .. })
                 ));
             }
@@ -642,7 +744,7 @@ mod tests {
         let mut exits = Vec::new();
         for to in S::all() {
             for cause in [Cause::System, Cause::UserDecision] {
-                if block.transition(to, cause).is_ok() {
+                if block.table(to, cause).is_ok() {
                     exits.push((to, cause));
                 }
             }
@@ -653,12 +755,11 @@ mod tests {
                 (S::Active(P::Implementing), Cause::UserDecision),
                 (S::Failed, Cause::System),
                 (S::Failed, Cause::UserDecision),
-                (S::Cancelled, Cause::System),
                 (S::Cancelled, Cause::UserDecision)
             ]
         );
         assert_eq!(
-            block.transition(S::Active(P::Implementing), Cause::System),
+            block.table(S::Active(P::Implementing), Cause::System),
             Err(TransitionError::ExplicitDecisionRequired {
                 machine: Machine::Worker
             })
@@ -670,7 +771,7 @@ mod tests {
             S::Active(P::Reviewing),
         ] {
             assert_eq!(
-                block.transition(to, Cause::UserDecision),
+                block.table(to, Cause::UserDecision),
                 Err(TransitionError::ProviderPolicyBlockHeld {
                     machine: Machine::Worker,
                     to: to.name()
@@ -696,7 +797,7 @@ mod tests {
         assert_eq!(waiting.end_approval_wait(), Ok(status));
         // It cannot advance the worker by itself.
         assert_eq!(
-            waiting.transition(S::Active(P::FocusedValidation), Cause::System),
+            waiting.transition(S::Active(P::FocusedValidation), Cause::System, HEALTHY),
             Err(TransitionError::OverlayBlocksAdvance {
                 from: "IMPLEMENTING",
                 to: "FOCUSED_VALIDATION"
@@ -707,6 +808,7 @@ mod tests {
             .transition(
                 needs(InterventionKind::ApprovalAsk, P::Implementing),
                 Cause::System,
+                HEALTHY,
             )
             .unwrap();
         assert_eq!(
@@ -715,7 +817,7 @@ mod tests {
         );
         // After the decision the worker resumes the state it had.
         assert_eq!(
-            asked.transition(S::Active(P::Implementing), Cause::UserDecision),
+            asked.transition(S::Active(P::Implementing), Cause::UserDecision, HEALTHY),
             Ok(status)
         );
         // Interactive session lost while waiting: PAUSED with that reason.
@@ -723,7 +825,8 @@ mod tests {
             waiting
                 .transition(
                     paused(PausedReason::InteractiveSessionUnavailable, P::Implementing),
-                    Cause::System
+                    Cause::System,
+                    HEALTHY
                 )
                 .is_ok()
         );
@@ -766,13 +869,13 @@ mod tests {
                         let legal: Vec<S> = universe
                             .iter()
                             .copied()
-                            .filter(|target| status.transition(*target, cause).is_ok())
+                            .filter(|target| status.transition(*target, cause, HEALTHY).is_ok())
                             .collect();
                         if legal.is_empty() {
                             prop_assert!(status.state.is_terminal() || status.waiting_approval);
                             None
                         } else {
-                            status.transition(legal[index.index(legal.len())], cause).ok()
+                            status.transition(legal[index.index(legal.len())], cause, HEALTHY).ok()
                         }
                     }
                 };
@@ -783,8 +886,8 @@ mod tests {
                     && next.state != before.state
                 {
                     prop_assert!(
-                        matches!(next.state, S::Cancelled | S::Failed)
-                            || (next.state == S::Active(resume_state) && user)
+                        next.state == S::Failed
+                            || (user && (next.state == S::Active(resume_state) || next.state == S::Cancelled))
                     );
                 }
                 status = next;

@@ -90,12 +90,10 @@ pub enum RunState {
     Stopping {
         /// The state the run was in when Stop All began.
         resume_state: RunPhase,
-    },
-    /// Stop All is quiescing a run that was `NEEDS_HUMAN` with kind `PROVIDER_POLICY_BLOCK`. The hold is preserved: it
-    /// can only return to that block (or fail), never to `PAUSED` or an active state.
-    StoppingProviderBlock {
-        /// The state the run returns to once the block is resolved.
-        resume_state: RunPhase,
+        /// The human gate (`NEEDS_HUMAN` kind) the run was in when Stop All began, if any. A gated run keeps its gate
+        /// through `STOPPING`: it can only return to `NEEDS_HUMAN` with the same kind (or fail), never to `PAUSED`, so
+        /// Stop All cannot turn a human gate into an ordinary pause.
+        gate: Option<InterventionKind>,
     },
     /// Paused for a reason.
     Paused {
@@ -120,12 +118,12 @@ pub enum RunState {
 }
 
 impl RunState {
-    /// The specification name of the state (without payload). The serde form of the enum is structural; the persisted
-    /// or contract wire form is fixed by the ticket that exports it.
+    /// The specification name of the state (without payload). The serde form of the enum is structural and is not
+    /// validated on load; the persisted or contract wire form is fixed by the ticket that exports it.
     pub const fn name(&self) -> &'static str {
         match self {
             Self::Active(phase) => phase.name(),
-            Self::Stopping { .. } | Self::StoppingProviderBlock { .. } => "STOPPING",
+            Self::Stopping { .. } => "STOPPING",
             Self::Paused { .. } => "PAUSED",
             Self::NeedsHuman { .. } => "NEEDS_HUMAN",
             Self::Completed => "COMPLETED",
@@ -142,25 +140,29 @@ impl RunState {
     /// The `resume_state` recorded by `STOPPING`, `PAUSED` or `NEEDS_HUMAN`.
     pub const fn resume_state(&self) -> Option<RunPhase> {
         match self {
-            Self::Stopping { resume_state }
-            | Self::StoppingProviderBlock { resume_state }
+            Self::Stopping { resume_state, .. }
             | Self::Paused { resume_state, .. }
             | Self::NeedsHuman { resume_state, .. } => Some(*resume_state),
             _ => None,
         }
     }
 
-    /// Every well-formed run state (payload combinations included).
+    /// Every payload combination of every run state (a superset of the states the table can reach; used by the
+    /// exhaustive tests and by consumers that need the closed set).
     pub fn all() -> Vec<Self> {
         let mut states = Vec::new();
         for phase in RunPhase::ALL {
             states.push(Self::Active(phase));
             states.push(Self::Stopping {
                 resume_state: phase,
+                gate: None,
             });
-            states.push(Self::StoppingProviderBlock {
-                resume_state: phase,
-            });
+            for kind in InterventionKind::ALL {
+                states.push(Self::Stopping {
+                    resume_state: phase,
+                    gate: Some(kind),
+                });
+            }
             for reason in PausedReason::ALL {
                 states.push(Self::Paused {
                     reason,
@@ -178,10 +180,15 @@ impl RunState {
         states
     }
 
-    /// Like [`RunState::transition`], and additionally enforces the integration-health precondition of
-    /// `RUNNING` to `FINAL_REVIEW` (section 1.1: integration health is `HEALTHY`). The other precondition, that every
-    /// in-scope ticket is `DONE`, is not run state and stays with the Orchestrator.
-    pub fn transition_with_health(
+    /// Applies one transition. Returns the new state (equal to `to`) or a typed error; the specification's transition
+    /// table is the only source of legality, plus the integration-health precondition of `RUNNING` to `FINAL_REVIEW`
+    /// (section 1.1: integration health is `HEALTHY`; the other precondition, that every in-scope ticket is `DONE`, is
+    /// not run state and stays with the Orchestrator).
+    ///
+    /// `cause` matters when leaving a state that waits for a human: a resume from, or a cancel of, `NEEDS_HUMAN` needs
+    /// `Cause::UserDecision`, as does a resume or cancel of `PAUSED` unless the reason is automatic (`CAPACITY`,
+    /// `INTERACTIVE_SESSION_UNAVAILABLE`). A `FAILED` outcome is a system outcome and needs no user decision.
+    pub fn transition(
         self,
         to: Self,
         cause: Cause,
@@ -195,14 +202,11 @@ impl RunState {
                 health: health.name(),
             });
         }
-        self.transition(to, cause)
+        self.table(to, cause)
     }
 
-    /// Applies one transition. Returns the new state (equal to `to`) or a typed error; the specification's transition
-    /// table is the only source of legality. `cause` matters when leaving a state that waits for a human: a resume
-    /// from `NEEDS_HUMAN` needs `Cause::UserDecision`, as does a resume from `PAUSED` unless the reason is automatic
-    /// (`CAPACITY`, `INTERACTIVE_SESSION_UNAVAILABLE`); a `PROVIDER_POLICY_BLOCK` resolves only by user decision.
-    pub fn transition(self, to: Self, cause: Cause) -> Result<Self, TransitionError> {
+    /// The structural transition table (no health precondition).
+    fn table(self, to: Self, cause: Cause) -> Result<Self, TransitionError> {
         if self.is_terminal() {
             return Err(TransitionError::Terminal {
                 machine: Machine::Run,
@@ -213,10 +217,12 @@ impl RunState {
             && kind.is_held()
         {
             return match to {
-                Self::Cancelled | Self::Failed => Ok(to),
-                Self::StoppingProviderBlock {
+                Self::Failed => Ok(to),
+                Self::Cancelled => require_user(cause).map(|()| to),
+                Self::Stopping {
                     resume_state: stopping,
-                } if stopping == resume_state => Ok(to),
+                    gate: Some(gate),
+                } if stopping == resume_state && gate == kind => Ok(to),
                 Self::Active(phase) if phase == resume_state => require_user(cause).map(|()| to),
                 _ => Err(TransitionError::ProviderPolicyBlockHeld {
                     machine: Machine::Run,
@@ -224,29 +230,60 @@ impl RunState {
                 }),
             };
         }
+        if let Self::Stopping {
+            resume_state,
+            gate: Some(kind),
+        } = self
+        {
+            return match to {
+                Self::Failed => Ok(to),
+                Self::NeedsHuman {
+                    kind: restored,
+                    resume_state: target,
+                } if restored == kind => same(to, resume_state, target),
+                _ if kind.is_held() => Err(TransitionError::ProviderPolicyBlockHeld {
+                    machine: Machine::Run,
+                    to: to.name(),
+                }),
+                _ => Err(TransitionError::HumanGateHeld {
+                    machine: Machine::Run,
+                    kind,
+                    to: to.name(),
+                }),
+            };
+        }
         match (self, to) {
             (_, Self::Failed) => Ok(to),
-            (
-                Self::StoppingProviderBlock { resume_state: held },
-                Self::NeedsHuman {
-                    kind: InterventionKind::ProviderPolicyBlock,
-                    resume_state,
-                },
-            ) => same(to, held, resume_state),
             (Self::Active(RunPhase::FinalValidation), Self::Completed) => Ok(to),
             (Self::Active(from), Self::Active(target)) if PHASE_EDGES.contains(&(from, target)) => {
                 Ok(to)
             }
-            (Self::Active(from), Self::Stopping { resume_state }) => same(to, from, resume_state),
+            (
+                Self::Active(from),
+                Self::Stopping {
+                    resume_state,
+                    gate: None,
+                },
+            ) => same(to, from, resume_state),
             (
                 Self::Paused {
                     resume_state: held, ..
-                }
-                | Self::NeedsHuman {
-                    resume_state: held, ..
                 },
-                Self::Stopping { resume_state },
+                Self::Stopping {
+                    resume_state,
+                    gate: None,
+                },
             ) => same(to, held, resume_state),
+            (
+                Self::NeedsHuman {
+                    kind,
+                    resume_state: held,
+                },
+                Self::Stopping {
+                    resume_state,
+                    gate: Some(gate),
+                },
+            ) if gate == kind => same(to, held, resume_state),
             (
                 Self::Active(RunPhase::Running),
                 Self::Paused {
@@ -275,7 +312,10 @@ impl RunState {
                 Ok(to)
             }
             (
-                Self::Stopping { resume_state: held },
+                Self::Stopping {
+                    resume_state: held,
+                    gate: None,
+                },
                 Self::Paused {
                     reason,
                     resume_state,
@@ -290,7 +330,13 @@ impl RunState {
                 }
                 Ok(to)
             }
-            (Self::Stopping { resume_state: held }, Self::NeedsHuman { kind, resume_state }) => {
+            (
+                Self::Stopping {
+                    resume_state: held,
+                    gate: None,
+                },
+                Self::NeedsHuman { kind, resume_state },
+            ) => {
                 same(to, held, resume_state)?;
                 graph_invalid_rule(kind, held)?;
                 Ok(to)
@@ -305,6 +351,16 @@ impl RunState {
                 graph_invalid_rule(kind, held)?;
                 Ok(to)
             }
+            // A human gate can escalate to a provider policy block (it is then held).
+            (
+                Self::NeedsHuman {
+                    resume_state: held, ..
+                },
+                Self::NeedsHuman {
+                    kind: InterventionKind::ProviderPolicyBlock,
+                    resume_state,
+                },
+            ) => same(to, held, resume_state),
             (
                 Self::Paused {
                     reason,
@@ -328,7 +384,14 @@ impl RunState {
                 same(to, held, target)?;
                 require_user(cause).map(|()| to)
             }
-            (Self::Paused { .. } | Self::NeedsHuman { .. }, Self::Cancelled) => Ok(to),
+            (Self::Paused { reason, .. }, Self::Cancelled) => {
+                if reason.resumes_automatically() {
+                    Ok(to)
+                } else {
+                    require_user(cause).map(|()| to)
+                }
+            }
+            (Self::NeedsHuman { .. }, Self::Cancelled) => require_user(cause).map(|()| to),
             _ => Err(TransitionError::Illegal {
                 machine: Machine::Run,
                 from: self.name(),
@@ -338,7 +401,7 @@ impl RunState {
     }
 }
 
-/// A resume out of a human-gated state needs an explicit user decision.
+/// Leaving a human-gated state (resume or cancel) needs an explicit user decision.
 fn require_user(cause: Cause) -> Result<(), TransitionError> {
     if cause == Cause::UserDecision {
         Ok(())
@@ -491,65 +554,32 @@ mod tests {
             S::Active(P::Analyzing),
             needs(InterventionKind::GraphInvalid, P::Analyzing),
         );
-        // Stop All from every non-terminal state, recording the state left.
+        // Stop All from every non-terminal state, recording the state left; a human gate is kept through STOPPING.
         for phase in P::ALL {
-            add(
-                S::Active(phase),
-                S::Stopping {
-                    resume_state: phase,
-                },
-            );
+            let plain = S::Stopping {
+                resume_state: phase,
+                gate: None,
+            };
+            add(S::Active(phase), plain);
+            // STOPPING resolves to PAUSED with reason STOP_ALL (section 6) or to NEEDS_HUMAN
+            // (GRAPH_INVALID belongs to ANALYZING only).
+            add(plain, paused(PausedReason::StopAll, phase));
             for reason in PausedReason::ALL {
-                add(
-                    paused(reason, phase),
-                    S::Stopping {
-                        resume_state: phase,
-                    },
-                );
-                // STOPPING resolves to PAUSED with reason STOP_ALL (section 6).
-                if reason == PausedReason::StopAll {
-                    add(
-                        S::Stopping {
-                            resume_state: phase,
-                        },
-                        paused(reason, phase),
-                    );
-                }
+                add(paused(reason, phase), plain);
             }
             for kind in InterventionKind::ALL {
-                // A held provider policy block keeps its hold through STOPPING.
-                if kind == InterventionKind::ProviderPolicyBlock {
-                    add(
-                        needs(kind, phase),
-                        S::StoppingProviderBlock {
-                            resume_state: phase,
-                        },
-                    );
-                    add(
-                        S::StoppingProviderBlock {
-                            resume_state: phase,
-                        },
-                        needs(kind, phase),
-                    );
-                } else {
-                    add(
-                        needs(kind, phase),
-                        S::Stopping {
-                            resume_state: phase,
-                        },
-                    );
-                }
-                // STOPPING resolves to NEEDS_HUMAN (GRAPH_INVALID belongs to ANALYZING only).
+                let gated = S::Stopping {
+                    resume_state: phase,
+                    gate: Some(kind),
+                };
+                add(needs(kind, phase), gated);
+                add(gated, needs(kind, phase));
                 if kind != InterventionKind::GraphInvalid || phase == P::Analyzing {
-                    add(
-                        S::Stopping {
-                            resume_state: phase,
-                        },
-                        needs(kind, phase),
-                    );
+                    add(plain, needs(kind, phase));
                 }
             }
-            // Resume returns to resume_state; a cancel ends the run; a pause can escalate to a human gate.
+            // Resume returns to resume_state; a cancel ends the run; a pause can escalate to a human gate, and a human
+            // gate can escalate to a provider policy block.
             for reason in PausedReason::ALL {
                 add(paused(reason, phase), S::Active(phase));
                 add(paused(reason, phase), S::Cancelled);
@@ -562,6 +592,9 @@ mod tests {
             for kind in InterventionKind::ALL {
                 add(needs(kind, phase), S::Active(phase));
                 add(needs(kind, phase), S::Cancelled);
+                if kind != InterventionKind::ProviderPolicyBlock {
+                    add(needs(kind, phase), needs(InterventionKind::ProviderPolicyBlock, phase));
+                }
             }
         }
         // FAILED from any non-terminal state.
@@ -577,11 +610,11 @@ mod tests {
     fn every_transition_pair_matches_the_specification_table() {
         let legal = spec_pairs();
         let states = S::all();
-        assert_eq!(states.len(), 10 * (1 + 1 + 1 + 6 + 16) + 3);
+        assert_eq!(states.len(), 10 * (1 + 1 + 16 + 6 + 16) + 3);
         let mut accepted = 0;
         for from in &states {
             for to in &states {
-                let result = from.transition(*to, Cause::UserDecision);
+                let result = from.table(*to, Cause::UserDecision);
                 let expected = legal.contains(&(*from, *to));
                 assert_eq!(result.is_ok(), expected, "{from:?} -> {to:?}: {result:?}");
                 if let Ok(next) = result {
@@ -598,17 +631,20 @@ mod tests {
         let states = S::all();
         for from in &states {
             for to in &states {
-                let by_user = from.transition(*to, Cause::UserDecision);
-                let by_system = from.transition(*to, Cause::System);
+                let by_user = from.table(*to, Cause::UserDecision);
+                let by_system = from.table(*to, Cause::System);
                 let automatic = matches!(
                     from,
                     S::Paused { reason, .. } if reason.resumes_automatically()
                 );
-                let resume = matches!(
+                let leaves_gate = matches!(
                     (from, to),
-                    (S::Paused { .. } | S::NeedsHuman { .. }, S::Active(_))
+                    (
+                        S::Paused { .. } | S::NeedsHuman { .. },
+                        S::Active(_) | S::Cancelled
+                    )
                 );
-                if resume && by_user.is_ok() && !automatic {
+                if leaves_gate && by_user.is_ok() && !automatic {
                     assert_eq!(
                         by_system,
                         Err(TransitionError::ExplicitDecisionRequired {
@@ -624,14 +660,81 @@ mod tests {
     }
 
     #[test]
+    fn stop_all_keeps_a_human_gate() {
+        let gate = needs(InterventionKind::PolicyViolation, P::Running);
+        // A gated run cannot enter an ungated STOPPING (that would turn the gate into a plain pause).
+        assert!(matches!(
+            gate.table(S::Stopping { resume_state: P::Running, gate: None }, Cause::System),
+            Err(TransitionError::Illegal { .. })
+        ));
+        let stopping = gate
+            .table(
+                S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::PolicyViolation) },
+                Cause::System,
+            )
+            .unwrap();
+        // It returns only to the same gate (or fails).
+        assert_eq!(stopping.table(gate, Cause::System), Ok(gate));
+        assert_eq!(stopping.table(S::Failed, Cause::System), Ok(S::Failed));
+        for to in [
+            paused(PausedReason::StopAll, P::Running),
+            needs(InterventionKind::Other, P::Running),
+            S::Active(P::Running),
+            S::Cancelled,
+        ] {
+            assert_eq!(
+                stopping.table(to, Cause::UserDecision),
+                Err(TransitionError::HumanGateHeld {
+                    machine: Machine::Run,
+                    kind: InterventionKind::PolicyViolation,
+                    to: to.name()
+                })
+            );
+        }
+        // And the resume afterwards still needs the user.
+        assert_eq!(
+            gate.table(S::Active(P::Running), Cause::System),
+            Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+        );
+    }
+
+    #[test]
+    fn a_human_gate_can_escalate_to_a_provider_policy_block_but_not_back() {
+        let gate = needs(InterventionKind::AuthRequired, P::Running);
+        let block = needs(InterventionKind::ProviderPolicyBlock, P::Running);
+        assert_eq!(gate.table(block, Cause::System), Ok(block));
+        assert!(gate.table(needs(InterventionKind::Other, P::Running), Cause::System).is_err());
+        assert!(block.table(gate, Cause::UserDecision).is_err());
+        assert!(gate.table(needs(InterventionKind::ProviderPolicyBlock, P::Starting), Cause::System).is_err());
+    }
+
+    #[test]
+    fn cancelling_a_human_gate_needs_a_user_decision() {
+        for state in [
+            needs(InterventionKind::AuthRequired, P::Running),
+            needs(InterventionKind::ProviderPolicyBlock, P::Running),
+            paused(PausedReason::Manual, P::Running),
+        ] {
+            assert_eq!(
+                state.table(S::Cancelled, Cause::System),
+                Err(TransitionError::ExplicitDecisionRequired { machine: Machine::Run })
+            );
+            assert_eq!(state.table(S::Cancelled, Cause::UserDecision), Ok(S::Cancelled));
+        }
+        // An automatic pause can be cancelled by the system.
+        assert_eq!(
+            paused(PausedReason::Capacity, P::Running).table(S::Cancelled, Cause::System),
+            Ok(S::Cancelled)
+        );
+    }
+
+    #[test]
     fn stop_all_pauses_with_stop_all_only() {
-        let stopping = S::Stopping {
-            resume_state: P::Running,
-        };
+        let stopping = S::Stopping { resume_state: P::Running, gate: None };
         for reason in PausedReason::ALL {
-            let result = stopping.transition(paused(reason, P::Running), Cause::System);
+            let result = stopping.table(paused(reason, P::Running), Cause::System);
             let direct =
-                S::Active(P::Running).transition(paused(reason, P::Running), Cause::System);
+                S::Active(P::Running).table(paused(reason, P::Running), Cause::System);
             let rejected = Err(TransitionError::ReasonNotAllowed {
                 machine: Machine::Run,
                 reason,
@@ -651,12 +754,12 @@ mod tests {
         let running = S::Active(P::Running);
         let review = S::Active(P::FinalReview);
         assert_eq!(
-            running.transition_with_health(review, Cause::System, IntegrationHealth::Healthy),
+            running.transition(review, Cause::System, IntegrationHealth::Healthy),
             Ok(review)
         );
         for health in [IntegrationHealth::Unknown, IntegrationHealth::Unhealthy] {
             assert_eq!(
-                running.transition_with_health(review, Cause::System, health),
+                running.transition(review, Cause::System, health),
                 Err(TransitionError::IntegrationNotHealthy {
                     health: health.name()
                 })
@@ -664,11 +767,7 @@ mod tests {
             // Other transitions are not gated by health.
             assert!(
                 running
-                    .transition_with_health(
-                        paused(PausedReason::Manual, P::Running),
-                        Cause::System,
-                        health
-                    )
+                    .transition(paused(PausedReason::Manual, P::Running), Cause::System, health)
                     .is_ok()
             );
         }
@@ -707,22 +806,22 @@ mod tests {
             (S::Active(P::FinalValidation), S::Active(P::FinalFixing)),
         ];
         for (from, to) in rows {
-            assert_eq!(from.transition(to, user), Ok(to), "{from:?} -> {to:?}");
+            assert_eq!(from.table(to, user), Ok(to), "{from:?} -> {to:?}");
         }
         // GRAPH_INVALID returns to ANALYZING after correction.
         let invalid = needs(InterventionKind::GraphInvalid, P::Analyzing);
         assert_eq!(
-            invalid.transition(S::Active(P::Analyzing), Cause::UserDecision),
+            invalid.table(S::Active(P::Analyzing), Cause::UserDecision),
             Ok(S::Active(P::Analyzing))
         );
         // Resume returns to resume_state, including the FINAL_* states.
         let held = paused(PausedReason::StopAll, P::FinalFixing);
         assert_eq!(
-            held.transition(S::Active(P::FinalFixing), Cause::UserDecision),
+            held.table(S::Active(P::FinalFixing), Cause::UserDecision),
             Ok(S::Active(P::FinalFixing))
         );
         assert!(matches!(
-            held.transition(S::Active(P::Running), Cause::System),
+            held.table(S::Active(P::Running), Cause::System),
             Err(TransitionError::ResumeStateMismatch { .. })
         ));
     }
@@ -731,29 +830,25 @@ mod tests {
     fn stop_all_round_trip_preserves_resume_state() {
         let start = S::Active(P::FinalValidation);
         let stopping = start
-            .transition(
-                S::Stopping {
-                    resume_state: P::FinalValidation,
-                },
+            .table(
+                S::Stopping { resume_state: P::FinalValidation, gate: None },
                 Cause::UserDecision,
             )
             .unwrap();
         let paused_state = stopping
-            .transition(
+            .table(
                 paused(PausedReason::StopAll, P::FinalValidation),
                 Cause::System,
             )
             .unwrap();
         assert_eq!(
-            paused_state.transition(S::Active(P::FinalValidation), Cause::UserDecision),
+            paused_state.table(S::Active(P::FinalValidation), Cause::UserDecision),
             Ok(start)
         );
         // A wrong resume_state is a typed error, not a silent rewrite.
         assert!(matches!(
-            S::Active(P::Running).transition(
-                S::Stopping {
-                    resume_state: P::Created
-                },
+            S::Active(P::Running).table(
+                S::Stopping { resume_state: P::Created, gate: None },
                 Cause::System
             ),
             Err(TransitionError::ResumeStateMismatch { .. })
@@ -765,7 +860,7 @@ mod tests {
         for terminal in [S::Completed, S::Failed, S::Cancelled] {
             for to in S::all() {
                 assert!(matches!(
-                    terminal.transition(to, Cause::UserDecision),
+                    terminal.table(to, Cause::UserDecision),
                     Err(TransitionError::Terminal { .. })
                 ));
             }
@@ -776,7 +871,7 @@ mod tests {
     fn graph_invalid_rules_are_typed() {
         assert_eq!(
             S::Active(P::Analyzing)
-                .transition(needs(InterventionKind::Other, P::Analyzing), Cause::System),
+                .table(needs(InterventionKind::Other, P::Analyzing), Cause::System),
             Err(TransitionError::KindNotAllowed {
                 machine: Machine::Run,
                 kind: InterventionKind::Other,
@@ -784,7 +879,7 @@ mod tests {
             })
         );
         assert_eq!(
-            S::Active(P::Running).transition(
+            S::Active(P::Running).table(
                 needs(InterventionKind::GraphInvalid, P::Running),
                 Cause::System
             ),
@@ -802,7 +897,7 @@ mod tests {
         let mut exits = Vec::new();
         for to in S::all() {
             for cause in [Cause::System, Cause::UserDecision] {
-                if block.transition(to, cause).is_ok() {
+                if block.table(to, cause).is_ok() {
                     exits.push((to, cause));
                 }
             }
@@ -812,43 +907,34 @@ mod tests {
             vec![
                 (S::Active(P::Running), Cause::UserDecision),
                 (
-                    S::StoppingProviderBlock {
-                        resume_state: P::Running
-                    },
+                    S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::ProviderPolicyBlock) },
                     Cause::System
                 ),
                 (
-                    S::StoppingProviderBlock {
-                        resume_state: P::Running
-                    },
+                    S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::ProviderPolicyBlock) },
                     Cause::UserDecision
                 ),
                 (S::Failed, Cause::System),
                 (S::Failed, Cause::UserDecision),
-                (S::Cancelled, Cause::System),
                 (S::Cancelled, Cause::UserDecision)
             ]
         );
         assert_eq!(
-            block.transition(S::Active(P::Running), Cause::System),
+            block.table(S::Active(P::Running), Cause::System),
             Err(TransitionError::ExplicitDecisionRequired {
                 machine: Machine::Run
             })
         );
         for to in [
-            S::Stopping {
-                resume_state: P::Running,
-            },
-            S::StoppingProviderBlock {
-                resume_state: P::Preflight,
-            },
+            S::Stopping { resume_state: P::Running, gate: None },
+            S::Stopping { resume_state: P::Preflight, gate: Some(InterventionKind::ProviderPolicyBlock) },
             paused(PausedReason::Manual, P::Running),
             needs(InterventionKind::Other, P::Running),
             S::Active(P::FinalReview),
             S::Active(P::Preflight),
         ] {
             assert_eq!(
-                block.transition(to, Cause::UserDecision),
+                block.table(to, Cause::UserDecision),
                 Err(TransitionError::ProviderPolicyBlockHeld {
                     machine: Machine::Run,
                     to: to.name()
@@ -856,23 +942,19 @@ mod tests {
             );
         }
         // Stop All keeps the hold: STOPPING of a block returns only to the block (or fails), never to PAUSED or work.
-        let stopping_block = S::StoppingProviderBlock {
-            resume_state: P::Running,
-        };
+        let stopping_block = S::Stopping { resume_state: P::Running, gate: Some(InterventionKind::ProviderPolicyBlock) };
         for to in S::all() {
             for cause in [Cause::System, Cause::UserDecision] {
                 assert_eq!(
-                    stopping_block.transition(to, cause).is_ok(),
+                    stopping_block.table(to, cause).is_ok(),
                     to == block || to == S::Failed,
                     "{to:?}"
                 );
             }
         }
         // A block reached through STOPPING is held the same way.
-        let via_stop = S::Stopping {
-            resume_state: P::Running,
-        }
-        .transition(block, Cause::System)
+        let via_stop = S::Stopping { resume_state: P::Running, gate: None }
+        .table(block, Cause::System)
         .unwrap();
         assert_eq!(via_stop, block);
     }
@@ -888,7 +970,7 @@ mod tests {
             assert!(!health.permits_final_review());
             let kind = health.unrecovered_kind().unwrap();
             assert_eq!(
-                S::Active(P::Running).transition(needs(kind, P::Running), Cause::System),
+                S::Active(P::Running).table(needs(kind, P::Running), Cause::System),
                 Ok(needs(kind, P::Running))
             );
         }
@@ -909,7 +991,8 @@ mod tests {
 
     proptest! {
         /// Walking only legal transitions never reaches a state outside the enumerated set, and a held block is left
-        /// only through the explicit exits (resolve by user decision, cancel, fail, or the held STOPPING).
+        /// only through the explicit exits (resolve or cancel by user decision, fail, the same gate kept through STOPPING, or
+        /// escalation to a provider policy block).
         #[test]
         fn legal_sequences_stay_in_the_mapped_state_space(picks in proptest::collection::vec((any::<prop::sample::Index>(), any::<bool>()), 0..200)) {
             let universe = S::all();
@@ -920,7 +1003,7 @@ mod tests {
                 let legal: Vec<S> = universe
                     .iter()
                     .copied()
-                    .filter(|target| state.transition(*target, cause).is_ok())
+                    .filter(|target| state.table(*target, cause).is_ok())
                     .collect();
                 if legal.is_empty() {
                     prop_assert!(state.is_terminal());
@@ -928,22 +1011,21 @@ mod tests {
                 }
                 let before = state;
                 let next = legal[index.index(legal.len())];
-                prop_assert_eq!(before.transition(next, cause), Ok(next));
+                prop_assert_eq!(before.table(next, cause), Ok(next));
                 prop_assert!(known.contains(&next));
                 match before {
-                    S::NeedsHuman { kind: InterventionKind::ProviderPolicyBlock, resume_state } => {
-                        let held_stop = S::StoppingProviderBlock { resume_state };
-                        prop_assert!(
-                            matches!(next, S::Cancelled | S::Failed)
-                                || next == held_stop
-                                || (next == S::Active(resume_state) && user)
-                        );
-                    }
-                    S::StoppingProviderBlock { resume_state } => {
+                    S::NeedsHuman { kind, resume_state } => {
+                        let kept = S::Stopping { resume_state, gate: Some(kind) };
+                        let escalated = needs(InterventionKind::ProviderPolicyBlock, resume_state);
                         prop_assert!(
                             next == S::Failed
-                                || next == needs(InterventionKind::ProviderPolicyBlock, resume_state)
+                                || next == kept
+                                || next == escalated
+                                || (user && (next == S::Active(resume_state) || next == S::Cancelled))
                         );
+                    }
+                    S::Stopping { resume_state, gate: Some(kind) } => {
+                        prop_assert!(next == S::Failed || next == needs(kind, resume_state));
                     }
                     _ => {}
                 }

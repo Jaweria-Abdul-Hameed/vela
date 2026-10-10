@@ -528,12 +528,12 @@ mod tests {
                         let legal: Vec<WorkerState> = universe
                             .iter()
                             .copied()
-                            .filter(|target| status.transition(*target, cause).is_ok())
+                            .filter(|target| status.transition(*target, cause, IntegrationHealth::Healthy).is_ok())
                             .collect();
                         if legal.is_empty() {
                             None
                         } else {
-                            status.transition(legal[index.index(legal.len())], cause).ok()
+                            status.transition(legal[index.index(legal.len())], cause, IntegrationHealth::Healthy).ok()
                         }
                     }
                 };

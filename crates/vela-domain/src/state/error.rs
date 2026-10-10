@@ -77,6 +77,15 @@ pub enum TransitionError {
         /// The requested state name.
         to: &'static str,
     },
+    /// A run in `STOPPING` that kept a human gate can only return to that gate (or fail).
+    HumanGateHeld {
+        /// The machine.
+        machine: Machine,
+        /// The gate kept through `STOPPING`.
+        kind: InterventionKind,
+        /// The requested state name.
+        to: &'static str,
+    },
     /// The pause reason is not allowed for this transition (for example `STOP_ALL` is reached only through
     /// `STOPPING`, and `STOPPING` resolves to `PAUSED` only with that reason).
     ReasonNotAllowed {
@@ -85,7 +94,8 @@ pub enum TransitionError {
         /// The rejected reason.
         reason: PausedReason,
     },
-    /// `RUNNING` cannot advance to `FINAL_REVIEW` unless integration health is `HEALTHY`.
+    /// The transition needs integration health `HEALTHY` (`RUNNING` to `FINAL_REVIEW`, `READY_TO_MERGE` to `MERGING`,
+    /// provisioning a new worker).
     IntegrationNotHealthy {
         /// The health value that was supplied.
         health: &'static str,
@@ -146,6 +156,11 @@ impl fmt::Display for TransitionError {
                 f,
                 "{machine:?} PROVIDER_POLICY_BLOCK exits only by resolve to resume_state or cancel, not to {to}"
             ),
+            Self::HumanGateHeld { machine, kind, to } => write!(
+                f,
+                "{machine:?} STOPPING keeps gate {} and cannot go to {to}",
+                kind.name()
+            ),
             Self::ReasonNotAllowed { machine, reason } => {
                 write!(
                     f,
@@ -156,7 +171,7 @@ impl fmt::Display for TransitionError {
             Self::IntegrationNotHealthy { health } => {
                 write!(
                     f,
-                    "integration health is {health}; RUNNING cannot advance to FINAL_REVIEW"
+                    "integration health is {health}; the transition needs HEALTHY"
                 )
             }
             Self::OverlayNotAllowed { state } => {
