@@ -18,7 +18,8 @@ const SEGMENTS: [&[u8]; 8] = [
     b"pwd", b"cookie", b"cookies", b"jwt", b"bearer", b"creds", b"apikey", b"auth",
 ];
 
-/// A `key` segment is a credential only after one of these (`api_key`, `private-key`); `sort_key` is not.
+/// A `key` or `keys` segment is a credential only after one of these (`api_key`, `private-keys`); `sort_key` is
+/// not.
 const KEY_QUALIFIERS: [&[u8]; 16] = [
     b"api",
     b"access",
@@ -36,6 +37,22 @@ const KEY_QUALIFIERS: [&[u8]; 16] = [
     b"service",
     b"deploy",
     b"auth",
+];
+
+/// A plural `tokens` segment is a credential list only after one of these (`auth_tokens`); `input_tokens` and
+/// `max_tokens` are counters.
+const TOKEN_QUALIFIERS: [&[u8]; 11] = [
+    b"auth",
+    b"access",
+    b"api",
+    b"refresh",
+    b"bearer",
+    b"oauth",
+    b"personal",
+    b"id",
+    b"deploy",
+    b"service",
+    b"bot",
 ];
 
 /// A name ending in one of these describes a credential rather than holding one (`max_token_count`, `token_url`).
@@ -66,7 +83,7 @@ const DESCRIPTIVE_SUFFIXES: [&[u8]; 20] = [
 ///
 /// Names are compared case-insensitively after splitting on `_`, `-`, `.` and camel-case boundaries, so
 /// `AWS_SECRET_ACCESS_KEY`, `x-api-key`, `clientSecret` and `Set-Cookie` all match. Plural counters (`input_tokens`)
-/// and descriptive names (`token_url`) do not.
+/// and descriptive names (`token_url`) do not, while credential lists (`auth_tokens`, `api_keys`) do.
 pub fn is_credential_name(name: &str) -> bool {
     let bytes = name.as_bytes();
     if bytes.is_empty() || bytes.len() > MAX_NAME_LEN {
@@ -113,7 +130,8 @@ pub fn is_credential_name(name: &str) -> bool {
     for (index, segment) in segments().enumerate() {
         let is_last = index + 1 == count;
         let credential = STEMS.iter().any(|stem| contains(segment, stem))
-            || (segment.ends_with(b"token") && !segment.ends_with(b"tokens"))
+            || segment.ends_with(b"token")
+            || (segment == b"tokens" && TOKEN_QUALIFIERS.contains(&previous))
             || segment.ends_with(b"apikey")
             || segment.ends_with(b"accesskey")
             || segment.ends_with(b"privatekey")
@@ -122,7 +140,7 @@ pub fn is_credential_name(name: &str) -> bool {
             || (segment != b"auth" && SEGMENTS.contains(&segment))
             // `pass` alone is a test verdict (`PASS: 12`); `db_pass` is a credential.
             || (segment == b"pass" && count > 1)
-            || (segment == b"key" && KEY_QUALIFIERS.contains(&previous));
+            || (matches!(segment, b"key" | b"keys") && KEY_QUALIFIERS.contains(&previous));
         if credential {
             return true;
         }
@@ -160,6 +178,11 @@ mod tests {
             "GITHUB_TOKEN",
             "accessToken",
             "refresh_token",
+            "auth_tokens",
+            "ACCESS_TOKENS",
+            "apiTokens",
+            "api_keys",
+            "sshKeys",
             "authtoken",
             "x-auth-token",
             "api_key",
@@ -206,6 +229,8 @@ mod tests {
             "input_tokens",
             "max_tokens",
             "total_tokens",
+            "prompt_tokens",
+            "sort_keys",
             "token_count",
             "max_token_limit",
             "token_url",

@@ -452,9 +452,20 @@ fn named_value(bytes: &[u8], index: usize) -> Option<Hit> {
         return None;
     }
 
+    // A quote in front of the name wraps the whole assignment (`set "API_KEY=a b"`, `curl -d 'token=a b'`): the
+    // value runs to that quote's partner.
+    let wrapping_quote = (separator == b'=' && !quoted_name && index > 0)
+        .then(|| bytes[index - 1])
+        .filter(|byte| matches!(byte, b'"' | b'\''));
+
     // An unquoted value: the rest of the line after `:` (headers, YAML), one word after `=` or a flag (shell).
     let mut end = if separator == b':' {
         line_end
+    } else if let Some(quote) = wrapping_quote {
+        at + bytes[at..line_end]
+            .iter()
+            .take_while(|byte| **byte != quote)
+            .count()
     } else {
         let word = word_end(bytes, at, line_end);
         if SCHEMES
@@ -711,6 +722,18 @@ mod tests {
             ("password=[REDACTED]hunter2 x", "password=[REDACTED] x"),
             ("token: [REDACTED] and more", "token: [REDACTED]"),
             ("?access_token=abc&page=2", "?access_token=[REDACTED]"),
+            (
+                "set \"API_KEY=a b c\" & build",
+                "set \"API_KEY=[REDACTED]\" & build",
+            ),
+            (
+                "curl -d 'password=a b&x=1' https://x",
+                "curl -d 'password=[REDACTED]' https://x",
+            ),
+            (
+                "auth_tokens=abc api_keys: k1, k2",
+                "auth_tokens=[REDACTED] api_keys: [REDACTED]",
+            ),
             // Source code is indistinguishable from configuration, so a type annotation is redacted too.
             (
                 "let password: Option<String> = None;",

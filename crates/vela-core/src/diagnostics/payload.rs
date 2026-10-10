@@ -85,9 +85,17 @@ fn redact_node(redactor: &dyn RedactionPort, name: Option<&str>, node: &mut Valu
                 })
                 .collect();
             for (member, redacted) in renamed {
-                if let Some(value) = members.remove(&member) {
-                    members.insert(redacted, value);
+                let Some(value) = members.remove(&member) else {
+                    continue;
+                };
+                // Two names can redact to the same text; neither member may replace the other.
+                let mut name = redacted.clone();
+                let mut copy = 2;
+                while members.contains_key(&name) {
+                    name = format!("{redacted} ({copy})");
+                    copy += 1;
                 }
+                members.insert(name, value);
             }
         }
     }
@@ -161,6 +169,24 @@ mod tests {
         let mut twice = once.clone();
         redact_payload(&Fake, &mut twice);
         assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn member_names_that_redact_to_the_same_text_are_all_kept() {
+        let mut payload = json!({ "SECRET": 1, "SECRET ": 2, "[REDACTED]": 3 });
+        redact_payload(&Fake, &mut payload);
+        let members = payload.as_object().unwrap();
+        assert_eq!(members.len(), 3, "{payload}");
+        let mut values: Vec<i64> = members
+            .values()
+            .map(|value| value.as_i64().unwrap())
+            .collect();
+        values.sort_unstable();
+        assert_eq!(values, [1, 2, 3]);
+        assert!(
+            members.keys().all(|name| name.starts_with("[REDACTED]")),
+            "{payload}"
+        );
     }
 
     #[test]
