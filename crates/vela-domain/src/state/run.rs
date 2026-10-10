@@ -712,13 +712,13 @@ mod tests {
         // GRAPH_INVALID returns to ANALYZING after correction.
         let invalid = needs(InterventionKind::GraphInvalid, P::Analyzing);
         assert_eq!(
-            invalid.transition(S::Active(P::Analyzing), Cause::System),
+            invalid.transition(S::Active(P::Analyzing), Cause::UserDecision),
             Ok(S::Active(P::Analyzing))
         );
         // Resume returns to resume_state, including the FINAL_* states.
         let held = paused(PausedReason::StopAll, P::FinalFixing);
         assert_eq!(
-            held.transition(S::Active(P::FinalFixing), Cause::System),
+            held.transition(S::Active(P::FinalFixing), Cause::UserDecision),
             Ok(S::Active(P::FinalFixing))
         );
         assert!(matches!(
