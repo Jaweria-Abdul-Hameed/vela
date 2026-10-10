@@ -34,6 +34,8 @@ use vela_domain::fault::{ARMED_ENV_VAR, FaultPoint};
 pub const STATE_DIR_ENV: &str = "VELA_HARNESS_STATE_DIR";
 /// Environment variable that tells a child which [`Phase`] it is in.
 pub const PHASE_ENV: &str = "VELA_HARNESS_PHASE";
+/// Report key of the line [`about_to_reach`] prints.
+pub const REACHING_KEY: &str = "reaching";
 /// Prefix of the lines a child prints (via [`report`]) for the harness to collect.
 pub const REPORT_PREFIX: &str = "VELA-HARNESS-REPORT: ";
 /// `SIGABRT` as a shell reports it (128 + 6).
@@ -86,6 +88,13 @@ pub fn child_context() -> Option<ChildContext> {
         state_dir: PathBuf::from(state_dir),
         phase,
     })
+}
+
+/// The child side: announces that execution is about to reach `point`. Call it immediately before the `fault_point!`.
+/// The harness requires this line from a child that was armed at `point`, so a process that dies for any other reason
+/// (including an abort elsewhere) is never reported as a kill at the armed point.
+pub fn about_to_reach(point: FaultPoint) {
+    report(&format!("{REACHING_KEY}={}", point.name()));
 }
 
 /// The child side: prints one line for the harness to collect into [`ChildRun::reports`].
@@ -144,6 +153,8 @@ pub enum HarnessError {
         /// The run that was supposed to crash.
         run: Box<ChildRun>,
     },
+    /// The state directory already held files, so the state found would not come from the armed run.
+    StateNotFresh,
     /// The restarted child failed.
     RestartFailed {
         /// The restart run.
@@ -184,6 +195,10 @@ stderr:
                 point.name(),
                 run.exit_code,
                 run.stdout
+            ),
+            HarnessError::StateNotFresh => write!(
+                f,
+                "the state directory is not empty: a kill-and-restart scenario needs a fresh harness"
             ),
             HarnessError::RestartFailed { run } => write!(
                 f,
@@ -231,14 +246,21 @@ impl ChildRun {
     /// True when the process ended the way `std::process::abort` ends it: killed by a signal (no exit code),
     /// `SIGABRT` seen as a shell status (134), or the Windows fast-fail status `0xC0000409`. That is what an armed
     /// fault point produces. A failed test (101), an ordinary non-zero exit, or another fatal status (an access
-    /// violation, a missing DLL) is deliberately not a crash, so an unrelated early death is never reported as a kill
-    /// at the armed point.
+    /// violation, a missing DLL) is deliberately not a crash. The signature alone cannot say where the process died:
+    /// [`ChildRun::reached`] adds that, and [`KillRestartHarness::kill_and_restart`] requires both.
     pub fn crashed(&self) -> bool {
         !self.success
             && match self.exit_code {
                 None => true,
                 Some(code) => code == ABORT_SHELL_STATUS || code == WINDOWS_FAST_FAIL_STATUS,
             }
+    }
+
+    /// True when the child announced (through [`about_to_reach`]) that it was about to reach `point`.
+    pub fn reached(&self, point: FaultPoint) -> bool {
+        self.reports
+            .iter()
+            .any(|line| line == &format!("{REACHING_KEY}={}", point.name()))
     }
 
     /// The value of a `key=value` report line.
@@ -418,8 +440,13 @@ impl KillRestartHarness {
     /// Arms `point`, launches the child, requires that it crashed, snapshots the state it left, restarts the child,
     /// requires that it succeeded, and reports both launches and both snapshots.
     pub fn kill_and_restart(&self, point: FaultPoint) -> Result<KillRestartReport, HarnessError> {
+        if !self.snapshot()?.is_empty() {
+            return Err(HarnessError::StateNotFresh);
+        }
         let killed = self.launch(Some(point))?;
-        if !killed.crashed() {
+        // Attributable only when the child died with the abort signature AND announced the armed point first. The
+        // residual ambiguity (an abort between the announcement and the point) is not distinguishable from outside.
+        if !(killed.crashed() && killed.reached(point)) {
             return Err(HarnessError::NotKilled {
                 point,
                 run: Box::new(killed),

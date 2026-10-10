@@ -9,7 +9,6 @@
 use super::{HarnessError, io};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use vela_domain::fault::FaultPoint;
 
 const STATE_FILE: &str = "state.txt";
 const STATE_TMP_FILE: &str = "state.tmp";
@@ -119,7 +118,8 @@ impl SampleStateMachine {
     /// Runs the transition: persist `prepared`, pass the fault point, persist `committed`.
     pub fn run(&self) -> Result<(), HarnessError> {
         self.persist(SampleState::Prepared)?;
-        vela_domain::fault_point!(FaultPoint::SelfTest);
+        super::about_to_reach(vela_domain::fault::FaultPoint::SelfTest);
+        vela_domain::fault_point!(vela_domain::fault::FaultPoint::SelfTest);
         self.persist(SampleState::Committed)
     }
 
@@ -156,6 +156,7 @@ mod tests {
     };
     use super::*;
     use crate::fixture_repo::ScratchDir;
+    use vela_domain::fault::FaultPoint;
     use std::time::Duration;
 
     /// The exact libtest name of the child below.
@@ -171,6 +172,8 @@ mod tests {
         };
         match std::env::var(MODE_ENV).as_deref() {
             Ok("panic") => panic!("deliberate child failure before the fault point"),
+            // Dies with the abort signature, but before announcing the fault point: not attributable to it.
+            Ok("abort_early") => std::process::abort(),
             Ok("hang") => std::thread::sleep(Duration::from_secs(300)),
             _ => {}
         }
@@ -194,6 +197,7 @@ mod tests {
         let harness = KillRestartHarness::new(CHILD).unwrap();
         let run = harness.launch(Some(FaultPoint::SelfTest)).unwrap();
         assert!(run.crashed(), "the armed child survived: {run:?}");
+        assert!(run.reached(FaultPoint::SelfTest), "{run:?}");
     }
 
     #[test]
@@ -218,6 +222,7 @@ mod tests {
         assert_eq!(report.point, FaultPoint::SelfTest);
         assert_eq!(report.killed.armed, Some(FaultPoint::SelfTest));
         assert!(report.killed.crashed(), "{:?}", report.killed);
+        assert!(report.killed.reached(FaultPoint::SelfTest));
         assert_eq!(report.killed.report_value("completed"), None);
         assert_eq!(report.state_found.get(STATE_FILE), Some("prepared"));
         assert_eq!(report.state_found.names(), vec![STATE_FILE]);
@@ -260,6 +265,30 @@ mod tests {
             }
             other => panic!("expected NotKilled, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn an_abort_that_is_not_at_the_armed_point_is_not_reported_as_a_kill() {
+        let harness = KillRestartHarness::new(CHILD)
+            .unwrap()
+            .with_env(MODE_ENV, "abort_early");
+        match harness.kill_and_restart(FaultPoint::SelfTest) {
+            Err(HarnessError::NotKilled { run, .. }) => {
+                assert!(run.crashed(), "it did die with the abort signature");
+                assert!(!run.reached(FaultPoint::SelfTest));
+            }
+            other => panic!("expected NotKilled, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_used_state_directory_is_refused_for_a_new_kill_and_restart() {
+        let harness = KillRestartHarness::new(CHILD).unwrap();
+        harness.kill_and_restart(FaultPoint::SelfTest).unwrap();
+        assert!(matches!(
+            harness.kill_and_restart(FaultPoint::SelfTest),
+            Err(HarnessError::StateNotFresh)
+        ));
     }
 
     #[test]

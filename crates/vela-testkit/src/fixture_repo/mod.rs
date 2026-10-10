@@ -1,7 +1,7 @@
 //! `FixtureRepo`: deterministic throwaway Git repositories for tests (F03).
 //!
 //! A [`FixtureRepo`] is generated into a uniquely named temporary directory that is never inside a cloud-synced folder
-//! or a Git repository ([`guard`]) and is deleted when the value is dropped. Every [`FixtureKind`] is built from fixed
+//! or the Vela repository ([`guard`]) and is deleted when the value is dropped. Every [`FixtureKind`] is built from fixed
 //! text with a fixed author, committer, and commit clock, so two builds of the same kind have identical commit ids.
 //! Later tests add kinds additively by new builder functions and an entry in `tests/fixtures/specs/fixture-repos.json`;
 //! they do not edit the builder core.

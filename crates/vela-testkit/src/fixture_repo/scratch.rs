@@ -9,7 +9,7 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// A uniquely named directory under the OS temp directory (or an explicit parent) that is deleted when dropped.
 ///
-/// Creation refuses synced folders and locations inside a Git repository ([`guard::ensure_fixture_location`]).
+/// Creation refuses synced folders and locations inside the Vela repository ([`guard::ensure_fixture_location`]).
 /// Removal is best effort and tolerates the read-only Git object files Windows leaves behind.
 #[derive(Debug)]
 pub struct ScratchDir {

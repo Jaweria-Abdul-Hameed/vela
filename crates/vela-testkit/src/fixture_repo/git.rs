@@ -104,6 +104,12 @@ impl GitRepo {
             "GIT_CEILING_DIRECTORIES",
             "GIT_ALTERNATE_OBJECT_DIRECTORIES",
             "GIT_PAGER",
+            "GIT_DEFAULT_HASH",
+            "GIT_DEFAULT_REF_FORMAT",
+            "GIT_EDITOR",
+            "GIT_SEQUENCE_EDITOR",
+            "GIT_ASKPASS",
+            "GIT_SSH_COMMAND",
         ] {
             command.env_remove(var);
         }
@@ -121,6 +127,8 @@ impl GitRepo {
             .env("USERPROFILE", isolated_home)
             .env("XDG_CONFIG_HOME", isolated_home)
             .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_ATTR_NOSYSTEM", "1")
+            .env("LC_ALL", "C")
             .env("GIT_CONFIG_GLOBAL", &self.empty_global_config)
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GIT_AUTHOR_NAME", "Vela Fixture")

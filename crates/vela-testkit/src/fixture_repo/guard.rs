@@ -4,7 +4,7 @@
 //! fixture) executable hooks. A sync client (OneDrive, Dropbox, Google Drive, iCloud, Box) would upload, lock, or
 //! resurrect those files, which makes tests flaky and can leak fixture content. The guard classifies a path by its
 //! components (case-insensitive, either separator, Windows 8.3 short names included) and also by the actual sync roots
-//! the OS advertises through environment variables. It also refuses locations inside any Git repository, because
+//! the OS advertises through environment variables. It also refuses locations inside the Vela repository, because
 //! `DIRECTORY_STRUCTURE.md` forbids test repositories inside the Vela repository.
 
 use std::fmt;
