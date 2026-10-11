@@ -411,9 +411,10 @@ mod tests {
                     let about: Vec<&Verdict> =
                         verdicts.iter().filter(|v| &v.finding_id == finding_id).collect();
                     prop_assert!(!about.is_empty());
-                    prop_assert!(about.iter().all(|v| {
-                        v.kind == VerdictKind::Resolved && !v.evidence.trim().is_empty()
-                    }));
+                    let all_good = about
+                        .iter()
+                        .all(|v| v.kind == VerdictKind::Resolved && !v.evidence.trim().is_empty());
+                    prop_assert!(all_good);
                 }
                 prop_assert!(fix.iter().all(|f| !f.is_blocking()));
                 prop_assert!(obs.iter().all(|f| !f.blocks_as_observation()));
