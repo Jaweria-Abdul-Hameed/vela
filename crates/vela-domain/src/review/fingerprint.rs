@@ -153,6 +153,7 @@ mod tests {
         assert_ne!(fingerprint("a", "b", "cd"), fingerprint("a", "bc", "d"));
     }
 
+    #[cfg(feature = "full")]
     #[test]
     fn serde_round_trips_and_rejects_malformed_ids() {
         let id = fingerprint("c", "l", "r");
