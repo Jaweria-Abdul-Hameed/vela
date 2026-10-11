@@ -9,12 +9,16 @@ publish.workspace = true
 [lints]
 workspace = true
 
-# Library only at bootstrap: F04 adds main.rs, build.rs and tauri.conf.json (the Tauri walking skeleton).
+# The library holds all composition; src/main.rs only calls vela_desktop::run (the standard Tauri 2 layout).
 [lib]
 name = "vela_desktop"
 
 [features]
 global-shortcut = ["dep:tauri-plugin-global-shortcut"]
+# Embeds the bundled frontend and serves it from the Tauri protocol instead of the dev server (production builds).
+custom-protocol = ["tauri/custom-protocol"]
+# A scripted agent for tests, never a product feature. Off by default; build.rs fails a release build that enables it.
+test-agent = []
 
 # The only crate allowed to depend on Tauri and to wire concrete adapters (rule 4).
 [dependencies]
@@ -47,3 +51,4 @@ tauri-build.workspace = true
 
 [dev-dependencies]
 vela-testkit.workspace = true
+tauri = { workspace = true, features = ["test"] }

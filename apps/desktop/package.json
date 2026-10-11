@@ -5,6 +5,11 @@
   "type": "module",
   "description": "Vela desktop renderer (React + TypeScript); the Tauri shell lives in src-tauri",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run"
   },

@@ -1,0 +1,7 @@
+# Permission manifest of the diagnostics command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+# capabilities/*.json reference these identifiers; they are the only way a window can call an application command.
+
+[[permission]]
+identifier = "allow-diagnostics-ping"
+description = "Enables the diagnostics_ping command (diagnostics.ping) without any pre-configured scope."
+commands.allow = ["diagnostics_ping"]

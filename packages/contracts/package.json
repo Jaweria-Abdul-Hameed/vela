@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Generated TypeScript contracts and typed invoke/listen wrappers (no hand-edited barrel)",
   "exports": {
-    "./generated/*": "./src/generated/*.ts"
+    "./generated/*": "./src/generated/*.ts",
+    "./commands/*": "./src/commands/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
