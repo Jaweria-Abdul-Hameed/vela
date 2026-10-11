@@ -1,0 +1,10 @@
+# D06 Decision Requests (non-blocking interpretations)
+
+Each item is an interpretation the specification leaves open. None changes an externally visible contract; owners may overrule.
+
+- **DR-D06-1 (category to blocking).** `REVIEW_PROTOCOL.md` lists blocking classes and normally non-blocking classes but gives no severity threshold per class. Implemented: defect classes (security, correctness, spec, build/test, architecture, data integrity, unexplained execution-defining file change) block at medium severity or higher (which includes every high-severity correctness, security or spec finding); preference classes (naming, style, abstraction, speculative future-proofing, micro-optimization) never block; an unclassifiable `Other` blocks only at high severity. The reviewer's severity is never lowered.
+- **DR-D06-2 (observation blocking).** An observation outside the fix diff blocks only at high severity and never for a preference class. This is `ReviewCategory::blocks_as_observation`.
+- **DR-D06-3 (verdict hygiene).** A `RESOLVED` verdict with empty evidence, or contradictory verdicts for one finding, counts as `NOT_RESOLVED` (the protocol: resolved only "with evidence").
+- **DR-D06-4 (carry-over after a stall).** Blocking findings left open, blocking defects found in a fix diff and open high-severity observations stay in the unresolved set, so a later human-authorized verification must still obtain a `RESOLVED` verdict for each. A human decision can continue a stalled review (fix, verification, new comprehensive) but never marks a finding resolved.
+- **DR-D06-5 (cycle rules).** A retry or recovery of an in-flight cycle of the same stage re-runs that cycle (same ordinal); a started comprehensive cycle counts toward the one-per-ticket limit even before it records a result, so recovery never starts a second. A fix set after a pass (failed integration validation, conflict resolution) retracts the pass and requires a verification. A fix set after a stall needs `Cause::UserDecision`.
+- **DR-D06-6 (no DTO).** No ts-rs export was added (no contract regeneration); S11 or a later ticket exports DTOs when the IPC surface needs them.
