@@ -120,3 +120,25 @@ The reviewer found no high-severity finding, no crash, hang, quadratic path or b
 | R2-14 | Start-up clean-up of log files failed the whole stream on one undeletable file; two opens of one stream each count separately | low | non-blocking | Fixed (best effort, Windows test); single ownership documented |
 | R2-15 | The evidence table stopped before the review head | low | non-blocking | Fixed: code and record are separate commits, see the note under the CI table |
 | R2-16 | Every payload is serialized and walked; floats of a redacted payload are re-read | low | non-blocking | Recorded as a limit |
+
+### Iteration 3 (`F07-R3`, head `863045b`, CI run 38145194924 green; code identical to `cdf107c`, run 38144894875) -- the last permitted
+
+The reviewer found **no high and no medium finding**: no surviving secret in the corpus classes, no panic, out-of-bounds index, off-boundary slice, hang or quadratic path, and no defect introduced by the review 2 fixes. All sixteen R2 findings are resolved (fourteen) or accepted as documented (R2-10, R2-16). All three acceptance criteria are judged met and demonstrated by tests. Nine findings, all low by the reviewer's own severity; none is in a blocking class. **No code was changed after this review**, so the merged code is the reviewed code; the nine are follow-ups.
+
+| # | Finding (all low) | Disposition |
+|---|---|---|
+| R3-1 | Whether a `BEGIN` line opens a key is decided on the raw line, so in a JSON-lines stream it depends on unrelated members: it can swallow up to 256 following events, or fail to open | Follow-up, **before P01 and A02 consume redacted streams**: decide on the string that holds the marker when the line is JSON |
+| R3-2 | Pair rule gaps: a `value` that is an array; a second pair-name member resets the pair | Follow-up (`credential_pair \|=`, inherit into containers) |
+| R3-3 | A file name such as `token.rs:42:9: error...` is taken as a name and the diagnostic after it is redacted | Follow-up, **before P01 and A02**: do not treat `:` as an assignment after a file extension followed by a line number |
+| R3-4 | The column rule redacts CLI help rows (`token       Print the current token`) | Follow-up: limit to names shaped like environment variables. Recorded trade-off (DR-F07-3) |
+| R3-5 | Names with a trailing digit (`API_TOKEN2`) are not credential names | Follow-up: strip trailing digits from a segment |
+| R3-6 | A multi-word value behind a worded prefix (`web_1  \| DB_PASSWORD=a b`, `INFO ...`) keeps its tail | Follow-up: accept a prefix ending in a separator. Residual of R2-2 |
+| R3-7 | If `<stem>.1.log` is held without write and delete sharing, the copy fails and the active file is emptied | Follow-up: try another slot before emptying; recorded trade-off (DR-F07-6) |
+| R3-8 | A task that spawns its successor with `spawn_correlated` adds one span per generation to every record | Follow-up: make the spawned span a root |
+| R3-9 | `RotationLimits::max_files` has no upper bound | Follow-up: validate when S02 feeds it from settings |
+
+Owner of the follow-ups: P01 (the first consumer of `StreamRedactor`) for R3-1 and R3-3 at the latest; the others with X04 (security regression suite) or the next change to these modules. They need a ticket or an explicit assignment; F07 does not reopen for them.
+
+## Exit policy verdict
+
+**Engineering exit policy: PASS** at review iteration 3 (the limit), on the reviewer's own severities: zero blocking findings, zero high, zero medium; tests, clippy `-D warnings`, build and structure checks green in CI on the reviewed code. Three authoritative reviews were run and no further one was requested or authorized. Open decisions are in `F07_DECISION_REQUESTS.md`; DR-F07-1 (one `Redactor` trait in `vela-domain::ports` instead of two joined at the composition root) is wanted before O01.
