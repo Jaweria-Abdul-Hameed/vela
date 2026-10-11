@@ -39,3 +39,5 @@ Local Rust build, clippy and test are blocked on this host (Smart App Control); 
 
 | CI run | Head | Result |
 |---|---|---|
+| 38149533417 | 2f2edfa | failure: clippy E0716 in a test (temporary dropped while borrowed) |
+| 38149651988 | f5b8d6b | success (fmt, clippy -D warnings, build, tests, structure; TS verify) |
