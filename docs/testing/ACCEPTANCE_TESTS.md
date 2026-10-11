@@ -17,10 +17,20 @@ serially without lost changes.
 Two tickets modifying a shared schema are not run concurrently; UI
 explains why.
 
-## AT-004 Review fix loop
+## AT-004 Review, fix, and verification
 
-A seeded review defect produces finding → fix → tests → checkpoint →
-re-review → pass.
+A seeded review defect produces exactly one comprehensive review with a finding → fix with a regression test → tests →
+checkpoint → targeted verification of the fix and the fix diff (a distinct fresh conversation) → pass. Also:
+
+-   a seeded unresolved blocking finding, a seeded blocking defect introduced by the fix, and a seeded high-severity
+    defect outside the fix diff each end in `NEEDS_HUMAN` with kind `REVIEW_STALLED`, with no second full review, no
+    automatic repair round and no success;
+-   no sequence of events (fixed-point advancement, retry, crash and recovery, Stop All and resume) starts a second
+    comprehensive review; only an explicit user decision does, and it is recorded;
+-   a crash between the review request and its recorded result re-runs the same cycle without duplicating a recorded
+    result; a crash after the result never repeats the review;
+-   a human decision cannot approve an unresolved blocking finding;
+-   the comprehensive reviewer's and the verifier's conversation ids are recorded per cycle (AT-026).
 
 ## AT-005 Crash recovery
 
@@ -205,7 +215,7 @@ auditing in the test harness). An API key present in the environment does not si
 
 ## AT-026 Conversation visibility in Antigravity Desktop
 
-For a run with at least two tickets, each in-scope conversation (each worker's, each authoritative reviewer's, and any substantive analyst's; not
+For a run with at least two tickets, each in-scope conversation (each worker's, each authoritative reviewer's and verifier's, and any substantive analyst's; not
 incidental probes or deterministic computation, ADR-020 decision 1a) is fresh, its identifier is recorded and shown in
 the inspector, and the user can find and open that conversation in Antigravity Desktop 2.x. The test records, for conversations created
 through the primary headless surface, whether they appear in Desktop, under which project, and whether they open; if any cannot be

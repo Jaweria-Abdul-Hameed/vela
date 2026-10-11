@@ -28,8 +28,8 @@ integration branch.
 5. **Conflicts.** A merge that Git completes without conflicts proceeds to validation. A textual
    conflict, or any uncertainty, is never resolved automatically by the lane. It escalates to a
    conflict-resolution attempt: a reasoning agent session works in the worker's worktree to merge
-   the integration tip into the worker branch; the result is checkpointed, fully re-reviewed and
-   validated before the lane retries. Conflicts touching high-risk surfaces (see
+   the integration tip into the worker branch; the result is checkpointed, independently verified over the resolution diff (a targeted verification, not a new
+   full review; ADR-022) and validated before the lane retries. Conflicts touching high-risk surfaces (see
    `PARALLELIZATION.md` hard blockers), uncertain or semantic conflicts, or failed attempts
    escalate to a human (`NEEDS_HUMAN`, kind `MERGE_CONFLICT`).
 6. **Integration validation failure.** If validation fails after a merge, and the merge commit has

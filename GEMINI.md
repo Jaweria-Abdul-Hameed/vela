@@ -18,7 +18,10 @@ Gemini/Antigravity must treat `AGENTS.md` as canonical.
     to evade service limits. Capacity/account handling must use
     supported authenticated profiles and provider policy.
 -   Follow `AGENTS.md` for implementation, review, testing, Git, and
-    completion.
+    completion. A ticket gets one comprehensive independent
+    `/code-review`, then independent verification of the blocking fixes
+    (ADR-021); a further review or verification round is a human
+    decision.
 
 # Antigravity Approval Compatibility
 

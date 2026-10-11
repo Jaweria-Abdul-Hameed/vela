@@ -132,7 +132,7 @@ Start with:
     animation, performance.
 -   `docs/git/GIT_WORKFLOW.md` --- branches, worktrees, commits, merges.
 -   `docs/agents/AGENT_PROTOCOL.md` --- session contract.
--   `docs/agents/REVIEW_PROTOCOL.md` --- review/fix loop.
+-   `docs/agents/REVIEW_PROTOCOL.md` --- review, fix and verification workflow.
 -   `docs/testing/TEST_STRATEGY.md` --- validation gates.
 -   `docs/issues/ISSUE_AUTHORING.md` --- converting this pack into
     tracer-bullet GitHub issues.

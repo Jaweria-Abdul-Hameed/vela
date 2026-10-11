@@ -31,15 +31,20 @@ Terminal: COMPLETED, FAILED, CANCELLED
 | `RUNNING` | `NEEDS_HUMAN` | Run-level human need: integration health `UNKNOWN`/`UNHEALTHY`, policy violation, external divergence, a provider policy block that leaves no ticket able to progress (kind `PROVIDER_POLICY_BLOCK`), or an unresolved run-level intervention. |
 | `PAUSED` / `NEEDS_HUMAN` | `RUNNING` | Resume or recorded decision, after successful reconciliation. The run returns to the state recorded in `resume_state` (including `FINAL_*` states). |
 | `RUNNING` | `FINAL_REVIEW` | Every in-scope ticket is `DONE` (or explicitly excluded by the user) and integration health is `HEALTHY`. |
-| `FINAL_REVIEW` | `FINAL_FIXING` | Final review findings fail the exit policy. |
-| `FINAL_FIXING` | `FINAL_REVIEW` | Fixes validated and checkpointed (bounded by the review iteration cap). |
-| `FINAL_REVIEW` | `FINAL_VALIDATION` | Exit policy passes. |
+| `FINAL_REVIEW` | `FINAL_FIXING` | The one comprehensive final review reported blocking findings. |
+| `FINAL_FIXING` | `FINAL_REVIEW` | Fixes validated and checkpointed; the visit that follows is the targeted verification of the fixes, not a second full review (section 4). A failed verification needs a human (kind `REVIEW_STALLED`; see the note below the table). |
+| `FINAL_REVIEW` | `FINAL_VALIDATION` | No blocking finding, or the verification confirms every blocking finding resolved. |
 | `FINAL_VALIDATION` | `FINAL_FIXING` | Failures attributable to the integrated work. |
 | `FINAL_VALIDATION` | `COMPLETED` | Validation passes and promotion step completes per ADR-014. |
 | any non-terminal | `STOPPING` | Stop All (section 6). |
 | `STOPPING` | `PAUSED` / `NEEDS_HUMAN` | Quiescent (all processes stopped or reconciled) / reconciliation needs a decision. |
 | `PAUSED` / `NEEDS_HUMAN` | `CANCELLED` | User cancels the run. Branches, worktrees and commits are preserved. |
 | any non-terminal | `FAILED` | Unrecoverable internal error, recorded as the `FAILED` reason (for example `STATE_STORE_UNRECOVERABLE`). Artifacts are preserved. |
+
+**Final review stall.** A failed final verification leaves the run `NEEDS_HUMAN` with kind `REVIEW_STALLED`. This
+table has no direct `FINAL_REVIEW` to `NEEDS_HUMAN` edge and the verified state machine (D01) accepts one only through
+`STOPPING`; adding the direct edge is a specification and D01 change (`REVIEW_WORKFLOW_DECISION_REQUESTS.md`, DR-RW-1).
+Until it is made, the Orchestrator records the stall as a run-level intervention and applies Stop All semantics.
 
 `PAUSED` carries a `reason` (`MANUAL`, `STOP_ALL`, `RECOVERED_AWAITING_RESUME`, `CAPACITY`,
 `INTERACTIVE_SESSION_UNAVAILABLE`, `AWAITING_RECOVERY_CONFIRMATION`). `NEEDS_HUMAN` carries a
@@ -87,8 +92,9 @@ PROVISIONING
 → IMPLEMENTING
 → FOCUSED_VALIDATION
 → CHECKPOINTING
-→ REVIEWING
-→ [FIXING → VALIDATING → CHECKPOINTING → REVIEWING]*
+→ REVIEWING                   (the one comprehensive review)
+→ [FIXING → VALIDATING → CHECKPOINTING → REVIEWING]   (fixes, then targeted verification: at most one such pass
+                                                        per fix set; failure → NEEDS_HUMAN, never a second full review)
 → READY_TO_MERGE
 → MERGING                    (merge lane; may detour through CONFLICT_RESOLUTION)
 → INTEGRATION_VALIDATION
@@ -99,7 +105,8 @@ PROVISIONING
 
 Any state can transition to `PAUSED`, `FAILED`, `CANCELLED`, or `NEEDS_HUMAN` under defined
 conditions. `CONFLICT_RESOLUTION` is entered from `MERGING` on a textual conflict (ADR-011) and
-returns through `CHECKPOINTING → REVIEWING → READY_TO_MERGE`.
+returns through `CHECKPOINTING → REVIEWING → READY_TO_MERGE`, where the `REVIEWING` visit is the targeted verification of
+the resolution diff (section 4).
 
 `WAITING_APPROVAL` is an overlay sub-state of any agent-driven state, not a replacement for it:
 the worker retains its `resume_state`.
@@ -111,7 +118,7 @@ the worker retains its `resume_state`.
 | Kind | Entered when |
 |---|---|
 | `AMBIGUITY` | Ticket contradictory, impossible, or underspecified in an externally visible way. |
-| `REVIEW_STALLED` | Review loop cap reached, or reviews oscillate (`REVIEW_PROTOCOL.md`). |
+| `REVIEW_STALLED` | Verification did not confirm every blocking finding resolved, found a blocking defect in the fix diff or an open high-severity defect, or the reviewer output was unusable after its one retry (`REVIEW_PROTOCOL.md`). Never an approval. Valid at worker and run level. |
 | `APPROVAL_ASK` | Policy returned `ASK` for a request. |
 | `APPROVAL_STALLED` | Repeated equivalent approval with no progress past threshold. |
 | `APPROVAL_UNDELIVERABLE` | A decision cannot be delivered by any permitted tier. |
@@ -130,22 +137,37 @@ other documents say "transition to `NEEDS_HUMAN` or `REVIEW_STALLED`", the resul
 `CAPACITY`. A provider policy block is not capacity: it is never `RATE_LIMITED`, never backs off, and never
 auto-resumes.
 
-## 4. Review loop
+## 4. Review workflow
 
 Review requires a durable diff visible from a fixed point. Vela records:
 
 - `fixed_point_sha`: the worker's base integration SHA, constant across fix iterations and **advanced to the
   integration tip whenever Vela merges that tip into the worker branch**, so every review sees only the ticket's own
   cumulative diff `fixed_point_sha...review_head_sha` (`REVIEW_PROTOCOL.md`);
-- `review_head_sha`: the checkpoint commit reviewed in this iteration.
+- `review_head_sha`: the checkpoint commit reviewed in this review cycle.
 
 Ownership of the checkpoint invariant is defined by ADR-015: Vela verifies a clean worktree and a
 non-empty, resolvable `fixed_point_sha..HEAD`, creating the checkpoint commit itself if the worker
 left uncommitted changes. The orchestration layer, not assumptions about a skill, owns this
 invariant. Authoritative review runs in a fresh reviewer session (`REVIEW_PROTOCOL.md`).
 
-Default maximum review iterations: configurable; recommended and default 3. On exhaustion, do not
-declare success: the worker becomes `NEEDS_HUMAN` (kind `REVIEW_STALLED`).
+Each ticket has **one comprehensive review**, then targeted verification of the fixes, then a human if anything
+blocking remains (ADR-022, `REVIEW_PROTOCOL.md`). A review cycle has a persisted `stage`, `COMPREHENSIVE` or
+`VERIFICATION`; the state machine does not change: the first visit to `REVIEWING` is the comprehensive review and each
+later visit, after a fix set, is a verification. The review domain (D06) and the review service (S11) enforce that:
+
+- a ticket has at most one `COMPREHENSIVE` cycle unless a human decision requests another;
+- a `VERIFICATION` cycle follows each fix set (review fixes, fixes after a failed integration validation, a
+  conflict resolution), and nothing else leaves the review stages except `READY_TO_MERGE` (pass) or `NEEDS_HUMAN`;
+- a verification that does not confirm every blocking finding resolved, or that finds a blocking defect in the fix
+  diff or an open high-severity defect, makes the worker `NEEDS_HUMAN` (kind `REVIEW_STALLED`) with no automatic
+  further review, fix round or verification, and exhaustion of anything is never success;
+- a human may then direct a fix (and authorize a new verification), request a new comprehensive review, or cancel; each
+  is a recorded `UserDecision`.
+
+There is no iteration cap and no oscillation detection: a review is not repeated. The setting
+`integration_fix_attempts` (default 3) bounds fix attempts after failed integration validations (section 5), not
+reviews. The reviewer and the verifier each run in a fresh reviewer conversation (recorded per cycle, FR-050).
 
 ## 5. Merge lane
 
@@ -162,8 +184,8 @@ agent), and runs in the dedicated integration worktree (ADR-011):
 6.  run integration validation,
 7.  on success: persist result and push integration (per policy); on failure: discard the
     unpublished merge by resetting the clean integration worktree to `integration_before`, journal
-    it, and return the worker to `FIXING` with the failure as a blocking finding (counts against
-    the iteration cap; exhaustion gives `NEEDS_HUMAN` kind `INTEGRATION_REGRESSION`),
+    it, and return the worker to `FIXING` with the failure as a blocking finding (the fix is verified like any other
+    and counts against `integration_fix_attempts`; exhaustion gives `NEEDS_HUMAN` kind `INTEGRATION_REGRESSION`),
 8.  release the lane.
 
 If the discard is impossible, ambiguous, or the process dies mid-operation, integration health

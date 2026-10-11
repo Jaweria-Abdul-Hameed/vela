@@ -10,7 +10,11 @@ Claude-specific routing.
 4.  For implementation, follow the repository's `/implement`/TDD/review
     protocol when available.
 5.  For review, compare against the explicitly recorded fixed point.
-    Never guess the base.
+    Never guess the base. A ticket gets one comprehensive independent
+    `/code-review` and then independent verification of the blocking
+    fixes (ADR-021); the reviewer and the verifier are fresh sessions,
+    never the implementing one, and a further review or verification
+    round is a human decision.
 6.  Do not treat a long conversation as durable project memory; write
     durable decisions to Markdown/ADR/issues.
 7.  Do not change product/UI architecture because an alternative seems

@@ -19,6 +19,7 @@ Prompts should be versioned templates with explicit inputs/outputs.
 -   head_sha
 -   commits\[\]
 -   tests\[\]
+-   self_audit\[\] (each acceptance criterion with its evidence)
 -   review_cycles\[\]
 -   unresolved_findings\[\]
 -   warnings\[\]
@@ -54,6 +55,21 @@ The authoritative reviewer (`REVIEW_PROTOCOL.md`) returns:
 
 Vela maps this to the finding schema, assigns stable finding IDs, and decides blocking status.
 Free-form prose cannot substitute for these fields.
+
+# Verifier Output Contract
+
+The independent verifier (`REVIEW_PROTOCOL.md`, ADR-022) receives the blocking findings of the comprehensive review
+(with their ids), the `fixed_point_sha`, the `review_head_sha` and the `fix_head_sha`, and the regression test named
+for each fix. It is told to verify the fixes and the fix diff only, not to re-review the change. It returns:
+
+-   review_id, stage (`VERIFICATION`)
+-   fixed_point_sha, review_head_sha, fix_head_sha
+-   verdicts\[\] (each: finding id, `RESOLVED` | `NOT_RESOLVED`, evidence, regression test checked)
+-   findings\[\] in the fix diff (same fields as the reviewer contract)
+-   observations\[\] outside the fix diff (same fields; high severity blocks, the rest are follow-ups)
+-   axes_covered\[\], summary
+
+Vela decides blocking status from its policy; a missing verdict for a blocking finding is `NOT_RESOLVED`.
 
 # Conflict-Resolution Attempt Contract
 

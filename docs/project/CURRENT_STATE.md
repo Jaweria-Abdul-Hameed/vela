@@ -117,9 +117,11 @@ Prompt 8 — scheduler dry-run, committed and pushed at `532cf32890e6dd261692133
 
 ## Decisions and ADRs
 
-ADR-001..ADR-020 are all Accepted (ADR-020 added post-freeze: conversation visibility in Desktop; it makes the isolated-profile design in ADR-018 provisional). Resolved human decisions: the eight Prompt 2 decisions (ADR-009..014 and ADR-001/002 acceptance), DR-1 and DR-3
+ADR-001..ADR-021 are all Accepted (ADR-021 is a build-process decision, see below; ADR-020 added post-freeze: conversation visibility in Desktop; it makes the isolated-profile design in ADR-018 provisional). Resolved human decisions: the eight Prompt 2 decisions (ADR-009..014 and ADR-001/002 acceptance), DR-1 and DR-3
 (ADR-016). Architecture decisions: ADR-017 (stack, process model, contracts), ADR-018 (Antigravity adapter and policy enforcement), ADR-019 (UI rendering).
 Documentation precedence is in `DOCUMENTATION_INDEX.md`.
+
+**Review workflow (ADR-021 and ADR-022, 2026-10-11, approved by the user; branch `docs/product-review-workflow`, NOT merged):** for the product's runtime loop and for the agents building Vela, a ticket gets implementation and a self-audit, **exactly one independent full `/code-review`**, fixes with regression tests, CI, and a **targeted independent verification** of the blocking fixes and the fix diff; if any blocking finding remains the worker goes to `NEEDS_HUMAN` kind `REVIEW_STALLED`, no full review is ever repeated automatically, and exhausted review is never approval. The default of three iterations, oscillation detection and `Review maximum iterations` are removed (`integration_fix_attempts`, default 3, bounds fixes after a failed integration validation). Normative text: `docs/agents/REVIEW_PROTOCOL.md`, `ORCHESTRATION_ENGINE.md` section 4, FR-013, FR-014, AT-004, tickets D06, S11, S13, S14, A10. The D01 state machine, the F02 event vocabulary and the generated contracts are unchanged. Open decisions: `docs/project/REVIEW_WORKFLOW_DECISION_REQUESTS.md`. **It applies to a ticket whose first authoritative review starts after the branch is on `main`; D02 and D05 continue under the earlier rule, F07 and earlier keep their recorded verdicts, and no stall is cleared.**
 
 ## Verified / Partially Verified / Unverified Register
 
