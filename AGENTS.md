@@ -108,16 +108,13 @@ enforced by tooling, and subjective micro-style findings do not block
 completion unless repository standards explicitly make them
 requirements.
 
-For agents building Vela the review is **one comprehensive independent `/code-review`, then fixes with
-regression tests, CI, and a targeted independent verification of the blocking fixes** (ADR-021;
-`REVIEW_PROTOCOL.md` "Build-time review workflow"). The reviewer and the verifier are fresh sessions
-that are not the implementer. If verification fails, one repair round is allowed; if that fails, transition
-to `NEEDS_HUMAN` with kind `REVIEW_STALLED`. Do not self-authorize another full review or another
-verification round, do not lower a reviewer's severity, and never merge on an unverified blocking fix.
-
-The review loop Vela runs for its own workers at runtime is specified separately
-(`ORCHESTRATION_ENGINE.md` section 4): it has a configurable maximum iteration count, and hitting the
-maximum is not success but `NEEDS_HUMAN` with kind `REVIEW_STALLED`.
+The review is the same for agents building Vela and for the workers Vela runs (ADR-022; `REVIEW_PROTOCOL.md`):
+**one comprehensive independent `/code-review`, then fixes with regression tests, CI, and a targeted independent
+verification of the blocking fixes**. The reviewer and the verifier are fresh sessions that are not the implementer.
+If verification does not confirm every blocking finding resolved, transition to `NEEDS_HUMAN` with kind
+`REVIEW_STALLED`: there is no repair round and no second full review unless a person decides one. Do not
+self-authorize another review or verification round, do not lower a reviewer's severity, and never merge on an
+unverified blocking fix. Exhausted review is never approval.
 
 ## Tests
 

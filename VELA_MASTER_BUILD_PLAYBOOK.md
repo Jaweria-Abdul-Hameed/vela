@@ -48,7 +48,7 @@ MD specification pack
 → tests
 → durable checkpoint
 → fixed-point code review
-→ fix/retest/re-review
+→ fix + regression tests → targeted verification (human escalation if blocking findings remain)
 → serialized integration
 → UI fidelity review
 → real Antigravity approval validation
@@ -378,7 +378,7 @@ Build a complete mental model of:
 - testing;
 - checkpoint-before-authoritative-review;
 - /code-review;
-- review/fix/retest/re-review loops;
+- one independent review, fixes with regression tests, targeted verification and human escalation (ADR-022);
 - integration branch behavior;
 - serialized merge lane;
 - GitHub interaction;
@@ -1030,7 +1030,7 @@ Rerun the required gates in CI.
 
 Have a fresh independent session verify the blocking fixes and the fix diff.
 
-If verification fails, one repair round is allowed; if that fails, report REVIEW_STALLED. Do not self-authorize another full review.
+If verification fails, report REVIEW_STALLED for a human decision. Do not self-authorize another review, repair round or verification.
 
 Commit with the ticket reference.
 
@@ -1083,7 +1083,7 @@ NON-NEGOTIABLE EXECUTION RULES:
 - fix every blocking finding with a regression test; fix or disposition the rest;
 - checkpoint and rerun the required gates in CI;
 - have a fresh independent session verify the blocking fixes and the fix diff;
-- allow one repair round if verification fails, then stop at REVIEW_STALLED; never self-authorize another full review;
+- stop at REVIEW_STALLED when verification fails; never self-authorize another review, repair round or verification;
 - never call review success while required tests fail;
 - never weaken tests to obtain green status;
 - push successful worker branches;
@@ -1176,11 +1176,9 @@ After implementation:
    - no high-severity finding is open,
    - required tests/typecheck/build are green.
 
-If verification fails, one repair round is allowed, re-verified on the failed items only.
-
 Do not endlessly fix subjective stylistic suggestions.
 
-If the repair round fails, or the fixes replace the reviewed design, report REVIEW_STALLED. Do not self-authorize another full review or another verification round.
+If verification fails, or the fixes replace the reviewed design, report REVIEW_STALLED for a human decision. Do not self-authorize another review, repair round or verification.
 
 When successful:
 - push your branch;
@@ -1695,7 +1693,7 @@ Checkpoint.
 
 Have a fresh independent session verify the blocking fixes and the fix diff.
 
-If verification fails, one repair round is allowed; if that fails, report REVIEW_STALLED for a human decision.
+If verification fails, report REVIEW_STALLED for a human decision.
 
 Do not spend endless cycles on subjective micro-refactoring.
 ```
@@ -1727,7 +1725,7 @@ Verify:
 - worktrees;
 - implementation;
 - tests;
-- review loop;
+- review, fix and verification workflow;
 - Git integration;
 - push;
 - merge;

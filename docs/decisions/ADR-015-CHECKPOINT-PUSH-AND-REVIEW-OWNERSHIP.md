@@ -41,3 +41,6 @@ index-lock contention with an active agent were unaddressed.
   `REVIEW_PROTOCOL.md`, and `MATT_POCKOCK_SKILLS.md` are aligned to this ADR.
 - A double review (skill-internal and authoritative) is accepted as the cost of an independent
   gate.
+- ADR-022 refines the authoritative step: one comprehensive review, then targeted verification of the fixes by a
+  further fresh session, then a human if anything blocking remains. Independence, the fixed point and the checkpoint
+  invariant are unchanged.

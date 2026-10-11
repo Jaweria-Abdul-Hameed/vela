@@ -68,8 +68,8 @@ worktree, fixed-point commit, ticket, and context pointers.
 
 ### 2.8 Ticket completion
 
-The worker implements, tests, checkpoints, reviews, fixes, retests, and
-reports. Vela validates the report independently where practical,
+The worker implements and self-audits against every acceptance criterion, tests, checkpoints, undergoes one independent review, fixes
+blocking findings with regression tests, retests, undergoes targeted verification, and reports. Vela validates the report independently where practical,
 pushes the branch (workers supervised by Vela do not push; ADR-015), merges
 through the deterministic serialized merge lane in the dedicated integration
 worktree (ADR-011), then runs integration gates.
@@ -151,13 +151,17 @@ commands.
 
 ### FR-013 Review
 
-Vela shall execute a fixed-point code review after a durable diff
-exists.
+Vela shall execute **exactly one** independent, comprehensive, fixed-point code review of a ticket (and one of the integrated
+run) after a durable diff exists and the required gates are green, in a fresh reviewer conversation distinct from the
+worker's. Vela shall not repeat a full review automatically (ADR-022).
 
-### FR-014 Review fix loop
+### FR-014 Review fix and verification
 
-Vela shall repeat fix → test → review until policy passes or a
-termination condition occurs.
+Vela shall fix every blocking finding with a regression test, rerun the required tests, and then obtain a **targeted
+independent verification** (a fresh session that checks each blocking finding and the fix diff, not a second full
+review). A ticket completes only when every acceptance criterion and quality gate passes. If any blocking finding
+remains after verification, Vela shall stop the ticket for human intervention (`NEEDS_HUMAN`, kind `REVIEW_STALLED`),
+shall not repeat a full review automatically, and shall never treat exhausted review as approval (ADR-022).
 
 ### FR-015 Git checkpoints
 
@@ -457,7 +461,7 @@ supported flow. API-key/Vertex billing shall not silently replace the normal run
 ### FR-050 Worker conversations visible in Antigravity Desktop
 
 Every substantive agent session that forms part of the auditable execution of a ticket or run (worker implementation and fix sessions, including
-conflict-resolution attempts; authoritative reviewer sessions; and substantive analyst agent sessions whose output enters the audit trail) shall
+conflict-resolution attempts; authoritative reviewer and verifier sessions; and substantive analyst agent sessions whose output enters the audit trail) shall
 run in a fresh Antigravity conversation whose identifier Vela records against its
 ticket/worker/review cycle, and each conversation shall be discoverable and openable in Antigravity Desktop so the user can inspect
 the real conversation. Vela shall prefer a verified CLI-created conversation that Desktop can show over automating the Desktop GUI.

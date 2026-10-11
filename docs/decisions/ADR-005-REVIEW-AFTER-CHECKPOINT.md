@@ -17,4 +17,5 @@ review target actually exists in Git history.
 
 ## Consequence
 
-Review fixes create subsequent checkpoint commits before re-review.
+Review fixes create subsequent checkpoint commits before verification (ADR-022 replaced the repeated full re-review
+with one targeted verification of the fixes; the checkpoint requirement is unchanged).

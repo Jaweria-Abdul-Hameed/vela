@@ -78,8 +78,10 @@ operation, **recovery-resume**:
     checkpoint exists;
 -   if the adapter provides CAP-10 (session resume) and the session identity is verified, the same
     session may be resumed instead; otherwise a new session is used;
--   fix-loop iterations continue in the ticket's worker session; authoritative review always runs
-    in a separate fresh reviewer session (`REVIEW_PROTOCOL.md`);
+-   fixes continue in the ticket's worker session; the authoritative review and the verification always run
+    in separate fresh reviewer sessions (`REVIEW_PROTOCOL.md`). A review or verification interrupted before its result was
+    recorded is re-run as the same cycle by operation id; a recorded result is never replayed, and recovery never starts
+    a comprehensive review for a ticket that already has a recorded one (ADR-022);
 -   migration to another execution profile is permitted only at a checkpoint boundary using
     recovery-resume (never mid-turn), and only through supported profile semantics.
 

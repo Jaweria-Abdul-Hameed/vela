@@ -92,6 +92,7 @@ affected specifications.
 -   `docs/decisions/ADR-019-UI-RENDERING-ARCHITECTURE.md`
 -   `docs/decisions/ADR-020-CONVERSATION-VISIBILITY-IN-ANTIGRAVITY-DESKTOP.md`
 -   `docs/decisions/ADR-021-BUILD-TIME-REVIEW-WORKFLOW.md`
+-   `docs/decisions/ADR-022-SINGLE-REVIEW-AND-TARGETED-VERIFICATION.md`
 
 ## Documentation precedence
 
@@ -102,7 +103,7 @@ When documents disagree about **intended behavior**, resolve in this order (earl
     or in a file ("appended later") never confers precedence. Current chain: ADR-007 supersedes the
     absolute interpretation of ADR-004; ADR-009 and ADR-010 refine ADR-007; ADR-016 refines ADR-008 (surface priority and
     authentication ownership); ADR-017, ADR-018, and ADR-019 realize ADR-001/002, ADR-007/009/010/016, and the UI
-    specifications respectively without changing them; ADR-020 refines ADR-016 and ADR-018 (conversation visibility in Desktop; makes the isolated-profile design provisional); ADR-021 refines ADR-015 for the agents that build Vela (one comprehensive review, then targeted verification; the runtime review loop is unchanged); ADR-008 scopes
+    specifications respectively without changing them; ADR-020 refines ADR-016 and ADR-018 (conversation visibility in Desktop; makes the isolated-profile design provisional); ADR-021 refines ADR-015 for the agents that build Vela (one comprehensive review, then targeted verification); ADR-022 extends that workflow to Vela's own runtime review loop and supersedes ADR-021 decisions 1 and 8 and the three-iteration default (one review, targeted verification, human escalation; refines ADR-005 and ADR-015); ADR-008 scopes
     ADR-006 (complementary); ADR-001 and ADR-002 are Accepted.
 2.  **`AGENTS.md`**: universal agent conduct rules; provider-specific files may add ergonomics but
     may not weaken it.

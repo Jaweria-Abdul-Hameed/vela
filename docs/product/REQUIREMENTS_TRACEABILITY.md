@@ -20,8 +20,8 @@ evidence.
 Critical chains requiring explicit end-to-end verification: 1. project →
 preflight → graph → build; 2. ready frontier → worktree → implementation
 → review → merge; 3. crash → restart → reconciliation → resume; 4.
-unsafe parallel pair → rejected scheduling; 5. review finding → fix →
-test → re-review; 6. stop-all → quiescent durable state; 7. minimized
+unsafe parallel pair → rejected scheduling; 5. review finding → fix + regression test →
+targeted verification, or human escalation; 6. stop-all → quiescent durable state; 7. minimized
 app → rendering throttled while orchestration continues.
 
 # Antigravity-First Traceability Rule

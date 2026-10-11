@@ -1,0 +1,19 @@
+# Review Workflow Decision Requests (ADR-022)
+
+Decisions and gaps found while applying ADR-022. None changes the approved workflow; each needs an owner before the ticket it touches is implemented. Nothing here has been merged.
+
+| ID | Question | What this change did | Needed from | Touches |
+|---|---|---|---|---|
+| DR-RW-1 | **The final-review stall has no state edge.** A failed final verification must leave the run `NEEDS_HUMAN` (kind `REVIEW_STALLED`), but `ORCHESTRATION_ENGINE.md` section 1.1 draws no direct `FINAL_REVIEW` to `NEEDS_HUMAN` edge and the merged D01 machine accepts one only through `STOPPING` (DR-D01-1, DR-D01-13). The old "bounded by the cap" wording had the same gap. | Stated the intended outcome and the interim handling (run-level intervention with Stop All semantics) in section 1.1. No D01 change. | The owners: add direct `FINAL_REVIEW` (and `FINAL_FIXING`) to `NEEDS_HUMAN` edges to the specification and to D01 (`run.rs` table and its oracle test). | S14, D01 |
+| DR-RW-2 | **Merge-conflict resolution is verified, not fully re-reviewed.** The previous text required a full re-review at the advanced fixed point after a resolution attempt. ADR-022 forbids an automatic full review. | A resolution is verified over its diff at the advanced fixed point, with the required gates; high-risk surfaces and uncertainty still escalate (`MERGE_CONFLICT`). | Confirm, or require a person to approve every resolution (stricter). | S13 |
+| DR-RW-3 | **No explicit `stage` on the `ReviewStarted` event.** The event carries `iteration` (the cycle ordinal); stage is persisted on the review cycle and follows from the ordinal and the cycle row. Adding `stage` to the event is a closed-vocabulary change and a contract regeneration. | Left the vocabulary, the F02 contracts and the D01 tables as merged. | The owners: keep derivation, or add the field (F02 vocabulary, ts-rs contract, S11, U08). | S11, U08 |
+| DR-RW-4 | **Removing oscillation detection and the iteration cap.** With one review and verification per fix set neither can occur. `integration_fix_attempts` (default 3) now bounds fix attempts after failed integration validation. | Specified as above (ADR-022 decisions 7, 8, 14). | Confirm the default of 3 for `integration_fix_attempts`. | S11, S12, CONFIGURATION |
+| DR-RW-5 | **Human options after a failed verification.** The approved text says escalate to human intervention. | Options: direct a fix with a new authorized verification, request a new comprehensive review, accept a documented risk on a *non-blocking* finding, or cancel. Accepting an unresolved blocking finding is not offered. | Confirm that "accept a blocking finding" must never be available, or define a stricter break-glass. | U10, S15 |
+| DR-RW-6 | **Verifier independence level.** Required: a fresh conversation distinct from the worker's. Not required: a different conversation or profile from the comprehensive reviewer's. | Distinct from the worker, recorded per cycle (FR-050). | Require a different execution profile from the reviewer's, if capacity allows. | A05, A10, S16 |
+| DR-RW-7 | **Build-time effort levels** (`high`, `xhigh` for `risk:high` or `area:security`) were chosen by the implementer in ADR-021 and are unchanged. | Kept. | Confirm or change. | REVIEW_PROTOCOL |
+
+## Not changed (deliberately)
+
+- The D01 worker and run transition tables and tests; the F02 event vocabulary and generated contracts. `ReviewStartedPayload.iteration` documentation ("review iteration") still reads correctly as the review cycle ordinal.
+- The Engineering exit policy, severity classification, the security and CI gates, the serialized merge lane, the fixed-point rule, reviewer independence, crash recovery guarantees.
+- Evidence files of F01, F02, F03, D01 and F07 (they record what was done under the earlier rule), and the states of D02 and D05.

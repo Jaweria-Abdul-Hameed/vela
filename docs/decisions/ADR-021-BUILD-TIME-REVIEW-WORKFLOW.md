@@ -2,8 +2,12 @@
 
 ## Status
 
-Accepted (2026-10-11). Refines ADR-015 for the agents that build Vela. It does not change ADR-005 or ADR-015, the
-Engineering exit policy, or any product behavior.
+Accepted (2026-10-11). Refines ADR-015 for the agents that build Vela. It does not change ADR-005 or ADR-015 or the
+Engineering exit policy.
+
+**Amended by ADR-022 (2026-10-11):** decision 1 (the runtime loop is unchanged) and decision 8 (one repair round)
+are superseded. The same workflow now governs Vela's own runtime review, and a failed verification goes straight to a
+human with no automatic repair round. The remaining decisions stand.
 
 ## Context
 
@@ -19,7 +23,7 @@ runtime behavior of the shipped application, frozen with the architecture and co
 
 ## Decision
 
-1. **Scope.** This ADR governs how agents and people **building Vela** review a ticket (the build-time process:
+1. **Scope.** *(Superseded by ADR-022: the workflow now also governs the runtime loop.)* This ADR governs how agents and people **building Vela** review a ticket (the build-time process:
    `AGENTS.md`, the playbook, the "Build-time review workflow" section of `REVIEW_PROTOCOL.md`). It does not change
    the review loop Vela runs for its own workers at runtime: that loop keeps its configurable iteration cap (default 3),
    its states and its tickets exactly as specified.
@@ -47,7 +51,7 @@ runtime behavior of the shipped application, frozen with the architecture and co
 7. **Exit.** `PASS` when the comprehensive review reported no blocking finding (no verification is needed), or when
    verification confirms every blocking finding resolved and reports no blocking finding in the fix diff; in both
    cases with the required gates green on the final head.
-8. **One repair round, then a human.** If verification reports a blocking finding unresolved or a blocking defect in
+8. **One repair round, then a human.** *(Superseded by ADR-022 decision 3: a failed verification goes to a human; there is no repair round.)* If verification reports a blocking finding unresolved or a blocking defect in
    the fix diff, the implementer gets one repair round (fix, regression test, CI) and the verifier re-checks those
    items only. If that does not pass, the ticket is `NEEDS_HUMAN` with kind `REVIEW_STALLED`. Nobody self-authorizes
    a further full review or a further verification round, and a ticket is never merged on an unverified blocking fix.
@@ -81,6 +85,5 @@ runtime behavior of the shipped application, frozen with the architecture and co
   prompts for ticket implementation, the worker and the final integrated review are aligned to it.
 - Evidence files record: the comprehensive review (findings, severities, dispositions), the regression test for each
   blocking fix, the CI run on the fix head, and the verifier's per-finding verdict.
-- Not changed: `ORCHESTRATION_ENGINE.md`, `CONFIGURATION.md`, `DOMAIN_MODEL.md`, `COMPONENT_SPECIFICATIONS.md`,
-  `COPY_AND_TONE.md`, the issue graph and every ticket. Whether Vela's runtime review loop should later take the same
-  shape is a product specification question for its owners, not decided here.
+- When this ADR was written the product specifications were not changed; ADR-022 (2026-10-11, user-approved) applied
+  the same shape to Vela's runtime review loop and updated them.

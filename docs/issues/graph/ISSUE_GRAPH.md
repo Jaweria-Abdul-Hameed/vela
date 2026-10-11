@@ -139,7 +139,7 @@ foundation: 5 · domain: 6 · ui: 19 · orchestration: 16 · security: 8 · spik
 | D01 | State machines: run, worker, and ticket projection with exhaustive transition tests | 1 | F02 |
 | D02 | Dependency graph engine: DAG, cycle detection, frontier, topological layers | 1 | F02 |
 | D05 | Policy engine core: operation model, PowerShell and cmd normalizer, ordered rules, ALLOW/ASK/DENY | 1 | F02 |
-| D06 | Review domain: finding identity, exit policy, loop state, and oscillation detection | 1 | F02 |
+| D06 | Review domain: finding identity, exit policy, review stages, and verification verdicts | 1 | F02 |
 | P03 | Keep-awake thread and interactive-session probe | 1 | F02 |
 | T01 | Local Markdown tracker: ticket parsing, blockers, and malformed-metadata handling | 1 | F02 |
 | SP12 | Spike S-UIA-RELIABILITY: repeat and vary UI Automation approval delivery | 2 | SP02, K04 |
@@ -222,7 +222,7 @@ foundation: 5 · domain: 6 · ui: 19 · orchestration: 16 · security: 8 · spik
 | S10 | Worker lifecycle with a fake agent: provision, implement, focused validation, timeline | 1 | S09, PV1, R01 |
 | PF1 | Performance harness and budget measurement on the reference hardware | 6 | U17 |
 | U18 | Visual regression suite and fixtures for the key states | 5 | U08, U10, U12, U16, U04, U17 |
-| S11 | Checkpoint and review loop with a fake reviewer: fixed point, findings, fix loop, cap | 1 | S10, G03, D06 |
+| S11 | Checkpoint and review workflow with a fake reviewer: fixed point, one review, fixes, verification | 1 | S10, G03, D06 |
 | R02 | Startup reconciliation and recovery-resume | 3 | S10, S15 |
 | W01 (Prompt 7) | Production composition root: real adapter wiring and a fixture run in the real window | 2 | S10, S17, P03, T04, P02, G04, Z01 |
 | S16 | Execution profiles and capacity model with simulated capacity events | 2 | R02, SP11 |
