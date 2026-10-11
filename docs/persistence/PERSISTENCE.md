@@ -53,5 +53,5 @@ gap.
 
 ## Conversation identifiers (ADR-020)
 
-`workers.conversation_id`, `review_cycles.reviewer_conversation_id`, and the id of any in-scope substantive analyst conversation (ADR-020 decision 1a) are persisted and journaled; they are
+`workers.conversation_id`, `review_cycles.reviewer_conversation_id` (the comprehensive reviewer's and the verifier's, one per cycle; `review_cycles.stage` is `COMPREHENSIVE` or `VERIFICATION`, and each finding records its verification verdict), and the id of any in-scope substantive analyst conversation (ADR-020 decision 1a) are persisted and journaled; they are
 used by recovery-resume and shown in the inspector. They are identifiers only; no Antigravity credential or transcript content is stored.

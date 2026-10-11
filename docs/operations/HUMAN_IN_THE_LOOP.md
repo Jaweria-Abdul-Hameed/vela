@@ -6,8 +6,9 @@ available actions, - consequences.
 
 Examples: - choose between contradictory requirements, - authenticate
 GitHub/provider, - resolve a semantic merge decision, - authorize a
-destructive migration, - decide whether to accept a nonblocking review
-finding after repeated oscillation.
+destructive migration, - decide how to proceed after review verification
+did not resolve a blocking finding (direct a fix and a new verification, request a new comprehensive review, or cancel;
+an unresolved blocking finding cannot be accepted), - decide whether to accept a documented risk on a nonblocking review finding.
 
 While one worker needs human input, unrelated workers may continue only
 if graph/integration safety permits.

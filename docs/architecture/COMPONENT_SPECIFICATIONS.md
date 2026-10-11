@@ -128,9 +128,9 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 -   **DESIGN:** verifies clean worktree and non-empty diff; creates the checkpoint only when the session is quiescent (ADR-015); fixed point
     advances to the merged integration tip (`IMPLEMENTATION_ARCHITECTURE.md` section 13); reviewer structure via Vela's prompt and, if
     spike S-SCHEMA-OUTPUT passes, `--json-schema` **[U]**; otherwise Vela classifies the two-section skill output itself.
--   **FAILURE MODES:** empty diff; hook-rejected commit (back to `FIXING`); unparseable review (one retry then `NEEDS_HUMAN`); oscillation or cap
-    (`REVIEW_STALLED`).
--   **TEST STRATEGY:** seeded-defect loop (AT-004), oscillation, cap, hook rejection, index-lock wait, fixed-point advancement test.
+-   **FAILURE MODES:** empty diff; hook-rejected commit (back to `FIXING`); unparseable review (one retry then `NEEDS_HUMAN`); verification that does not confirm every blocking finding resolved
+    (`NEEDS_HUMAN`, kind `REVIEW_STALLED`; no further automatic review).
+-   **TEST STRATEGY:** seeded-defect review, fix and verification (AT-004), failed verification escalates, no automatic second full review (including after recovery), hook rejection, index-lock wait, fixed-point advancement test.
 
 ## C10 ProcessRunner, power, session probe — `vela-process`
 
@@ -269,7 +269,7 @@ MODES, TEST STRATEGY**. Tags **[V]/[P]/[U]** follow the verification register (`
 | 011 implementation invocation | C05 | AT-001 |
 | 012 testing | C10, C01 | worker-fails-tests scenario |
 | 013 review | C09, C05 | AT-004 |
-| 014 review fix loop | C09, C01 | AT-004, oscillation/cap |
+| 014 review fix and verification | C09, C01 | AT-004, failed verification escalates |
 | 015 Git checkpoints | C09, C07 | AT-005 |
 | 016 push | C07 (by Vela, ADR-015) | push scenarios; AT-021 |
 | 017 merge | C08 | AT-002, AT-018 |
