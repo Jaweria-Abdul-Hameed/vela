@@ -27,7 +27,7 @@ No dependency, manifest, lockfile or `lib.rs` change. Every file is inside the t
 | `json.rs` | Structure-preserving redaction of serialized JSON (journal payloads, JSON log records, stream-json): strings are unescaped, redacted and re-escaped; a redacted document is still JSON of the same shape. |
 | `stream.rs` | `StreamRedactor`: chunked process output redacted line by line (a secret split across reads is still found), multi-line private keys, a line limit. |
 | `log.rs` | `RedactingWriter`, `RedactingMakeWriter` and `json_layer`: the JSON `tracing` layer whose records, with the fields of every enclosing span, are redacted before they are written. |
-| `corpus.rs` | The redaction corpus (test only): 37 cases covering the five classes of `OBSERVABILITY.md`. |
+| `corpus.rs` | The redaction corpus (test only): 38 cases covering the five classes of `OBSERVABILITY.md`. |
 
 `crates/vela-core/src/diagnostics/**` (logging setup):
 
@@ -64,8 +64,12 @@ Local Rust build, clippy and test remain blocked on this host (Smart App Control
 | 38080782735 | `a976289` | PASS, both jobs: review iteration 1 head |
 | 38082211247 | `c61d64b` | FAIL: clippy, one unused import in a test module |
 | 38082331441 | `7876efc` | PASS, both jobs: code after review 1. `vela-process` 42 tests, `vela-core` 21 tests (including the two Windows tests that hold a log file open) |
+| 38082727692 | `047ce1a` | PASS, both jobs: review iteration 2 head |
+| 38144894875 | `cdf107c` | PASS, both jobs: code after review 2. `vela-process` 46 tests, `vela-core` 24 tests (three Windows tests hold a log file open) |
 
-The corpus now has 37 cases (seven added after review 1: argument vectors and credential objects in JSON, Debug-formatted, colour-coded and percent-encoded text, `=>` and multi-word environment values, a URL password with an unencoded slash). Local loop after review 1: 37 dependency-free tests under WASI, not gate evidence.
+Commits after `cdf107c` change only this document and `F07_DECISION_REQUESTS.md`. A commit cannot record its own CI run, so the run of the final documentation head is recorded in `CURRENT_STATE.md` at integration.
+
+The corpus has 38 cases: 30 at the first review, seven added after review 1 (argument vectors and credential objects in JSON, Debug-formatted, colour-coded and percent-encoded text, `=>` and multi-word environment values, a URL password with an unencoded slash) and one after review 2 (environment listings behind markers and in columns, a `.netrc` entry). Local loop after review 2: 41 dependency-free tests under WASI, not gate evidence.
 
 ## Review
 
@@ -93,3 +97,26 @@ Sixteen findings: 2 high, 8 medium, 6 low. All ten high and medium findings are 
 | R1-14 | Output is released only at a line feed (prompts, carriage-return progress) | low | non-blocking | `flush_partial` added for P01; a bare carriage return as a terminator is not implemented (DR-F07-5) |
 | R1-15 | Weak tests: JSON well-formedness asserted by first and last character; "linear" test measured nothing; no test for the rotation fallback or the cross-crate join | low | non-blocking | Fixed except the cross-crate join, which cannot be written inside F07's surfaces (recorded for W01 and X04) |
 | R1-16 | Evidence table stopped before the review head; `payload.rs` claimed the payload shape never changes; `redact_payload_text` always re-serialized | low | non-blocking | Fixed: this table; the module documentation states what changes; unchanged text is returned as is |
+
+### Iteration 2 (`F07-R2`, head `047ce1a`, CI run 38082727692 green)
+
+The reviewer found no high-severity finding, no crash, hang, quadratic path or boundary error, and confirmed twelve of the sixteen R1 findings resolved or acceptably documented (R1-7, R1-8, R1-15 and R1-16 partly). Sixteen new findings: 4 medium, 12 low. The four mediums are in blocking classes and were fixed; none was reclassified.
+
+| # | Finding | Reviewer severity | Class | Disposition |
+|---|---|---|---|---|
+| R2-1 | A `BEGIN` line followed by anything but blanks (a colour reset, a quote, markup) did not open the key, so the following key lines were written out | medium, security | blocking | Fixed: the key opens unless the line also holds its `END` marker or the key itself. Test `a_begin_marker_followed_by_colour_codes_or_markup_still_opens_the_key` |
+| R2-2 | "Starts its line" used a 16-byte window and a fixed keyword list, so list items, indented diff lines, deep indents and timestamp prefixes leaked the tail of a multi-word value | medium, security | blocking | Fixed: the scan tracks the real line start; anything that is not a word may precede the name (64-byte bound). Table rows and a corpus case |
+| R2-3 | `APP_KEY`, `HMAC_KEY`, `SESSION_KEY` and similar were not credential names, in text or for environment registration | medium, security | blocking | Fixed: an upper-case variable ending in `KEY` or `KEYS` is a credential name; more qualifiers for other cases |
+| R2-4 | A name followed only by blanks was never a named value: PowerShell's two-column environment listing and `.netrc` | medium, security | blocking | Fixed: a name at the start of a line followed by a wide gap takes the rest of the line; `password value` after `login` or `machine`. A `.netrc` password on a line of its own is a recorded limit |
+| R2-5 | `===` was treated as an assignment | low | non-blocking | Fixed |
+| R2-6 | Lines swallowed as a private key vanished without a trace | low | non-blocking | Fixed: each is replaced by the marker |
+| R2-7 | The pair rule needed the name member before the value member; serializers that sort names put `value` first | low | non-blocking | Fixed: a held value is redacted when its name arrives. Test `a_pair_is_recognized_whichever_member_comes_first` |
+| R2-8 | Two member names redacted to the same text collapsed into one member when the payload was re-read | low | non-blocking | Fixed: such a payload becomes the redacted document as one string; nothing is lost |
+| R2-9 | `--password=x` in an argument array also claimed the next element | low | non-blocking | Fixed |
+| R2-10 | Structural rules do not apply to pretty-printed multi-line JSON or to documents the walk rejects | low | non-blocking | A lone surrogate no longer stops the walk; the rest is recorded as a limit ("Structure across lines") |
+| R2-11 | A string payload was redacted as a quoted literal | low | non-blocking | Fixed: redacted as text |
+| R2-12 | A base64 secret that looks like a rooted path was not registered | low | non-blocking | Fixed: a rooted path is skipped only under a name that says it holds a location |
+| R2-13 | An escaped quote inside an escaped-quote value ended it; the URL look-ahead over-redacted IPv6 and template hosts | low | non-blocking | Fixed |
+| R2-14 | Start-up clean-up of log files failed the whole stream on one undeletable file; two opens of one stream each count separately | low | non-blocking | Fixed (best effort, Windows test); single ownership documented |
+| R2-15 | The evidence table stopped before the review head | low | non-blocking | Fixed: code and record are separate commits, see the note under the CI table |
+| R2-16 | Every payload is serialized and walked; floats of a redacted payload are re-read | low | non-blocking | Recorded as a limit |
