@@ -32,8 +32,9 @@ stores identifiers and availability metadata, never raw passwords.
 
 ## Entity: ReviewCycle
 
-Fixed point, reviewed head, findings, dispositions, iteration, exit
-status.
+Fixed point, reviewed head, `stage` (`COMPREHENSIVE` or `VERIFICATION`), cycle ordinal, findings, dispositions, per-finding
+verification verdicts (`RESOLVED` or `NOT_RESOLVED`), reviewer conversation id, exit status. A ticket has at most one
+`COMPREHENSIVE` cycle unless a recorded user decision requests another (ADR-022).
 
 ## Entity: TestRun
 

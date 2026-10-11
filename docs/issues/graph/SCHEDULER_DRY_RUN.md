@@ -22,7 +22,7 @@ Companion documents: `ISSUE_GRAPH.md` (counts, DAG table, waves), `ISSUE_GRAPH.j
 
 ## 2. Simulation rules
 
-The unit of simulation is a **round** (not time). One round is: the scheduler computes the ready frontier and chooses a conservatively safe parallel set; each chosen ticket runs in its own worktree and branch from the integration tip recorded at the start of the round, in a **fresh context** (`/implement`, focused validation, ticket gates, checkpoint commit, `/code-review` against the recorded fixed point, fix and re-review loop, worker branch push); workers **never merge themselves**; the **serialized merge lane** then merges the round's tickets one at a time (update the worker branch by merging the current tip, never a rebase or force-push of a pushed branch; non-fast-forward merge; integration validation; discard on failure and return to fixing); only after the **last** merge validates and integration health is `HEALTHY` do the round's tickets become visible to dependents, resource keys release, and the next frontier compute. Integration health `UNKNOWN` or `UNHEALTHY` stops all new starts and all lane entry (`ORCHESTRATION_ENGINE.md` section 1.2).
+The unit of simulation is a **round** (not time). One round is: the scheduler computes the ready frontier and chooses a conservatively safe parallel set; each chosen ticket runs in its own worktree and branch from the integration tip recorded at the start of the round, in a **fresh context** (`/implement`, focused validation, ticket gates, checkpoint commit, `/code-review` against the recorded fixed point, fix, verification and escalation, worker branch push); workers **never merge themselves**; the **serialized merge lane** then merges the round's tickets one at a time (update the worker branch by merging the current tip, never a rebase or force-push of a pushed branch; non-fast-forward merge; integration validation; discard on failure and return to fixing); only after the **last** merge validates and integration health is `HEALTHY` do the round's tickets become visible to dependents, resource keys release, and the next frontier compute. Integration health `UNKNOWN` or `UNHEALTHY` stops all new starts and all lane entry (`ORCHESTRATION_ENGINE.md` section 1.2).
 
 A ticket is chosen only if every rule below holds against everything already chosen in the round. Priority: the protocol's recommended real-account spike order (SP08, SP09, SP04, SP06, SP05, SP07, SP10, SP11) first, then longest remaining path, then key.
 
@@ -233,7 +233,7 @@ Rounds are positive integers; `W<n>` marks a SIMULATED HUMAN GATE satisfied in t
 | D01 | 3 | F02 (2) | - | State machines: run, worker, and ticket projection with exhaust… |
 | D02 | 3 | F02 (2) | - | Dependency graph engine: DAG, cycle detection, frontier, topolo… |
 | D05 | 3 | F02 (2) | - | Policy engine core: operation model, PowerShell and cmd normali… |
-| D06 | 3 | F02 (2) | - | Review domain: finding identity, exit policy, loop state, and o… |
+| D06 | 3 | F02 (2) | - | Review domain: finding identity, exit policy, review stages, an… |
 | F03 | 3 | F02 (2) | - | Test kit foundation: fixture repositories, fault-injection harn… |
 | F04 | 3 | F02 (2) | - | Tauri shell walking skeleton with strict CSP and a typed comman… |
 | F06 | 3 | F02 (2) | - | Persistence foundation: single-writer SQLite, migration ladder,… |
@@ -315,7 +315,7 @@ Rounds are positive integers; `W<n>` marks a SIMULATED HUMAN GATE satisfied in t
 | K05 | 12 | SP02 (9) | AGY,FG,ATTN | vela-uia discovery and read: windows, warm-up, correlation, and… |
 | PF1 | 12 | U17 (11) | QUIET | Performance harness and budget measurement on the reference har… |
 | R02 | 12 | S10 (11) | - | Startup reconciliation and recovery-resume |
-| S11 | 12 | S10 (11) | - | Checkpoint and review loop with a fake reviewer: fixed point, f… |
+| S11 | 12 | S10 (11) | - | Checkpoint and review workflow with a fake reviewer: fixed poin… |
 | U18 | 12 | U17 (11) | - | Visual regression suite and fixtures for the key states |
 | A07 | 13 | A06 (11) | AGY | Headless ASK path: spool, APPROVAL_ASK, one-time allow, and res… |
 | A14 | 13 | R02 (12) | - | Antigravity recovery and version drift: orphan sessions, stale … |
@@ -397,7 +397,7 @@ State names are from `ORCHESTRATION_ENGINE.md` sections 1 to 3 and `CAPACITY_AND
 |---|---|---|---|---|
 | `FAILED` | terminal for that ticket; branch and worktree preserved | all non-descendants proceed. Descendants blocked: S10 blocks 25 tickets, R01 31, S11 16, K01 11, SP08 13, A06 9 (F08 would block 72, which is why it is early) | release | unchanged |
 | `NEEDS_HUMAN` (any kind) | parked with `resume_state`; a recorded decision resumes it | unrelated tickets proceed; the run goes `NEEDS_HUMAN` only for run-level kinds | release while parked (W2) | unchanged |
-| `REVIEW_STALLED` | `NEEDS_HUMAN` kind `REVIEW_STALLED` after the iteration cap; never success | as above | release | unchanged |
+| `REVIEW_STALLED` | `NEEDS_HUMAN` kind `REVIEW_STALLED` when verification fails (ADR-022); never success | as above | release | unchanged |
 | `WAITING_APPROVAL` | overlay sub-state; the worker keeps its state | only that worker waits | keeps its keys | unchanged |
 | `APPROVAL_STALLED` | `NEEDS_HUMAN`; the watchdog and loop guard (K02) trip rather than loop | unrelated proceed | release | unchanged |
 | `RATE_LIMITED` | `PAUSED` with reason `CAPACITY`; only the affected worker | unrelated proceed; no account switching | release | unchanged |

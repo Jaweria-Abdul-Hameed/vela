@@ -906,7 +906,7 @@
   },
   {
    "key": "D06",
-   "title": "Review domain: finding identity, exit policy, loop state, and oscillation detection",
+   "title": "Review domain: finding identity, exit policy, review stages, and verification verdicts",
    "area": "domain",
    "phase": 1,
    "kind": "feature",
@@ -3473,7 +3473,7 @@
   },
   {
    "key": "S11",
-   "title": "Checkpoint and review loop with a fake reviewer: fixed point, findings, fix loop, cap",
+   "title": "Checkpoint and review workflow with a fake reviewer: fixed point, one review, fixes, verification",
    "area": "orchestration",
    "phase": 1,
    "kind": "feature",

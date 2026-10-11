@@ -43,7 +43,7 @@ Prompt 15 (real-environment validation). They are not permanent product constant
 | Setting | Initial default |
 |---|---|
 | Maximum concurrent workers | 2, never above the Antigravity-declared limit (CAP-07) |
-| Review maximum iterations | 3 |
+| Integration fix attempts (fixes after a failed integration validation; each is verified, none repeats a full review) | 3 |
 | Approval repeat threshold | 3 consecutive, bounded 2..10 |
 | Watchdog no-progress window (agent-driven states) | 120 seconds; suppressed while a tracked command runs |
 | Stop All graceful wait | 30 seconds |

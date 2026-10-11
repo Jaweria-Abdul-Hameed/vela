@@ -21,7 +21,7 @@ from a previous ticket as an authority. Shared knowledge must be in
 code, commits, issues, research notes, or Markdown.
 
 The one documented exception is **recovery-resume** (`RECOVERY.md`): a new session on the existing
-branch at the last verified checkpoint, or CAP-10 session resume where verified. Fix iterations
+branch at the last verified checkpoint, or CAP-10 session resume where verified. Fixes
 continue in the ticket's worker session. The authoritative reviewer is always a separate fresh
 session (`REVIEW_PROTOCOL.md`).
 
