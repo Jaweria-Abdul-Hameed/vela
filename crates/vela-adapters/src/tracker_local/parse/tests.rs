@@ -159,7 +159,8 @@ fn hostile_text_is_data_and_warnings_quote_it_safely() {
     let hostile = "\u{1b}[31m".to_owned() + &"y".repeat(300);
     let text = format!("# A1: T\n\n## Dependencies / blocked by\n- {hostile}\n");
     let parsed = parse_ticket("A1.md", &text);
-    let [WarningKind::InvalidBlocker { found }] = kinds(&parsed).as_slice() else {
+    let all = kinds(&parsed);
+    let [WarningKind::InvalidBlocker { found }] = all.as_slice() else {
         panic!("{:?}", parsed.warnings);
     };
     assert!(found.chars().count() <= MAX_QUOTE_CHARS);
