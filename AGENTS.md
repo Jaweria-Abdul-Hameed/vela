@@ -75,11 +75,12 @@ read ticket
 → typecheck/lint frequently
 → complete ticket
 → run full required ticket gate
-→ create durable checkpoint commit
-→ run code review against the recorded fixed point
-→ fix actionable findings
-→ rerun affected tests
-→ repeat review until exit policy passes
+→ audit the change against every acceptance criterion
+→ create durable checkpoint commit (required gates green in CI)
+→ one comprehensive independent code review against the recorded fixed point
+→ fix every blocking finding, each with a regression test
+→ rerun the required gates in CI
+→ independent verification of the blocking fixes and of the fix diff
 → final ticket commit
 → push
 → report structured result
@@ -107,8 +108,16 @@ enforced by tooling, and subjective micro-style findings do not block
 completion unless repository standards explicitly make them
 requirements.
 
-A review loop has a configurable maximum iteration count. Hitting the
-maximum is not success; transition to `NEEDS_HUMAN` with kind `REVIEW_STALLED`.
+For agents building Vela the review is **one comprehensive independent `/code-review`, then fixes with
+regression tests, CI, and a targeted independent verification of the blocking fixes** (ADR-021;
+`REVIEW_PROTOCOL.md` "Build-time review workflow"). The reviewer and the verifier are fresh sessions
+that are not the implementer. If verification fails, one repair round is allowed; if that fails, transition
+to `NEEDS_HUMAN` with kind `REVIEW_STALLED`. Do not self-authorize another full review or another
+verification round, do not lower a reviewer's severity, and never merge on an unverified blocking fix.
+
+The review loop Vela runs for its own workers at runtime is specified separately
+(`ORCHESTRATION_ENGINE.md` section 4): it has a configurable maximum iteration count, and hitting the
+maximum is not success but `NEEDS_HUMAN` with kind `REVIEW_STALLED`.
 
 ## Tests
 

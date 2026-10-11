@@ -7,6 +7,10 @@ Codex must treat `AGENTS.md` as the source of truth.
 -   Prefer small, reviewable changes.
 -   Run the required focused and repository gates.
 -   Preserve the fixed-point commit for review.
+-   A ticket gets one comprehensive independent `/code-review`, then
+    independent verification of the blocking fixes (ADR-021). Do not
+    review or verify your own implementation session's work, and do not
+    self-authorize a further review or verification round.
 -   Do not infer completion from compilation alone.
 -   Do not perform destructive Git operations, force pushes, credential
     changes, or unrelated refactors.

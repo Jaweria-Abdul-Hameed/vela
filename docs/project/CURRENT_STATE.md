@@ -117,9 +117,11 @@ Prompt 8 — scheduler dry-run, committed and pushed at `532cf32890e6dd261692133
 
 ## Decisions and ADRs
 
-ADR-001..ADR-020 are all Accepted (ADR-020 added post-freeze: conversation visibility in Desktop; it makes the isolated-profile design in ADR-018 provisional). Resolved human decisions: the eight Prompt 2 decisions (ADR-009..014 and ADR-001/002 acceptance), DR-1 and DR-3
+ADR-001..ADR-021 are all Accepted (ADR-021 is a build-process decision, see below; ADR-020 added post-freeze: conversation visibility in Desktop; it makes the isolated-profile design in ADR-018 provisional). Resolved human decisions: the eight Prompt 2 decisions (ADR-009..014 and ADR-001/002 acceptance), DR-1 and DR-3
 (ADR-016). Architecture decisions: ADR-017 (stack, process model, contracts), ADR-018 (Antigravity adapter and policy enforcement), ADR-019 (UI rendering).
 Documentation precedence is in `DOCUMENTATION_INDEX.md`.
+
+**Build-time review workflow (ADR-021, 2026-10-11, process only):** a ticket now gets **one comprehensive independent `/code-review`** (effort `high`; `xhigh` for `risk:high` or `area:security`), then fixes with regression tests, CI, and a **targeted independent verification** of the blocking fixes and the fix diff; one repair round if verification fails, then `REVIEW_STALLED` and a human decision. Severity classification, the Engineering blocking classes, reviewer independence, the security and CI gates and human escalation are unchanged; a high-severity defect blocks whenever it is found. Normative text: `docs/agents/REVIEW_PROTOCOL.md` "Build-time review workflow". **It applies to tickets whose first authoritative review starts after ADR-021 is on `main`.** Tickets already under review (F07, D02, D05) continue under the previous rule (up to three full iterations, then `REVIEW_STALLED`); ADR-021 approves none of them and clears no stall. **Product behavior is not changed:** Vela's runtime review loop keeps its configurable cap (default 3) in `ORCHESTRATION_ENGINE.md` section 4, `CONFIGURATION.md` and tickets D06 and S11; whether the product should adopt the same shape is an open question for the specification owners.
 
 ## Verified / Partially Verified / Unverified Register
 

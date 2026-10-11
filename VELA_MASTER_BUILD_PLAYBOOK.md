@@ -1018,15 +1018,19 @@ Use TDD where appropriate.
 
 Run all required tests.
 
-Create a durable checkpoint before authoritative review.
+Audit the change against every acceptance criterion.
 
-Run /code-review against the recorded fixed point.
+Create a durable checkpoint before authoritative review; the required gates must be green in CI on it.
 
-Fix actionable findings.
+Run one comprehensive independent /code-review against the recorded fixed point (ADR-021).
 
-Rerun affected tests.
+Fix every blocking finding, each with a regression test. Fix cheap non-blocking findings; disposition the rest.
 
-Repeat review until the Engineering exit policy passes or the configured loop limit is reached.
+Rerun the required gates in CI.
+
+Have a fresh independent session verify the blocking fixes and the fix diff.
+
+If verification fails, one repair round is allowed; if that fails, report REVIEW_STALLED. Do not self-authorize another full review.
 
 Commit with the ticket reference.
 
@@ -1074,13 +1078,12 @@ NON-NEGOTIABLE EXECUTION RULES:
 - run /implement for each ticket;
 - run focused tests during development;
 - run required ticket validation;
-- create a durable checkpoint before authoritative fixed-point review;
-- run /code-review;
-- fix blocking/actionable findings;
-- rerun affected tests;
-- checkpoint;
-- review again;
-- continue until Engineering review policy passes or loop limit is reached;
+- audit each ticket against its acceptance criteria and create a durable checkpoint, green in CI, before authoritative fixed-point review;
+- run one comprehensive independent /code-review per ticket (ADR-021);
+- fix every blocking finding with a regression test; fix or disposition the rest;
+- checkpoint and rerun the required gates in CI;
+- have a fresh independent session verify the blocking fixes and the fix diff;
+- allow one repair round if verification fails, then stop at REVIEW_STALLED; never self-authorize another full review;
 - never call review success while required tests fail;
 - never weaken tests to obtain green status;
 - push successful worker branches;
@@ -1160,22 +1163,24 @@ After implementation:
 
 /code-review <EXPLICIT FIXED POINT>
 
-6. classify findings using Vela's Engineering review policy;
-7. fix all blocking/actionable findings;
-8. rerun affected tests;
-9. checkpoint fixes;
-10. run code review again;
-11. repeat until:
-   - zero blocking findings,
-   - zero unresolved high findings,
-   - zero unresolved medium correctness/spec findings,
-   - required tests/typecheck/build are green;
+   This is the one comprehensive review of the ticket (ADR-021): the whole diff, in a fresh reviewer session that is not yours, with a severity on every finding.
 
-or until the configured review-loop limit is reached.
+6. classify findings using Vela's Engineering review policy; do not lower a reviewer's severity;
+7. fix all blocking findings, each with a regression test; fix cheap non-blocking findings and disposition the rest;
+8. rerun the required gates;
+9. checkpoint fixes;
+10. have a fresh independent session verify each blocking fix and the fix diff (not a second full review);
+11. the ticket passes when:
+   - every blocking finding is verified resolved,
+   - the fix diff has no blocking finding,
+   - no high-severity finding is open,
+   - required tests/typecheck/build are green.
+
+If verification fails, one repair round is allowed, re-verified on the failed items only.
 
 Do not endlessly fix subjective stylistic suggestions.
 
-If review oscillates or reaches the loop limit, report REVIEW_STALLED.
+If the repair round fails, or the fixes replace the reviewed design, report REVIEW_STALLED. Do not self-authorize another full review or another verification round.
 
 When successful:
 - push your branch;
@@ -1678,17 +1683,19 @@ Focus particularly on:
 - performance;
 - specification compliance.
 
+This is one comprehensive independent review (ADR-021).
+
 Classify findings using the Engineering review policy.
 
-Fix blocking/actionable findings.
+Fix every blocking finding, each with a regression test.
 
 Run the complete test suite.
 
 Checkpoint.
 
-Re-review.
+Have a fresh independent session verify the blocking fixes and the fix diff.
 
-Repeat only until the defined exit policy passes or the review-loop limit is reached.
+If verification fails, one repair round is allowed; if that fails, report REVIEW_STALLED for a human decision.
 
 Do not spend endless cycles on subjective micro-refactoring.
 ```
