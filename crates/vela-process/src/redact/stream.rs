@@ -132,25 +132,28 @@ impl StreamRedactor {
     fn redact_line(&mut self, line: &str, out: &mut String) {
         let mut line = line;
         if self.key_lines_left > 0 {
+            // Every line of an open key is replaced by the marker whatever it looks like: key lines arrive prefixed
+            // by `git diff`, `grep` and log collectors, and one unrecognized line must not release the rest. The
+            // marker also shows the reader that lines were removed.
+            out.push_str(REDACTED);
             match after_key_end(line) {
                 // The key ends on this line; whatever follows it is ordinary output.
                 Some(after) => {
                     self.key_lines_left = 0;
                     line = after;
                 }
-                // Every line of an open key is swallowed whatever it looks like: key lines arrive prefixed by
-                // `git diff`, `grep` and log collectors, and one unrecognized line must not release the rest.
                 None => {
                     self.key_lines_left -= 1;
                     return;
                 }
             }
         }
-        out.push_str(&self.redactor.redact(line));
+        let redacted = self.redactor.redact(line);
+        out.push_str(&redacted);
         if opens_private_key(line) {
-            // The redactor replaced the key from its `BEGIN` line to the end of this line; make sure of it even for a
-            // redactor that does not know private keys, then swallow the lines that follow.
-            if !out.ends_with(REDACTED) {
+            // The redactor replaced the key from its `BEGIN` marker to the end of this line; make sure of it even for
+            // a redactor that does not know private keys, then replace the lines that follow.
+            if !redacted.contains(REDACTED) {
                 out.push_str(REDACTED);
             }
             self.key_lines_left = MAX_KEY_LINES;
@@ -158,7 +161,12 @@ impl StreamRedactor {
     }
 }
 
-/// Whether `line` ends with the `BEGIN` marker of a private key, so the key itself is on the lines that follow.
+/// The most letters and digits that may follow a `BEGIN` marker on its line before the line is taken to hold the key
+/// itself. Colour codes, quotes, markup and punctuation after the marker stay well below it.
+const MAX_MARKER_TRAILER: usize = 16;
+
+/// Whether `line` holds the `BEGIN` marker of a private key whose body is on the lines that follow: the marker is
+/// not followed by an `END` marker or by the key itself.
 ///
 /// A key that is written on one line (inside a JSON string, with escaped line breaks) continues after the marker and
 /// is redacted with its line; it opens nothing.
@@ -170,8 +178,10 @@ fn opens_private_key(line: &str) -> bool {
     let Some(label_end) = label.find(PEM_DASHES) else {
         return false;
     };
+    let trailer = &label[label_end + PEM_DASHES.len()..];
     label[..label_end].contains(PRIVATE_KEY)
-        && label[label_end + PEM_DASHES.len()..].trim().is_empty()
+        && !trailer.contains(PEM_END)
+        && trailer.bytes().filter(u8::is_ascii_alphanumeric).count() < MAX_MARKER_TRAILER
 }
 
 /// The text after the `-----END ... -----` marker of `line`, if it has one.
@@ -249,7 +259,7 @@ mod tests {
         for size in [1, 9, 1000] {
             assert_eq!(
                 feed(&mut stream(), text.as_bytes(), size),
-                "start\n[REDACTED]\n\n\n\n\n tail\nDB_PASSWORD=[REDACTED]\n",
+                "start\n[REDACTED]\n[REDACTED]\n[REDACTED]\n[REDACTED]\n[REDACTED]\n[REDACTED] tail\nDB_PASSWORD=[REDACTED]\n",
                 "chunks of {size}"
             );
         }
@@ -261,13 +271,30 @@ mod tests {
         let diff = "------BEGIN RSA PRIVATE KEY-----\n-MIIEow\n-IBAAKCAQ\n------END RSA PRIVATE KEY-----\n+ok\n";
         assert_eq!(
             feed(&mut stream(), diff.as_bytes(), 7),
-            "-[REDACTED]\n\n\n\n+ok\n"
+            "-[REDACTED]\n[REDACTED]\n[REDACTED]\n[REDACTED]\n+ok\n"
         );
         let grep = "id_rsa:1:-----BEGIN OPENSSH PRIVATE KEY-----\nid_rsa:2:b3BlbnNz\nid_rsa:3:-----END OPENSSH PRIVATE KEY-----\n";
         assert_eq!(
             feed(&mut stream(), grep.as_bytes(), 5),
-            "id_rsa:1:[REDACTED]\n\n\n"
+            "id_rsa:1:[REDACTED]\n[REDACTED]\n[REDACTED]\n"
         );
+    }
+
+    #[test]
+    fn a_begin_marker_followed_by_colour_codes_or_markup_still_opens_the_key() {
+        // A coloured `git diff`: every line ends in a reset sequence.
+        let coloured = "\u{1b}[31m------BEGIN RSA PRIVATE KEY-----\u{1b}[m\n\u{1b}[31m-MIIEowIBAAKCAQEA\u{1b}[m\n\u{1b}[31m------END RSA PRIVATE KEY-----\u{1b}[m\nnext\n";
+        assert_eq!(
+            feed(&mut stream(), coloured.as_bytes(), 9),
+            "\u{1b}[31m-[REDACTED]\n[REDACTED]\n[REDACTED]\u{1b}[m\nnext\n"
+        );
+        for trailer in ["\",", "</pre>", "\\n\" +", "  # key"] {
+            let text = format!(
+                "x -----BEGIN PRIVATE KEY-----{trailer}\nMIIEowIBAAKCAQEA\n-----END PRIVATE KEY-----\n"
+            );
+            let shown = feed(&mut stream(), text.as_bytes(), 11);
+            assert_eq!(shown, "x [REDACTED]\n[REDACTED]\n[REDACTED]\n", "{trailer}");
+        }
     }
 
     #[test]
@@ -279,7 +306,7 @@ mod tests {
         let shown = feed(&mut stream(), text.as_bytes(), 64);
         let expected = format!(
             "[REDACTED]\n{}line {}\nline {}\n",
-            "\n".repeat(MAX_KEY_LINES),
+            "[REDACTED]\n".repeat(MAX_KEY_LINES),
             MAX_KEY_LINES,
             MAX_KEY_LINES + 1
         );
@@ -300,7 +327,7 @@ mod tests {
 
     #[test]
     fn a_private_key_inside_one_json_line_does_not_swallow_the_next_lines() {
-        let text = "{\"text\":\"-----BEGIN RSA PRIVATE KEY-----\\nMIIE\\nAAAA\",\"n\":1}\nMIIE\n";
+        let text = "{\"text\":\"-----BEGIN RSA PRIVATE KEY-----\\nMIIEowIBAAKCAQEAu1SU1LfVLPHCozMxH2Mo\\nAAAA\",\"n\":1}\nMIIE\n";
         assert_eq!(
             feed(&mut stream(), text.as_bytes(), 8),
             "{\"text\":\"[REDACTED]\",\"n\":1}\nMIIE\n"

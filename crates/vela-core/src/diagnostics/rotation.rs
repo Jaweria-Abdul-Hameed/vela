@@ -134,19 +134,24 @@ impl Rotating {
 
     /// Deletes what an earlier configuration left behind and the current limits do not allow: rotated files beyond
     /// `max_files`, and any file larger than `max_file_bytes`.
+    ///
+    /// Best effort, like rotation: a file that cannot be deleted (another program holds it open) is emptied, and one
+    /// that cannot even be emptied is left behind. A stale file must not keep the stream from logging at all.
     fn enforce_limits_on_existing_files(&self) -> io::Result<()> {
         let active = self.active_path();
-        for entry in fs::read_dir(&self.directory)? {
-            let entry = entry?;
+        for entry in fs::read_dir(&self.directory)?.flatten() {
             let path = entry.path();
             let index = self.rotated_index(&path);
             if index.is_none() && path != active {
                 continue;
             }
             let too_many = index.is_some_and(|index| index == 0 || index > self.limits.max_files);
-            let too_large = entry.metadata()?.len() > self.limits.max_file_bytes;
-            if too_many || too_large {
-                remove_if_present(&path)?;
+            // A file whose size cannot be read is treated as too large.
+            let too_large = entry
+                .metadata()
+                .map_or(true, |metadata| metadata.len() > self.limits.max_file_bytes);
+            if (too_many || too_large) && remove_if_present(&path).is_err() {
+                let _ = empty(&path);
             }
         }
         Ok(())
@@ -259,6 +264,9 @@ fn rename_if_present(from: &Path, to: &Path) -> io::Result<()> {
 
 /// A size-capped, rotating log file. Clones share the file, so one handle can be given to every writer of a stream;
 /// each `write` call is one record and is never interleaved with another.
+///
+/// A stream has one owner: open it once per process and clone the handle. Two separate `open` calls on the same
+/// stream each keep their own count of the active file's size, and together can exceed the cap.
 #[derive(Clone)]
 pub struct LogFile {
     shared: Arc<Mutex<Rotating>>,
@@ -573,6 +581,31 @@ mod tests {
         assert_eq!(dir.read("vela-core.2.log"), "two 3456789\n");
         assert!(log.total_bytes().unwrap() <= limits.total_bytes());
         assert_eq!(dir.files().len(), 3);
+    }
+
+    /// A stale file that cannot be deleted when the stream is opened is emptied, and the stream still opens.
+    #[cfg(windows)]
+    #[test]
+    fn a_stale_file_that_cannot_be_deleted_does_not_stop_the_stream_from_opening() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        const FILE_SHARE_READ_WRITE: u32 = 0x1 | 0x2;
+
+        let dir = TempDir::new("stale");
+        let stale = dir.0.join("vela-core.7.log");
+        fs::write(&stale, "left by a larger configuration").unwrap();
+        let holder = OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ_WRITE)
+            .open(&stale)
+            .unwrap();
+        assert!(fs::remove_file(&stale).is_err());
+
+        let mut log = LogFile::open(&dir.0, LogStream::Core, limits(20, 2)).unwrap();
+        log.write_all(b"works\n").unwrap();
+        drop(holder);
+        assert_eq!(dir.read("vela-core.7.log"), "");
+        assert_eq!(dir.read("vela-core.log"), "works\n");
     }
 
     /// A rotated file that cannot be moved costs its own (old) records only.

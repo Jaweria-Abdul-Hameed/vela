@@ -252,6 +252,13 @@ pub(super) fn corpus() -> Vec<Case> {
             &["  'password' => '", "DB_PASSWORD=", "COOKIE="],
         ),
         case(
+            "environment listings behind markers and in columns",
+            "  - DB_PASSWORD=my secret pass\n-    API_KEY=a b\nAPP_KEY=base64:Zm9vYmFy\nSMTP_PASSWORD                  hunter2\nmachine example.com login ada password tr0ub4dor"
+                .to_owned(),
+            &["my secret pass", "secret pass", "a b", "base64:Zm9vYmFy", "hunter2", "tr0ub4dor"],
+            &["  - DB_PASSWORD=", "-    API_KEY=", "APP_KEY=", "SMTP_PASSWORD", "machine example.com login ada password "],
+        ),
+        case(
             "url password with an unencoded slash",
             "DATABASE_URL=postgres://app:pa/ss#w0rd@db.internal/prod".to_owned(),
             &["pa/ss#w0rd", "ss#w0rd"],

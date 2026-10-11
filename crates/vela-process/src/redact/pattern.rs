@@ -27,6 +27,9 @@ const PEM_END: &[u8] = b"-----END ";
 const PEM_DASHES: &[u8] = b"-----";
 const PRIVATE_KEY: &[u8] = b"PRIVATE KEY";
 
+/// The separator of a two-column listing (a wide gap), as [`named_value`] records it.
+const COLUMN: u8 = b'\t';
+
 /// How far past a URL's authority the `@` of its user information is looked for.
 const URL_LOOKAHEAD: usize = 256;
 
@@ -81,7 +84,7 @@ impl PatternRedactor {
         for (name, value) in environment {
             // A path is not a secret even under a credential-like name (`GOOGLE_APPLICATION_CREDENTIALS`), and
             // registering one would redact every file name below it.
-            if is_credential_name(name) && !looks_like_path(value) {
+            if is_credential_name(name) && !looks_like_path(name, value) {
                 self.add_secret(value);
             }
         }
@@ -156,14 +159,21 @@ impl Hit {
     }
 }
 
-/// An absolute or explicitly relative file path: `/usr/lib/x`, `~/x`, `./x`, `C:\x`, `\\server\x`.
-fn looks_like_path(value: &str) -> bool {
+/// An absolute or explicitly relative file path: `~/x`, `./x`, `C:\x`, `\\server\x`, and `/usr/lib/x` when the
+/// variable's name says it holds a location. A base64 secret can also start with `/` and contain another, so for any
+/// other name such a value is taken to be the secret.
+fn looks_like_path(name: &str, value: &str) -> bool {
     let bytes = value.as_bytes();
     let drive = bytes.len() > 2
         && bytes[0].is_ascii_alphabetic()
         && bytes[1] == b':'
         && matches!(bytes[2], b'\\' | b'/');
-    let rooted = bytes.first() == Some(&b'/')
+    let name = name.to_ascii_lowercase();
+    let names_a_location = ["credentials", "config", "home", "dir"]
+        .iter()
+        .any(|word| name.contains(word));
+    let rooted = names_a_location
+        && bytes.first() == Some(&b'/')
         && bytes[1..].contains(&b'/')
         && !bytes.iter().any(|byte| matches!(byte, b'+' | b'='));
     drive
@@ -180,6 +190,9 @@ struct Memo {
     /// The end of the line that contains every index in `line_start..=line_end`.
     line_start: usize,
     line_end: usize,
+    /// Where the line being scanned begins, when the scan saw its line break (it has not after a hit that spans
+    /// lines).
+    line_begin: Option<usize>,
 }
 
 impl Memo {
@@ -188,7 +201,15 @@ impl Memo {
             token_floor: 0,
             line_start: usize::MAX,
             line_end: 0,
+            line_begin: Some(0),
         }
+    }
+
+    /// What stands on the line before `index`, when that is known and short. A longer prefix is not looked at: the
+    /// scan must not walk back over a long line once per name on it.
+    fn line_prefix<'b>(&self, bytes: &'b [u8], index: usize) -> Option<&'b [u8]> {
+        let begin = self.line_begin?;
+        (index - begin <= MAX_LINE_PREFIX).then(|| &bytes[begin..index])
     }
 
     /// The index of the line break that ends the line containing `at` (or the end of the text).
@@ -212,12 +233,19 @@ fn scan(text: &str) -> Cow<'_, str> {
     let mut copied = 0;
     let mut index = 0;
     while index < bytes.len() {
+        if matches!(bytes[index], b'\n' | b'\r') {
+            memo.line_begin = Some(index + 1);
+        }
         match hit_at(bytes, index, &mut memo) {
             // Every hit starts and ends next to an ASCII byte or at the end of the text, so the slices below are on
             // character boundaries.
             Some(hit) => {
                 out.push_str(&text[copied..hit.start]);
                 out.push_str(REDACTED);
+                // A hit that spans lines (a private key) hides where the current line began.
+                if bytes[hit.start..hit.end].contains(&b'\n') {
+                    memo.line_begin = None;
+                }
                 copied = hit.end;
                 index = hit.end;
             }
@@ -493,38 +521,69 @@ fn bearer(bytes: &[u8], index: usize) -> Option<Hit> {
 
 // ---- Named values ----
 
-/// What may stand between the start of a line and an assignment: `export NAME=value`, `$env:NAME = value`, and the
-/// markers of a diff or a quotation.
-const ASSIGNMENT_PREFIXES: [&[u8]; 10] = [
-    b"export",
-    b"set",
-    b"setx",
-    b"env",
-    b"local",
-    b"readonly",
+/// The longest line prefix that is examined to decide whether a name starts its line.
+const MAX_LINE_PREFIX: usize = 64;
+
+/// Keywords that may stand directly before an assignment: `export NAME=value`, `$env:NAME = value`.
+const ASSIGNMENT_KEYWORDS: [&[u8]; 8] = [
     b"declare -x",
+    b"readonly",
+    b"export",
+    b"local",
     b"$env:",
-    b"+",
-    b">",
+    b"setx",
+    b"set",
+    b"env",
 ];
 
-/// Whether the name at `index` is the first thing on its line (after an optional assignment keyword), as in the
-/// output of `env`, `set` and `printenv` and in a `.env` file. There the value is the whole rest of the line.
-fn starts_line(bytes: &[u8], index: usize) -> bool {
-    let window = &bytes[index.saturating_sub(16)..index];
-    let line = match window
+/// Whether a name with this line `prefix` is the first word on its line, as in the output of `env`, `set` and
+/// `printenv`, in a `.env` file, and in the same lines behind a marker. There the value is the rest of the line.
+///
+/// Before the name there may be an assignment keyword, and before that anything that is not a word: indentation,
+/// the markers of a list, a diff or a quotation (`-`, `+`, `>`, `*`), numbering, a timestamp.
+fn starts_line(prefix: &[u8]) -> bool {
+    let mut prefix = prefix.trim_ascii();
+    for keyword in ASSIGNMENT_KEYWORDS {
+        let Some(split) = prefix.len().checked_sub(keyword.len()) else {
+            continue;
+        };
+        let (head, tail) = prefix.split_at(split);
+        if tail.eq_ignore_ascii_case(keyword)
+            && head.last().is_none_or(|byte| !byte.is_ascii_alphanumeric())
+        {
+            prefix = head;
+            break;
+        }
+    }
+    // `T` and `Z` are the letters of an ISO 8601 timestamp.
+    prefix
         .iter()
-        .rposition(|byte| matches!(byte, b'\n' | b'\r'))
-    {
-        Some(line_break) => &window[line_break + 1..],
-        None if window.len() == index => window,
-        None => return false,
-    };
-    let prefix = line.trim_ascii();
-    prefix.is_empty()
-        || ASSIGNMENT_PREFIXES
-            .iter()
-            .any(|keyword| prefix.eq_ignore_ascii_case(keyword))
+        .all(|byte| byte.is_ascii() && (!byte.is_ascii_alphabetic() || matches!(byte, b'T' | b'Z')))
+}
+
+/// The end of a value that opens with an escaped quote (`\"`): its closing `\"`, or `limit`. Inside such a value an
+/// escaped quote is written `\\\"` and an escaped backslash `\\\\`; neither ends it.
+fn escaped_quote_end(bytes: &[u8], start: usize, limit: usize) -> usize {
+    let mut at = start;
+    while at < limit {
+        if bytes[at] != b'\\' {
+            at += 1;
+        } else if bytes.get(at + 1) == Some(&b'"') {
+            return at;
+        } else if bytes.get(at + 1) == Some(&b'\\') {
+            // `\\` introduces an inner escape; skip it together with what it escapes.
+            at += 2;
+            let escaped = &bytes[at.min(limit)..limit];
+            at += if escaped.starts_with(b"\\\"") || escaped.starts_with(b"\\\\") {
+                2
+            } else {
+                1
+            };
+        } else {
+            at += 1;
+        }
+    }
+    limit
 }
 
 fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
@@ -554,10 +613,29 @@ fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
     at += gap;
 
     let next = bytes.get(at + 1).copied();
-    // `a == b` and `a =~ b`, written with blanks on both sides, compare; they do not assign.
+    // `a == b`, `a === b` and `a =~ b`, written with blanks on both sides, compare; they do not assign.
+    let operator_len = if next == Some(b'=') && bytes.get(at + 2) == Some(&b'=') {
+        3
+    } else {
+        2
+    };
     let comparison = gap > 0
         && matches!(next, Some(b'=' | b'~'))
-        && matches!(bytes.get(at + 2), Some(b' ' | b'\t'));
+        && matches!(bytes.get(at + operator_len), Some(b' ' | b'\t'));
+    let prefix = memo.line_prefix(bytes, index);
+    let flag = bytes[index] == b'-';
+    // A two-column listing, as PowerShell prints the environment: the name, a wide gap, the value.
+    let column = !flag
+        && !quoted_name
+        && (gap >= 2 || bytes[at - gap..at].contains(&b'\t'))
+        && prefix.is_some_and(|prefix| prefix.trim_ascii().is_empty());
+    // `.netrc`: `machine host login user password value`.
+    let netrc = gap > 0
+        && !quoted_name
+        && (name.eq_ignore_ascii_case("password") || name.eq_ignore_ascii_case("passwd"))
+        && prefix.is_some_and(|prefix| {
+            find(prefix, b"login ").is_some() || find(prefix, b"machine ").is_some()
+        });
     let (separator, width) = match bytes.get(at) {
         // `'password' => 'hunter2'` assigns.
         Some(b'=') if next == Some(b'>') => (b'=', 2),
@@ -565,7 +643,8 @@ fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
         // `::` is a path separator.
         Some(b':') if next != Some(b':') => (b':', 1),
         // A command-line flag: `--password hunter2`.
-        _ if bytes[index] == b'-' && !quoted_name && gap > 0 => (b' ', 0),
+        _ if (flag && !quoted_name && gap > 0) || netrc => (b' ', 0),
+        _ if column => (COLUMN, 0),
         _ => return None,
     };
     at += width;
@@ -582,8 +661,7 @@ fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
     // A quoted value ends at its closing quote, or at the end of the line when the quote is never closed.
     if rest.starts_with(b"\\\"") {
         let start = at + 2;
-        let end = find(&bytes[start..line_end], b"\\\"").map_or(line_end, |offset| start + offset);
-        return Hit::value(bytes, start, end);
+        return Hit::value(bytes, start, escaped_quote_end(bytes, start, line_end));
     }
     if let quote @ (b'"' | b'\'') = rest[0] {
         let start = at + 1;
@@ -603,18 +681,21 @@ fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
         .then(|| bytes[index - 1])
         .filter(|byte| matches!(byte, b'"' | b'\''));
 
-    // An unquoted value: the rest of the line after `:` (headers, YAML) and in an assignment that starts its line
-    // (environment dumps); otherwise one word after `=` or a flag (shell command lines).
+    // An unquoted value: the rest of the line after `:` (headers, YAML), in a two-column listing and in an assignment
+    // that starts its line (environment dumps); otherwise one word after `=` or a flag (shell command lines).
     let whole_line = separator == b':'
+        || separator == COLUMN
         // (a single leading dash is the removed line of a diff, two are a command-line flag)
-        || (separator == b'=' && !bytes[index..].starts_with(b"--") && starts_line(bytes, index));
-    let mut end = if whole_line {
-        line_end
-    } else if let Some(quote) = wrapping_quote {
+        || (separator == b'='
+            && !bytes[index..].starts_with(b"--")
+            && prefix.is_some_and(starts_line));
+    let mut end = if let Some(quote) = wrapping_quote {
         at + bytes[at..line_end]
             .iter()
             .take_while(|byte| **byte != quote)
             .count()
+    } else if whole_line {
+        line_end
     } else {
         let word = word_end(bytes, at, line_end);
         if SCHEMES
@@ -637,7 +718,9 @@ fn named_value(bytes: &[u8], index: usize, memo: &mut Memo) -> Option<Hit> {
     let value = &bytes[at..end];
     let not_a_secret = EMPTY_VALUES.iter().any(|empty| value.eq_ignore_ascii_case(empty))
         // The value continues on the following lines (`"auth": {`); its members are examined on their own.
-        || matches!(value, b"{" | b"[");
+        || matches!(value, b"{" | b"[")
+        // The rule under a column heading.
+        || (separator == COLUMN && value.iter().all(|byte| matches!(byte, b'-' | b' ' | b'\t')));
     if not_a_secret {
         return None;
     }
@@ -675,7 +758,10 @@ fn url_credentials(bytes: &[u8], index: usize) -> Option<Hit> {
         None => {
             let colon = authority.iter().position(|byte| *byte == b':')?;
             let after = &authority[colon + 1..];
-            if after.is_empty() || after.iter().all(u8::is_ascii_digit) {
+            // An IPv6 literal (`[::1]:3000`) and a template (`localhost:${PORT}`) have colons of their own.
+            let not_user_info = authority.first() == Some(&b'[')
+                || authority.iter().any(|byte| matches!(byte, b'$' | b'{'));
+            if after.is_empty() || after.iter().all(u8::is_ascii_digit) || not_user_info {
                 return None;
             }
             let word_len = bytes[start..]
@@ -813,6 +899,13 @@ mod tests {
             "input_tokens=1523 output_tokens=88 max_tokens: 4096",
             "token_count: 12",
             "if token == expected { return Ok(()) }",
+            "if (password === input) { ok() }",
+            "token === expected",
+            "the password is wrong",
+            "password reset requested",
+            "token  ",
+            "http://[::1]:3000/@fs/x",
+            "http://localhost:${PORT}/@vite/client",
             "use token::Kind;",
             "password=",
             "password: null,",
@@ -870,6 +963,37 @@ mod tests {
             ("--password=a b", "--password=[REDACTED] b"),
             ("x DB_PASSWORD==abc y", "x DB_PASSWORD=[REDACTED] y"),
             ("'password' => 'hunter2',", "'password' => '[REDACTED]',"),
+            // The first word of a line may stand behind indentation, a list or diff marker, or a timestamp.
+            (
+                "  - DB_PASSWORD=my secret pass",
+                "  - DB_PASSWORD=[REDACTED]",
+            ),
+            ("-    DB_PASSWORD=a b", "-    DB_PASSWORD=[REDACTED]"),
+            (
+                "                              DB_PASSWORD=a b",
+                "                              DB_PASSWORD=[REDACTED]",
+            ),
+            (
+                "2026-10-11T19:30:21.123Z   export DB_PASSWORD=a b",
+                "2026-10-11T19:30:21.123Z   export DB_PASSWORD=[REDACTED]",
+            ),
+            ("12: [3/5] * API_KEY=a b", "12: [3/5] * API_KEY=[REDACTED]"),
+            ("APP_KEY=base64:Zm9v YmFy", "APP_KEY=[REDACTED]"),
+            // A two-column listing (PowerShell `Get-ChildItem Env:`) and a `.netrc` entry.
+            (
+                "Name                           Value\n----                           -----\nDB_PASSWORD                    hunter2 x\nPATH                           C:\\bin",
+                "Name                           Value\n----                           -----\nDB_PASSWORD                    [REDACTED]\nPATH                           C:\\bin",
+            ),
+            ("API_TOKEN\tabc def", "API_TOKEN\t[REDACTED]"),
+            (
+                "machine example.com login ada password hunter2 port 21",
+                "machine example.com login ada password [REDACTED] port 21",
+            ),
+            // An escaped quote inside an escaped-quote value does not end it.
+            (
+                "{\\\"password\\\":\\\"ab\\\\\\\"cd-rest\\\\\\\\\\\"} x",
+                "{\\\"password\\\":\\\"[REDACTED]\\\"} x",
+            ),
             (
                 "x password => hunter2 next",
                 "x password => [REDACTED] next",
@@ -1040,7 +1164,13 @@ mod tests {
             ("SSH_KEY_PASSPHRASE", "~/secrets/passphrase"),
             ("API_TOKEN", "undefined"),
             ("AWS_SECRET_ACCESS_KEY", "/Abc+def/GhiJkl="),
+            ("AWS_SESSION_TOKEN", "/aB3dEf9/Kq7MDENGbPxRfiCYzz"),
+            ("APP_KEY", "base64:Zm9vYmFy"),
         ]);
+        assert_eq!(
+            redactor.redact("saw /aB3dEf9/Kq7MDENGbPxRfiCYzz and base64:Zm9vYmFy"),
+            "saw [REDACTED] and [REDACTED]"
+        );
         assert_eq!(
             redactor.redact("at /c/Users/ada/worktrees/f07/src C:\\Users\\ada\\key.json ~/secrets/passphrase undefined /Abc+def/GhiJkl="),
             "at /c/Users/ada/worktrees/f07/src C:\\Users\\ada\\key.json ~/secrets/passphrase undefined [REDACTED]"

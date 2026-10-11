@@ -6,9 +6,10 @@
 //! (members with credential-like names, name and value pairs, the element after a credential flag in an argument
 //! list). There is one such walk, in the redaction layer; this module does not repeat it.
 //!
-//! Containers keep their shape and member order. A redacted value is always a string, so a number stored under a
-//! credential-like name becomes the marker string, and a member name that is itself a secret is replaced. Typed
-//! payloads therefore keep credentials in string fields.
+//! Containers keep their shape. A redacted value is always a string, so a number stored under a credential-like name
+//! becomes the marker string, and a member name that is itself a secret is replaced. Typed payloads therefore keep
+//! credentials in string fields. A payload in which something was redacted is rebuilt from the redacted document, so
+//! its untouched numbers are re-read from their decimal form.
 
 use std::sync::Arc;
 
@@ -32,17 +33,37 @@ pub trait RedactionPort: Send + Sync {
 pub type SharedRedaction = Arc<dyn RedactionPort>;
 
 /// Redacts a journal payload in place. A payload with nothing to redact is left exactly as it was.
+///
+/// When the redacted document cannot stand in for the payload (the redactor did not keep it well formed, or two
+/// member names were redacted to the same text and one would replace the other), the payload becomes the redacted
+/// text as a single string: nothing is lost and nothing unredacted is kept.
 pub fn redact_payload(redactor: &dyn RedactionPort, payload: &mut Value) {
+    // A payload that is one string is free text, not a document; its quotes are not part of it.
+    if let Value::String(text) = payload {
+        let redacted = redactor.redact_text(text);
+        if redacted != *text {
+            *text = redacted;
+        }
+        return;
+    }
     let text = payload.to_string();
     let redacted = redactor.redact_text(&text);
     if redacted == text {
         return;
     }
-    *payload = match serde_json::from_str(&redacted) {
-        Ok(value) => value,
-        // A redactor that did not keep the document well formed: journal what it returned, never the original.
-        Err(_) => Value::String(redacted),
+    *payload = match serde_json::from_str::<Value>(&redacted) {
+        Ok(value) if node_count(&value) == node_count(payload) => value,
+        _ => Value::String(redacted),
     };
+}
+
+/// The number of values in `value`, containers included.
+fn node_count(value: &Value) -> usize {
+    match value {
+        Value::Array(items) => 1 + items.iter().map(node_count).sum::<usize>(),
+        Value::Object(members) => 1 + members.values().map(node_count).sum::<usize>(),
+        _ => 1,
+    }
 }
 
 /// Redacts a serialized journal payload. Text that is not JSON is redacted as free text, so nothing passes through
@@ -137,6 +158,44 @@ mod tests {
         let mut twice = once.clone();
         redact_payload(&fake, &mut twice);
         assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn member_names_that_redact_to_the_same_text_lose_nothing() {
+        let fake = Fake::default();
+        let mut payload = json!({ "SECRET": 111, "[REDACTED]": 222, "deep": [1, { "a": null }] });
+        redact_payload(&fake, &mut payload);
+        let Value::String(text) = &payload else {
+            panic!("expected the redacted document as text, got {payload}");
+        };
+        assert!(
+            text.contains("111") && text.contains("222") && !text.contains("SECRET"),
+            "{text}"
+        );
+        assert_eq!(node_count(&json!({ "a": [1, { "b": null }], "c": "x" })), 6);
+    }
+
+    /// A redactor that treats its input as one line of plain text, as the production one treats a bare string.
+    struct WholeLine;
+
+    impl RedactionPort for WholeLine {
+        fn redact_text(&self, text: &str) -> String {
+            match text.find("token: ") {
+                Some(at) => format!("{}[REDACTED]", &text[..at + 7]),
+                None => text.to_owned(),
+            }
+        }
+
+        fn redact_value(&self, _: &str, value: &str) -> String {
+            self.redact_text(value)
+        }
+    }
+
+    #[test]
+    fn a_string_payload_is_redacted_as_text_not_as_a_quoted_literal() {
+        let mut payload = json!("the token: abc \"quoted\"");
+        redact_payload(&WholeLine, &mut payload);
+        assert_eq!(payload, json!("the token: [REDACTED]"));
     }
 
     #[test]

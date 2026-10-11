@@ -20,7 +20,7 @@ const SEGMENTS: [&[u8]; 8] = [
 
 /// A `key` or `keys` segment is a credential only after one of these (`api_key`, `private-keys`); `sort_key` is
 /// not.
-const KEY_QUALIFIERS: [&[u8]; 16] = [
+const KEY_QUALIFIERS: [&[u8]; 26] = [
     b"api",
     b"access",
     b"private",
@@ -37,6 +37,16 @@ const KEY_QUALIFIERS: [&[u8]; 16] = [
     b"service",
     b"deploy",
     b"auth",
+    b"app",
+    b"hmac",
+    b"session",
+    b"aes",
+    b"rsa",
+    b"tls",
+    b"consumer",
+    b"webhook",
+    b"crypto",
+    b"cipher",
 ];
 
 /// A plural `tokens` segment is a credential list only after one of these (`auth_tokens`); `input_tokens` and
@@ -127,6 +137,13 @@ pub fn is_credential_name(name: &str) -> bool {
         return false;
     }
 
+    // An upper-case variable that ends in `KEY` or `KEYS` holds key material whatever comes before
+    // (`APP_KEY`, `HMAC_KEY`); in lower case that shape is usually a lookup key (`sort_key`, `cache_key`).
+    let upper_case = !bytes.iter().any(u8::is_ascii_lowercase);
+    if upper_case && count > 1 && matches!(last, b"key" | b"keys") {
+        return true;
+    }
+
     let mut previous: &[u8] = b"";
     for (index, segment) in segments().enumerate() {
         let is_last = index + 1 == count;
@@ -183,6 +200,11 @@ mod tests {
             "ACCESS_TOKENS",
             "apiTokens",
             "api_keys",
+            "APP_KEY",
+            "HMAC_KEY",
+            "STRIPE_WEBHOOK_KEYS",
+            "sessionKey",
+            "aes-key",
             "sshKeys",
             "authtoken",
             "x-auth-token",
@@ -232,6 +254,9 @@ mod tests {
             "total_tokens",
             "prompt_tokens",
             "sort_keys",
+            "cache_key",
+            "KEY",
+            "KEY_FILE",
             "token_count",
             "max_token_limit",
             "token_url",
