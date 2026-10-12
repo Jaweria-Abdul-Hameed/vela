@@ -46,7 +46,9 @@ jobs:
           elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
             base="$BEFORE_SHA"
           else
-            base="$(git rev-list --max-parents=0 "$HEAD_SHA" | tail -n 1)"
+            # A new branch: scan what it adds on top of the default branch.
+            git fetch --quiet origin main
+            base="$(git merge-base origin/main "$HEAD_SHA")"
           fi
           node scripts/scan-secrets.mjs "$base..$HEAD_SHA"
 
@@ -65,11 +67,11 @@ jobs:
           tar -xzf cargo-deny.tgz
           mkdir -p "$HOME/bin"
           cp "cargo-deny-${CARGO_DENY_VERSION}-x86_64-pc-windows-msvc/cargo-deny.exe" "$HOME/bin/"
-          echo "$HOME/bin" >> "$GITHUB_PATH"
       - name: Lockfile drift (fails when Cargo.lock needs changes)
         run: cargo metadata --locked --format-version 1 --no-deps > NUL
       - name: Advisories, licenses, bans and sources
-        run: cargo deny check
+        shell: bash
+        run: $HOME/bin/cargo-deny.exe check
 
   npm:
     name: npm audit and lockfile drift

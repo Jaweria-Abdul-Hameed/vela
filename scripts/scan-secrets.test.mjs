@@ -10,6 +10,7 @@ const rules = loadRules();
 // Built at run time so this test file itself never contains a matching literal.
 const fakeAwsKey = ['AKIA', 'IOSFODNN7EXAMPLE'].join('');
 const fakeGithubToken = ['ghp', '_', 'a'.repeat(36)].join('');
+const fakeAssignment = ['pass', 'word = "', 'a'.repeat(24), '"'].join('');
 const fakeKeyBlock = ['-----BEGIN RSA ', 'PRIVATE KEY-----'].join('');
 
 function lines(...texts) {
@@ -37,12 +38,7 @@ describe('secret rules', () => {
     const found = scanFile(
       rules,
       'src/a.ts',
-      lines(
-        `const k = "${fakeAwsKey}";`,
-        fakeGithubToken,
-        fakeKeyBlock,
-        'password = "aaaaaaaaaaaaaaaaaaaaaaaa"',
-      ),
+      lines(`const k = "${fakeAwsKey}";`, fakeGithubToken, fakeKeyBlock, fakeAssignment),
     );
     assert.deepEqual(found.map((f) => f.rule).sort(), [
       'aws-access-key',
