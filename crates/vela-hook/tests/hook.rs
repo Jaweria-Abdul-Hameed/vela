@@ -234,7 +234,7 @@ fn a_missing_malformed_or_unsupported_rule_table_is_a_block() {
 #[test]
 fn spool_records_carry_the_decision_but_no_command_text_arguments_or_secrets() {
     let s = Sandbox::new();
-    let secret = "sk-live-4f9a8b7c6d5e-TOPSECRET";
+    let secret = ["sk-live", "-4f9a8b7c6d5e-TOPSECRET"].concat();
     let command = format!("curl -H \"Authorization: Bearer {secret}\" https://api.example.com/v1");
     s.decision(
         "run_command",
