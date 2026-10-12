@@ -138,3 +138,32 @@ impl TestEnv {
         }
     }
 }
+
+impl TestEnv {
+    /// Appends one journal event (no run).
+    pub fn append(&self, event: vela_domain::events::Event) {
+        let new = vela_persistence::journal::NewEvent {
+            ts: 1,
+            run_id: None,
+            ticket_id: None,
+            worker_id: None,
+            event,
+        };
+        self.services
+            .store
+            .write(move |tx| tx.append(&new).map(|_| ()))
+            .unwrap();
+    }
+}
+
+/// A redactor that replaces one marker text.
+pub struct MarkerRedactor(pub String);
+
+impl crate::diagnostics::RedactionPort for MarkerRedactor {
+    fn redact_text(&self, text: &str) -> String {
+        text.replace(&self.0, "[REDACTED]")
+    }
+    fn redact_value(&self, _name: &str, value: &str) -> String {
+        self.redact_text(value)
+    }
+}

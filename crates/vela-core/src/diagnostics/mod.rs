@@ -24,6 +24,7 @@
 
 #![warn(missing_docs)]
 
+pub mod bundle;
 mod correlation;
 mod payload;
 mod rotation;
