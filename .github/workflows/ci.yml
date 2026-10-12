@@ -51,12 +51,3 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Verify (includes the crate-dependency-direction and module-skeleton checks)
         run: npm run verify:rust
-      - name: Diagnose a test binary that cannot load (temporary)
-        if: failure()
-        shell: bash
-        run: |
-          pip install pefile -q
-          for exe in target/debug/deps/vela_desktop-eceeb670649ff94d.exe target/debug/deps/vela_desktop-*.exe; do
-            echo "== $exe"
-            python -c "import pefile,sys; pe=pefile.PE(sys.argv[1]); [print(e.dll.decode(), len(e.imports), [i.name.decode() for i in e.imports if i.name][:12] if e.dll.decode().lower().startswith(('comctl','webview','shcore','user32','dwm')) else '') for e in pe.DIRECTORY_ENTRY_IMPORT]" "$exe" || true
-          done
