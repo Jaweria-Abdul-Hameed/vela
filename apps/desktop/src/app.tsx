@@ -2,6 +2,7 @@
 // scenes and surfaces register themselves later (SHARED_SURFACE_PROTOCOL.md section 7).
 import { useEffect, useState } from 'react';
 import type { PingEvent, PingRequest, PingResult } from '@vela/contracts/commands/diagnostics';
+import { Shell } from '@vela/ui/src/design';
 import { onPingEvent, pingCore } from './ipc';
 
 /** The core operations the skeleton uses, injectable so the component is testable without a window. */
@@ -53,8 +54,7 @@ export function App({ ipc = defaultIpc }: { ipc?: CoreIpc }) {
   }, [ipc]);
 
   return (
-    <main className="shell">
-      <h1>Vela</h1>
+    <Shell>
       {error === null ? null : <p role="alert">Core unavailable: {error}</p>}
       <p role="status" aria-label="Core connection">
         {result === null ? 'Connecting to the core' : `Core replied: ${result.reply}`}
@@ -62,6 +62,6 @@ export function App({ ipc = defaultIpc }: { ipc?: CoreIpc }) {
       <p role="status" aria-label="Core event">
         {event === null ? 'Waiting for the core event' : `Event ${event.sequence} received`}
       </p>
-    </main>
+    </Shell>
   );
 }

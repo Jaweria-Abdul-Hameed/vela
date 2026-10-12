@@ -1,0 +1,71 @@
+/* Base shell and focus styles (U01). Colors come from tokens.css only. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--vela-canvas);
+  color: var(--vela-text-primary);
+  font-family: var(--vela-font-sans);
+  font-size: var(--vela-text-body);
+  line-height: 1.5;
+}
+
+.vela-shell {
+  position: relative;
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--vela-canvas);
+}
+
+.vela-shell__brand {
+  padding: var(--vela-space-6) var(--vela-space-8);
+  font-size: var(--vela-text-meta);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--vela-text-secondary);
+}
+
+.vela-shell__brand h1 {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.vela-shell__main {
+  position: relative;
+  padding: var(--vela-space-8);
+}
+
+.vela-glass {
+  background: var(--vela-surface);
+  border: 1px solid var(--vela-border);
+  border-radius: var(--vela-radius-surface);
+  backdrop-filter: blur(var(--vela-glass-blur));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .vela-glass {
+    background: var(--vela-surface-solid);
+    backdrop-filter: none;
+  }
+}
+
+:focus-visible {
+  outline: var(--vela-focus-width) solid var(--vela-focus);
+  outline-offset: var(--vela-focus-offset);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

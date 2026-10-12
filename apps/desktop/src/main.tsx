@@ -1,5 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { DotField } from '@vela/ui/src/canvas/lattice';
+import '@vela/ui/src/design/tokens.css';
+import '@vela/ui/src/design/base.css';
 import { App } from './app';
 import { onCoreEvents, snapshotCore, startSync } from './ipc';
 import { useCoreStore } from './state';
@@ -9,6 +12,7 @@ const container = document.getElementById('root');
 if (container === null) throw new Error('index.html has no #root element');
 createRoot(container).render(
   <StrictMode>
+    <DotField />
     <App />
   </StrictMode>,
 );
