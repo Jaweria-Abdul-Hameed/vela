@@ -40,6 +40,7 @@ pub struct AgyDriver {
     active: Mutex<HashMap<WorkerId, String>>,
     outcomes: Mutex<HashMap<WorkerId, TurnOutcome>>,
     probe_cwd: WorktreePath,
+    worker_env: Mutex<HashMap<WorkerId, Vec<(String, String)>>>,
 }
 
 impl std::fmt::Debug for AgyDriver {
@@ -165,7 +166,25 @@ impl AgyDriver {
             active: Mutex::new(HashMap::new()),
             outcomes: Mutex::new(HashMap::new()),
             probe_cwd: default_probe_cwd(),
+            worker_env: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Sets environment overrides for one worker's turns (its isolated profile: `USERPROFILE` and `HOME`). They are added after
+    /// the base environment, so they win.
+    pub fn set_worker_env(&self, worker: WorkerId, env: Vec<(String, String)>) {
+        self.worker_env
+            .lock()
+            .expect("worker env lock")
+            .insert(worker, env);
+    }
+
+    /// Forgets a worker's environment overrides (the worker ended).
+    pub fn clear_worker_env(&self, worker: &WorkerId) {
+        self.worker_env
+            .lock()
+            .expect("worker env lock")
+            .remove(worker);
     }
 
     /// Sets the folder discovery commands run in (they need no repository; the temp directory is the default).
@@ -225,7 +244,18 @@ impl AgyDriver {
             program: self.program.clone(),
             args,
             cwd: request.worktree.clone(),
-            env: self.base_env.clone(),
+            env: {
+                let mut env = self.base_env.clone();
+                if let Some(extra) = self
+                    .worker_env
+                    .lock()
+                    .expect("worker env lock")
+                    .get(&request.worker)
+                {
+                    env.extend(extra.iter().cloned());
+                }
+                env
+            },
             timeout_ms: NonZeroU64::new(request.timeout_ms.get().saturating_add(TIMEOUT_GRACE_MS))
                 .unwrap_or(request.timeout_ms),
         };
