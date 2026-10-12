@@ -4,9 +4,15 @@
   "private": true,
   "type": "module",
   "description": "Sample snapshots and event streams for UI tests, organized as streams/<surface>/",
+  "exports": {
+    "./streams/*": "./src/streams/*.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@vela/contracts": "*"
   },
   "devDependencies": {
     "@types/node": "24.19.1",

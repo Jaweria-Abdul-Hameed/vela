@@ -1,6 +1,22 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { commandNames, wireName } from '@vela/contracts/commands/diagnostics';
+import { wireName } from '@vela/contracts/commands/diagnostics';
+
+// Every command group wrapper in packages/contracts/src/commands, discovered so a new group needs no edit here.
+const groupModules = import.meta.glob<{ commandNames: readonly string[] }>(
+  [
+    '../../../../packages/contracts/src/commands/*.ts',
+    '!../../../../packages/contracts/src/commands/*.test.ts',
+  ],
+  { eager: true },
+);
+const groups = Object.entries(groupModules)
+  .map(([path, module]) => ({
+    group: /([^/]+)\.ts$/.exec(path)?.[1] ?? '',
+    names: [...module.commandNames],
+  }))
+  .sort((a, b) => a.group.localeCompare(b.group));
+const commandNames = groups.flatMap((g) => g.names);
 
 const shell = new URL('../../src-tauri/', import.meta.url);
 const readJson = (path: string): unknown => JSON.parse(readFileSync(new URL(path, shell), 'utf8'));
@@ -120,10 +136,12 @@ describe('capabilities', () => {
     const permissions = readdirSync(new URL('permissions/', shell)).filter((n) =>
       n.endsWith('.toml'),
     );
-    expect(permissions).toEqual(['diagnostics.toml']);
-    const toml = readFileSync(new URL('permissions/diagnostics.toml', shell), 'utf8');
-    expect([...toml.matchAll(/commands\.allow = \["([^"]+)"\]/g)].map((m) => m[1])).toEqual(
-      commandNames.map(wireName),
-    );
+    expect(permissions).toEqual(groups.map((g) => `${g.group}.toml`));
+    for (const { group, names } of groups) {
+      const toml = readFileSync(new URL(`permissions/${group}.toml`, shell), 'utf8');
+      expect([...toml.matchAll(/commands\.allow = \["([^"]+)"\]/g)].map((m) => m[1])).toEqual(
+        names.map(wireName),
+      );
+    }
   });
 });

@@ -13,7 +13,7 @@ pub mod project;
 pub mod settings;
 pub mod store;
 
-use tauri::{Builder, Manager, Runtime};
+use tauri::{Builder, Runtime};
 
 use crate::window;
 

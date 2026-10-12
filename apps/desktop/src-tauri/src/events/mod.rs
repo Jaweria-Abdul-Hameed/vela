@@ -100,10 +100,10 @@ pub fn spawn_bridge<R: Runtime>(
                 while let Ok(event) = events.try_recv() {
                     coalescer.push(event);
                 }
-                if let Some(batch) = coalescer.take_due(now()) {
-                    if app.emit(EVENTS_CHANNEL, batch).is_err() {
-                        return;
-                    }
+                if let Some(batch) = coalescer.take_due(now())
+                    && app.emit(EVENTS_CHANNEL, batch).is_err()
+                {
+                    return;
                 }
             }
         })

@@ -31,6 +31,12 @@ jobs:
         run: npm ci
       - name: Verify
         run: npm run verify:ts
+      - name: Install the Playwright browser
+        run: npx playwright install chromium
+      - name: Browser tests (software GL)
+        run: npm run test:e2e --workspace @vela/desktop
+        env:
+          CI: 'true'
 
   rust:
     name: Rust (format, clippy, build, test, structure)
