@@ -18,6 +18,9 @@ use vela_persistence::repositories::{f06_core, s02_settings};
 
 use crate::orchestrator::Services;
 
+pub mod autostart;
+pub mod onboarding;
+
 /// The kind of value a key holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -106,6 +109,22 @@ pub const KEYS: &[Key] = &[
         onboarding: false,
     },
     Key {
+        name: "notifications",
+        default: "true",
+        kind: Kind::Bool,
+        scope: Scope::User,
+        live: true,
+        onboarding: false,
+    },
+    Key {
+        name: "onboarding_complete",
+        default: "false",
+        kind: Kind::Bool,
+        scope: Scope::User,
+        live: true,
+        onboarding: true,
+    },
+    Key {
         name: "background",
         default: "true",
         kind: Kind::Bool,
@@ -124,7 +143,7 @@ pub const KEYS: &[Key] = &[
     Key {
         name: "recovery_continuation",
         default: "ask",
-        kind: Kind::Enum(&["ask", "continue", "pause"]),
+        kind: Kind::Enum(&["ask", "auto_safe"]),
         scope: Scope::User,
         live: true,
         onboarding: true,
@@ -382,5 +401,7 @@ impl<'a> SettingsService<'a> {
     }
 }
 
+#[cfg(test)]
+mod onboarding_tests;
 #[cfg(test)]
 mod tests;
