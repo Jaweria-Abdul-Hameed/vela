@@ -184,3 +184,9 @@ All agents working on Vela must preserve this distinction:
 Do not generate, implement, or prioritize peer runtime adapters merely because the core uses `AgentAdapter`.
 
 Provider independence is an internal architectural property, not an equal-provider product promise.
+
+# Product review stage (ADR-024)
+
+The Vela runtime's worker loop has **no review stage by default** (`review_mode=off`). When a ticket's scope or
+acceptance criteria require review findings, reviewer sessions or verification, skip them and record them as deferred.
+ADR-024 overrides the ticket text.

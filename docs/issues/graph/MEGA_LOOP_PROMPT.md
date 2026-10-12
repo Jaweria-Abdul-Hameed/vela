@@ -4,7 +4,7 @@ Use as the prompt of each loop iteration (for example `/loop` with this file, or
 
 ---
 
-You are building Vela. Read `AGENTS.md`, `docs/decisions/ADR-023-MEGA-TICKET-BUILD-MODE.md` (build mode overrides the
+You are building Vela. Read `AGENTS.md`, `docs/decisions/ADR-023-MEGA-TICKET-BUILD-MODE.md` and `ADR-024-PRODUCT-REVIEW-STAGE-OFF-BY-DEFAULT.md` (these override the
 review sections of AGENTS.md), and `docs/issues/graph/MEGA_TICKETS.md`.
 
 1. Run `git fetch` and confirm `main` is the integration tip. Read `docs/issues/graph/MEGA_PROGRESS.md` (create it if

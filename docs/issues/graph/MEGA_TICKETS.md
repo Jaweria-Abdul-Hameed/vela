@@ -94,3 +94,9 @@ Basis: per member ticket 0.5 h (low risk), 0.8 h (medium), 1.3 h (high), plus 20
 **Totals:** all 32 mega-tickets about 139 h of agent time run back to back. The dogfood path (21 loop groups, M00 excluded) is about 100 h sequential, or about 49 h along its critical path if independent groups run in parallel in separate worktrees. At 6 to 8 productive agent hours per day that is roughly 2 to 3 weeks sequential for the dogfood cut and about 1 week with 2 to 3 parallel lanes, versus months at the current pace.
 
 **Usage limits:** the binding limit is probably tokens, not hours. A 5 to 8 hour mega-ticket is likely several context windows. Rough plan: run 1 to 2 mega-tickets per usage window, largest first when limits are fresh (M07, M18, M10, M08, M13, M15, M20). Split a mega-ticket at its member boundaries if it stalls on limits; the per-member commits make that safe. Skip M25 and M26 (about 10 h) if headless approval is enough.
+
+## Spec overrides every agent must apply
+
+Ticket files are not rewritten. Where they conflict with these ADRs, the ADRs win:
+- **ADR-023:** no review of any kind while building Vela.
+- **ADR-024:** the product's worker loop has no review stage by default (`review_mode=off`); skip review-related scope and acceptance criteria in D06, S11, S13, S14, A10, A11 and any other ticket, and record each skipped criterion as deferred in `docs/issues/graph/MEGA_PROGRESS.md`.
