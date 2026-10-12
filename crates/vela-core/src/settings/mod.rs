@@ -109,6 +109,14 @@ pub const KEYS: &[Key] = &[
         onboarding: false,
     },
     Key {
+        name: "promotion_mode",
+        default: "pr",
+        kind: Kind::Enum(&["pr", "local_only", "auto_merge"]),
+        scope: Scope::UserOrProject,
+        live: false,
+        onboarding: false,
+    },
+    Key {
         name: "notifications",
         default: "true",
         kind: Kind::Bool,

@@ -44,7 +44,7 @@ pub use git::{
 pub use process::{
     CommandSpec, OutputChunk, OutputSink, OutputStream, ProcessOutcome, ProcessRunner,
 };
-pub use tracker::{IssueTrackerAdapter, TrackerTicket};
+pub use tracker::{IssueTrackerAdapter, PullRequestPort, PullRequestRequest, TrackerTicket};
 
 /// The future every asynchronous port method returns: boxed (so ports are dyn-compatible), `Send`, and fallible with
 /// the typed error.
