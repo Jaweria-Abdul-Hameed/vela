@@ -57,3 +57,26 @@ pub trait IssueTrackerAdapter: Send + Sync {
         ))))
     }
 }
+
+/// A pull request to open for an integration branch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PullRequestRequest {
+    /// The branch to propose.
+    pub branch: crate::ids::BranchName,
+    /// The branch it targets.
+    pub base: crate::ids::BranchName,
+    /// Title (untrusted-derived text; passed as a value only).
+    pub title: String,
+    /// Body (untrusted-derived text; passed as a value only).
+    pub body: String,
+}
+
+/// Pull requests on the tracker's host (GitHub through `gh`). There is deliberately no force and no branch deletion.
+pub trait PullRequestPort: Send + Sync {
+    /// Opens a draft pull request; returns its URL.
+    fn create_draft<'a>(&'a self, request: &'a PullRequestRequest) -> PortFuture<'a, String>;
+    /// Marks a draft ready for review.
+    fn mark_ready<'a>(&'a self, url: &'a str) -> PortFuture<'a, ()>;
+    /// Merges the pull request (only called in the opt-in auto-merge mode).
+    fn merge<'a>(&'a self, url: &'a str) -> PortFuture<'a, ()>;
+}

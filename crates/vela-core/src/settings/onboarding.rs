@@ -30,6 +30,11 @@ pub const CONSENTS: &[ConsentText] = &[
         text: "Keep Vela running in the notification area after the window is closed so runs can continue.",
     },
     ConsentText {
+        key: "auto_merge",
+        version: "2026-10-v1",
+        text: "WARNING: when a run finishes, Vela will merge the pull request into the default branch without waiting for you. Only turn this on for projects where that is safe.",
+    },
+    ConsentText {
         key: "autostart",
         version: "2026-10-v1",
         text: "Start Vela when you sign in to Windows.",

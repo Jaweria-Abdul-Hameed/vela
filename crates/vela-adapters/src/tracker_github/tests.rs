@@ -161,3 +161,71 @@ async fn no_token_is_ever_passed() {
         );
     }
 }
+
+mod pull_requests {
+    use std::sync::Arc;
+
+    use vela_domain::ids::{BranchName, WorktreePath};
+    use vela_domain::ports::{OutputChunk, OutputStream, PullRequestPort, PullRequestRequest};
+    use vela_testkit::fakes::{FakeProcessRunner, Scripted};
+
+    use super::super::GhTracker;
+
+    fn setup() -> (Arc<FakeProcessRunner>, GhTracker) {
+        let runner = Arc::new(FakeProcessRunner::new());
+        let t = GhTracker::new(
+            runner.clone(),
+            "acme/widgets",
+            WorktreePath::new("/repo").unwrap(),
+            vec![],
+        )
+        .unwrap();
+        (runner, t)
+    }
+
+    #[tokio::test]
+    async fn a_draft_is_created_with_untrusted_text_only_as_flag_values() {
+        let (runner, t) = setup();
+        runner.push(Scripted::exit(0).with_output(OutputChunk {
+            stream: OutputStream::Stdout,
+            text: "Creating draft...\nhttps://github.com/acme/widgets/pull/7\n".into(),
+        }));
+        let url = t
+            .create_draft(&PullRequestRequest {
+                branch: BranchName::new("vela/run-1/integration").unwrap(),
+                base: BranchName::new("main").unwrap(),
+                title: "--web evil".into(),
+                body: "body".into(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(url, "https://github.com/acme/widgets/pull/7");
+        let call = runner.log().calls().remove(0);
+        assert!(call.contains("pr create --draft --repo acme/widgets --head=vela/run-1/integration --base=main --title=--web evil"), "{call}");
+    }
+
+    #[tokio::test]
+    async fn bad_output_and_bad_addresses_are_refused() {
+        let (runner, t) = setup();
+        runner.push(Scripted::exit(0));
+        let req = PullRequestRequest {
+            branch: BranchName::new("a").unwrap(),
+            base: BranchName::new("main").unwrap(),
+            title: "t".into(),
+            body: "b".into(),
+        };
+        assert!(t.create_draft(&req).await.is_err());
+        assert!(t.mark_ready("--repo=x").await.is_err());
+        assert!(t.merge("https://evil.example/x").await.is_err());
+        assert!(runner.log().calls().len() == 1);
+        t.mark_ready("https://github.com/acme/widgets/pull/7")
+            .await
+            .unwrap();
+        t.merge("https://github.com/acme/widgets/pull/7")
+            .await
+            .unwrap();
+        let calls = runner.log().calls();
+        assert!(calls[1].contains("pr ready https://github.com/acme/widgets/pull/7"));
+        assert!(calls[2].contains("pr merge") && calls[2].contains("--merge"));
+    }
+}

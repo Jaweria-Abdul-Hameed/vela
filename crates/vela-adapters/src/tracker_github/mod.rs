@@ -11,7 +11,7 @@ use vela_domain::errors::{ErrorClass, ErrorCode, VelaError};
 use vela_domain::ids::{TicketId, WorktreePath};
 use vela_domain::ports::{
     CommandSpec, IssueTrackerAdapter, OutputChunk, OutputSink, OutputStream, PortFuture,
-    ProcessRunner, TrackerTicket,
+    ProcessRunner, PullRequestPort, PullRequestRequest, TrackerTicket,
 };
 
 /// The label namespace Vela uses for status.
@@ -402,6 +402,90 @@ impl IssueTrackerAdapter for GhTracker {
                 number.to_string(),
                 "--repo".into(),
                 self.repo.clone(),
+            ])
+            .await
+            .map(|_| ())
+        })
+    }
+}
+
+/// A pull request URL: https on github.com, no whitespace, nothing that could be read as an option.
+fn valid_pr_url(url: &str) -> bool {
+    url.starts_with("https://github.com/")
+        && url.len() < 300
+        && url
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '-' | '_' | '.' | ':'))
+}
+
+impl PullRequestPort for GhTracker {
+    fn create_draft<'a>(&'a self, request: &'a PullRequestRequest) -> PortFuture<'a, String> {
+        Box::pin(async move {
+            let out = self
+                .gh_ok(vec![
+                    "pr".into(),
+                    "create".into(),
+                    "--draft".into(),
+                    "--repo".into(),
+                    self.repo.clone(),
+                    format!("--head={}", request.branch.as_str()),
+                    format!("--base={}", request.base.as_str()),
+                    format!("--title={}", request.title),
+                    format!("--body={}", request.body),
+                ])
+                .await?;
+            let url = out
+                .lines()
+                .rev()
+                .map(str::trim)
+                .find(|l| l.starts_with("https://"))
+                .unwrap_or("");
+            if valid_pr_url(url) {
+                Ok(url.to_owned())
+            } else {
+                Err(VelaError::of_class(
+                    ErrorClass::ValidationFailure,
+                    "`gh` did not return a pull request address",
+                ))
+            }
+        })
+    }
+
+    fn mark_ready<'a>(&'a self, url: &'a str) -> PortFuture<'a, ()> {
+        Box::pin(async move {
+            if !valid_pr_url(url) {
+                return Err(VelaError::of_class(
+                    ErrorClass::ValidationFailure,
+                    "not a pull request address",
+                ));
+            }
+            self.gh_ok(vec![
+                "pr".into(),
+                "ready".into(),
+                url.to_owned(),
+                "--repo".into(),
+                self.repo.clone(),
+            ])
+            .await
+            .map(|_| ())
+        })
+    }
+
+    fn merge<'a>(&'a self, url: &'a str) -> PortFuture<'a, ()> {
+        Box::pin(async move {
+            if !valid_pr_url(url) {
+                return Err(VelaError::of_class(
+                    ErrorClass::ValidationFailure,
+                    "not a pull request address",
+                ));
+            }
+            self.gh_ok(vec![
+                "pr".into(),
+                "merge".into(),
+                url.to_owned(),
+                "--repo".into(),
+                self.repo.clone(),
+                "--merge".into(),
             ])
             .await
             .map(|_| ())
