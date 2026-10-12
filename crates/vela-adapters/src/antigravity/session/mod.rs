@@ -313,6 +313,7 @@ impl AgentSession for AgyDriver {
             let result = |finished| TurnResult {
                 conversation: conversation.clone(),
                 finished,
+                response: outcome.response.clone(),
             };
             match &outcome.class {
                 TurnClass::Completed => {

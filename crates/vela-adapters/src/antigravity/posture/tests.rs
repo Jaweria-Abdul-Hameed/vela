@@ -102,6 +102,7 @@ impl AgentSession for FakeSession {
             Ok(TurnResult {
                 conversation: Some(ConversationId::new("c1").unwrap()),
                 finished: true,
+                response: String::new(),
             })
         })
     }

@@ -38,6 +38,7 @@ pub enum Scenario {
 #[derive(Debug, Default)]
 pub struct ScriptedAgent {
     scenarios: Mutex<BTreeMap<WorkerId, Scenario>>,
+    responses: Mutex<BTreeMap<WorkerId, String>>,
     next_conversation: AtomicU64,
     log: Recorder,
 }
@@ -54,6 +55,14 @@ impl ScriptedAgent {
             .lock()
             .expect("agent lock")
             .insert(worker, scenario);
+    }
+
+    /// Sets the final text the worker's turns return.
+    pub fn set_response(&self, worker: WorkerId, text: impl Into<String>) {
+        self.responses
+            .lock()
+            .expect("agent lock")
+            .insert(worker, text.into());
     }
 
     /// The recorded calls.
@@ -90,10 +99,18 @@ impl AgentSession for ScriptedAgent {
         sink.on_event(AgentEvent::SessionStarted {
             conversation: Some(conversation.clone()),
         });
+        let response = self
+            .responses
+            .lock()
+            .expect("agent lock")
+            .get(&request.worker)
+            .cloned()
+            .unwrap_or_default();
         let finished = |finished| {
             Ok(TurnResult {
                 conversation: Some(conversation.clone()),
                 finished,
+                response: response.clone(),
             })
         };
         let step = |s: &str| AgentEvent::StepObserved {

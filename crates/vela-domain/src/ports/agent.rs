@@ -230,6 +230,8 @@ pub struct TurnResult {
     pub conversation: Option<ConversationId>,
     /// True when a `TurnFinished` event was observed.
     pub finished: bool,
+    /// The agent's final text (untrusted; the worker completion block is parsed from it).
+    pub response: String,
 }
 
 /// Session status.
