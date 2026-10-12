@@ -173,7 +173,14 @@ impl ProvisioningService {
             resource_keys: profile.resource_keys.clone(),
             ..ProvisionReport::default()
         };
-        let root = worktree.to_string_lossy().replace('\\', "/");
+        // Short 8.3 names and verbatim prefixes are resolved so the policy engine sees the real location.
+        let worktree_buf =
+            std::fs::canonicalize(worktree).unwrap_or_else(|_| worktree.to_path_buf());
+        let worktree = worktree_buf.as_path();
+        let root = worktree
+            .to_string_lossy()
+            .trim_start_matches(r"\\?\")
+            .replace('\\', "/");
 
         // Every command must pass the policy engine against this worktree before anything is copied or run.
         let confirmed = ProvisioningProfileAsContext::new(&trust, project_id, &root, &profile)?;
