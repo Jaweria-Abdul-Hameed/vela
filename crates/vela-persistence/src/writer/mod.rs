@@ -11,7 +11,6 @@ use std::thread::{self, JoinHandle};
 use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior, params};
 use vela_domain::errors::{ErrorClass, ErrorCode, VelaError};
 use vela_domain::events::EventEnvelope;
-use vela_domain::fault::FaultPoint;
 
 use crate::integrity;
 use crate::journal::{self, NewEvent, PayloadFilter, identity_filter};
@@ -204,9 +203,9 @@ impl StateStore {
                 };
                 let value = work(&mut w)?;
                 let WriteTx { tx, pending, .. } = w;
-                vela_domain::fault_point!(FaultPoint::PersistenceBeforeCommit);
+                vela_domain::fault_point!(vela_domain::fault::FaultPoint::PersistenceBeforeCommit);
                 tx.commit().map_err(store_error)?;
-                vela_domain::fault_point!(FaultPoint::PersistenceAfterCommit);
+                vela_domain::fault_point!(vela_domain::fault::FaultPoint::PersistenceAfterCommit);
                 Ok((value, pending))
             })();
             let result = match outcome {

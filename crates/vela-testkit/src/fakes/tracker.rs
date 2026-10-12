@@ -124,6 +124,21 @@ impl IssueTrackerAdapter for FakeTracker {
         })
     }
 
+    fn has_evidence_marker<'a>(
+        &'a self,
+        id: &'a TicketId,
+        marker: &'a str,
+    ) -> PortFuture<'a, bool> {
+        let found = self
+            .state
+            .lock()
+            .expect("tracker lock")
+            .comments
+            .iter()
+            .any(|(t, body)| t == id && body.contains(marker));
+        ready(Ok(found))
+    }
+
     fn close_ticket<'a>(&'a self, id: &'a TicketId) -> PortFuture<'a, ()> {
         let id = id.clone();
         self.write(format!("close:{id}"), move |s| {

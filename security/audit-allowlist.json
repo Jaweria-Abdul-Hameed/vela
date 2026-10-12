@@ -1,0 +1,4 @@
+{
+  "$comment": "Exceptions to the supply-chain and secret gates. Every entry needs a justification and an expiry date (YYYY-MM-DD); scripts/check-audit-allowlist.mjs fails CI for an entry without them or past its expiry.",
+  "entries": []
+}
