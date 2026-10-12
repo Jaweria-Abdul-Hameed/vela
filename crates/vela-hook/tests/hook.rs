@@ -248,7 +248,7 @@ fn spool_records_carry_the_decision_but_no_command_text_arguments_or_secrets() {
     let text = std::fs::read_to_string(&file).unwrap();
     assert_eq!(text.lines().count(), 2);
     for forbidden in [
-        secret,
+        secret.as_str(),
         "Authorization",
         "Bearer",
         "api.example.com",
