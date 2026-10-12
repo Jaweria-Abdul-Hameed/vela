@@ -34,6 +34,12 @@ pub enum FaultPoint {
     GitPushBefore,
     /// A push: the remote accepted it, nothing has recorded it yet (G05).
     GitPushAfter,
+    /// Starting a build: the integration branch does not exist yet (S08).
+    BuildBeforeBranch,
+    /// Starting a build: the integration branch and worktree exist, nothing records them yet (S08).
+    BuildAfterWorktree,
+    /// Starting a build: everything is recorded, the run has not entered `RUNNING` yet (S08).
+    BuildBeforeRunning,
 }
 
 impl FaultPoint {
@@ -46,6 +52,9 @@ impl FaultPoint {
         FaultPoint::GitCheckpointAfterCommit,
         FaultPoint::GitPushBefore,
         FaultPoint::GitPushAfter,
+        FaultPoint::BuildBeforeBranch,
+        FaultPoint::BuildAfterWorktree,
+        FaultPoint::BuildBeforeRunning,
     ];
 
     /// The stable name used to arm the point.
@@ -58,6 +67,9 @@ impl FaultPoint {
             FaultPoint::GitCheckpointAfterCommit => "git.checkpoint.after_commit",
             FaultPoint::GitPushBefore => "git.push.before",
             FaultPoint::GitPushAfter => "git.push.after",
+            FaultPoint::BuildBeforeBranch => "build.before_branch",
+            FaultPoint::BuildAfterWorktree => "build.after_worktree",
+            FaultPoint::BuildBeforeRunning => "build.before_running",
         }
     }
 
