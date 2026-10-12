@@ -1,0 +1,3 @@
+{"event":"init","conversation_id":"11111111-2222-4333-8444-555555555552","init":{"cwd":"C:\\work\\probe","tools":["run_command"],"permission_mode":"request-review"}}
+{"event":"step_update","step_update":{"conversation_id":"11111111-2222-4333-8444-555555555552","step_index":3,"state":"ACTIVE","step_type":"tool","tool_name":"run_command","tool_info":{"name":"run_command","parameters":{"CommandLine":"npm install"}}}}
+{"event":"result","result":{"conversation_id":"11111111-2222-4333-8444-555555555552","status":"WAITING","response":"","duration_seconds":30.0,"num_turns":1}}

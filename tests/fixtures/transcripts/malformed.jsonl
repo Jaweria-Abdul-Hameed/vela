@@ -1,0 +1,6 @@
+this is not json at all
+{"event":"init","conversation_id":"11111111-2222-4333-8444-555555555554","init":{"cwd":"C:\\work\\probe","tools":[],"permission_mode":"request-review"}}
+{"event":"surprise","payload":{"anything":true}}
+{"event":"step_update","step_update":{"conversation_id":"11111111-2222-4333-8444-555555555554","step_index":"two","state":"DONE","step_type":"agent_response"}}
+{"event":"step_update","step_update":{"conversation_id":"11111111-2222-4333-8444-555555555554","step_index":1,"state":"DONE","step_type":"agent_response","text_delta":"ok","a_new_field_in_a_future_version":[1,2,3]}}
+{"event":"result","result":{"conversation_id":"11111111-2222-4333-8444-555555555554","status":"SUCCESS","response":"ok\n","duration_seconds":1.0,"num_turns":1}}

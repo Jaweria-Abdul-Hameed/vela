@@ -1,0 +1,196 @@
+{
+  "$comment": "Recorded and synthetic agy stream-json transcripts (A02, TK1). `synthetic: false` means captured from the real agy on 2026-10-12 (paths and user names sanitized). The expectations are what the parser and the fake agy must reproduce.",
+  "agyVersion": "1.3.3",
+  "transcripts": [
+    {
+      "file": "success-pong",
+      "scenario": "A tool-free prompt succeeds",
+      "synthetic": false,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json",
+        "--print-timeout",
+        "90s"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "completed",
+        "response": "PONG\n",
+        "executedTools": [
+          {
+            "name": "view_file",
+            "executed": "yes"
+          }
+        ]
+      }
+    },
+    {
+      "file": "resume-pong",
+      "scenario": "Resuming conversation 4f7475be with --conversation keeps the id and context",
+      "synthetic": false,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--conversation",
+        "4f7475be-2459-4b6b-9b30-bbf76791427e",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "completed",
+        "conversationId": "4f7475be-2459-4b6b-9b30-bbf76791427e",
+        "numTurns": 2
+      }
+    },
+    {
+      "file": "soft-denial",
+      "scenario": "A command tool in headless mode with no allow rule is soft-denied: exit 0, result SUCCESS, empty response, denied_actions, stderr text; the tool step still reports DONE",
+      "synthetic": false,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "soft_denied",
+        "deniedActions": [
+          "command"
+        ],
+        "executedTools": [
+          {
+            "name": "run_command",
+            "executed": "no"
+          }
+        ]
+      }
+    },
+    {
+      "file": "hook-deny",
+      "scenario": "A PreToolUse hook answers deny: the tool step ends in ERROR with the hook reason",
+      "synthetic": false,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--dangerously-skip-permissions",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "hook_denied",
+        "reason": "blocked by vela test policy",
+        "executedTools": [
+          {
+            "name": "run_command",
+            "executed": "no"
+          }
+        ]
+      }
+    },
+    {
+      "file": "hook-crash",
+      "scenario": "A PreToolUse hook that crashes (exit 1) fails closed: every tool step ends in ERROR",
+      "synthetic": false,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--dangerously-skip-permissions",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "hook_failed",
+        "executedTools": [
+          {
+            "name": "run_command",
+            "executed": "no"
+          }
+        ]
+      }
+    },
+    {
+      "file": "quota-text",
+      "scenario": "Quota exhaustion (wording from the documented bug, so synthetic)",
+      "synthetic": true,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "quota_exhausted"
+      }
+    },
+    {
+      "file": "auth-error",
+      "scenario": "Not signed in: no events, text on stderr (synthetic)",
+      "synthetic": true,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 1,
+      "expect": {
+        "class": "auth_required"
+      }
+    },
+    {
+      "file": "waiting",
+      "scenario": "result.status WAITING (undefined by the provider; never observed headless; synthetic)",
+      "synthetic": true,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "waiting"
+      }
+    },
+    {
+      "file": "truncated",
+      "scenario": "The stream ends mid-line with no result event (synthetic)",
+      "synthetic": true,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 1,
+      "expect": {
+        "class": "incomplete"
+      }
+    },
+    {
+      "file": "malformed",
+      "scenario": "Garbage lines, an unknown event, a wrongly typed field and an unknown field are tolerated (synthetic)",
+      "synthetic": true,
+      "args": [
+        "-p",
+        "<prompt>",
+        "--output-format",
+        "stream-json"
+      ],
+      "exitCode": 0,
+      "expect": {
+        "class": "completed",
+        "response": "ok\n",
+        "malformedLines": 2
+      }
+    }
+  ],
+  "agyVersionNote": "success-pong and soft-denial were captured on 1.2.14; the CLI then updated itself in the background to 1.3.3 (observed during the session), which captured the rest. Behavior and event shapes were identical. help, models and version files are from 1.3.3."
+}

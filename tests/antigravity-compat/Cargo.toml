@@ -11,5 +11,7 @@ workspace = true
 
 [dependencies]
 vela-adapters.workspace = true
+vela-domain.workspace = true
+vela-process.workspace = true
 vela-testkit.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
