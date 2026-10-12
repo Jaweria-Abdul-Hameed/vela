@@ -40,6 +40,14 @@ pub enum FaultPoint {
     BuildAfterWorktree,
     /// Starting a build: everything is recorded, the run has not entered `RUNNING` yet (S08).
     BuildBeforeRunning,
+    /// A worker: provisioned, the next state transition has not happened (S10).
+    WorkerAfterProvisioning,
+    /// A worker: the agent turn finished, validation has not run (S10).
+    WorkerAfterImplementing,
+    /// A worker: validation passed, the checkpoint has not been requested (S10).
+    WorkerBeforeCheckpoint,
+    /// A worker: the checkpoint exists in Git, nothing has recorded it (S10).
+    WorkerAfterCheckpoint,
 }
 
 impl FaultPoint {
@@ -55,6 +63,10 @@ impl FaultPoint {
         FaultPoint::BuildBeforeBranch,
         FaultPoint::BuildAfterWorktree,
         FaultPoint::BuildBeforeRunning,
+        FaultPoint::WorkerAfterProvisioning,
+        FaultPoint::WorkerAfterImplementing,
+        FaultPoint::WorkerBeforeCheckpoint,
+        FaultPoint::WorkerAfterCheckpoint,
     ];
 
     /// The stable name used to arm the point.
@@ -70,6 +82,10 @@ impl FaultPoint {
             FaultPoint::BuildBeforeBranch => "build.before_branch",
             FaultPoint::BuildAfterWorktree => "build.after_worktree",
             FaultPoint::BuildBeforeRunning => "build.before_running",
+            FaultPoint::WorkerAfterProvisioning => "worker.after_provisioning",
+            FaultPoint::WorkerAfterImplementing => "worker.after_implementing",
+            FaultPoint::WorkerBeforeCheckpoint => "worker.before_checkpoint",
+            FaultPoint::WorkerAfterCheckpoint => "worker.after_checkpoint",
         }
     }
 

@@ -267,6 +267,7 @@ impl AgentSession for OnlySession {
         ready(Ok(TurnResult {
             conversation: Some(ConversationId::new("c-1").unwrap()),
             finished: true,
+            response: String::new(),
         }))
     }
     fn cancel<'a>(&'a self, _session: &'a SessionRef) -> PortFuture<'a, ()> {
