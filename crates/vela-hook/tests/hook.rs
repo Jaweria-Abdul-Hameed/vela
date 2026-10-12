@@ -12,6 +12,13 @@ use vela_domain::policy::{
     TrustState,
 };
 
+/// The canonical long form of `path` without the `\\?\` prefix.
+fn long_path(path: &Path) -> PathBuf {
+    let canonical = std::fs::canonicalize(path).unwrap();
+    let text = canonical.to_string_lossy().into_owned();
+    PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned())
+}
+
 struct Sandbox {
     dir: PathBuf,
     root: String,
@@ -28,6 +35,9 @@ impl Sandbox {
             N.fetch_add(1, Ordering::SeqCst)
         ));
         let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // The policy refuses 8.3 short names (`RUNNER~1`), so work with the long form of the temp directory.
+        let dir = long_path(&dir);
         let wt = dir.join("wt");
         std::fs::create_dir_all(&wt).unwrap();
         let root = wt.to_string_lossy().replace('\\', "/");
