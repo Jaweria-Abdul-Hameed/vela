@@ -14,3 +14,9 @@ vela-domain.workspace = true
 vela-process.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process", "io-util"] }
 tracing.workspace = true
+
+[dev-dependencies]
+vela-testkit.workspace = true
+vela-domain = { workspace = true, features = ["fault-injection"] }
+proptest.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "process", "io-util", "sync"] }
