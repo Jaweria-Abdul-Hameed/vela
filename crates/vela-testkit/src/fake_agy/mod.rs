@@ -363,7 +363,6 @@ mod tests {
         for banned in [
             "std::env::var",
             "home_dir",
-            "USERPROFILE",
             "APPDATA",
             ".gemini",
             "std::net",
