@@ -26,6 +26,14 @@ pub enum FaultPoint {
     PersistenceBeforeCommit,
     /// The state store writer, right after a transaction committed and before its events are published (F06).
     PersistenceAfterCommit,
+    /// A checkpoint commit: the worktree is staged and verified, the commit has not been made yet (G03).
+    GitCheckpointBeforeCommit,
+    /// A checkpoint commit: the commit exists, nothing has recorded it yet (G03).
+    GitCheckpointAfterCommit,
+    /// A push: the remote has not been contacted for the push yet (G05).
+    GitPushBefore,
+    /// A push: the remote accepted it, nothing has recorded it yet (G05).
+    GitPushAfter,
 }
 
 impl FaultPoint {
@@ -34,6 +42,10 @@ impl FaultPoint {
         FaultPoint::SelfTest,
         FaultPoint::PersistenceBeforeCommit,
         FaultPoint::PersistenceAfterCommit,
+        FaultPoint::GitCheckpointBeforeCommit,
+        FaultPoint::GitCheckpointAfterCommit,
+        FaultPoint::GitPushBefore,
+        FaultPoint::GitPushAfter,
     ];
 
     /// The stable name used to arm the point.
@@ -42,6 +54,10 @@ impl FaultPoint {
             FaultPoint::SelfTest => "self_test",
             FaultPoint::PersistenceBeforeCommit => "persistence_before_commit",
             FaultPoint::PersistenceAfterCommit => "persistence_after_commit",
+            FaultPoint::GitCheckpointBeforeCommit => "git.checkpoint.before_commit",
+            FaultPoint::GitCheckpointAfterCommit => "git.checkpoint.after_commit",
+            FaultPoint::GitPushBefore => "git.push.before",
+            FaultPoint::GitPushAfter => "git.push.after",
         }
     }
 

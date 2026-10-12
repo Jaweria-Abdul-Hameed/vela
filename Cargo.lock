@@ -5006,10 +5006,12 @@ dependencies = [
 name = "vela-git"
 version = "0.0.0"
 dependencies = [
+ "proptest",
  "tokio",
  "tracing",
  "vela-domain",
  "vela-process",
+ "vela-testkit",
 ]
 
 [[package]]
