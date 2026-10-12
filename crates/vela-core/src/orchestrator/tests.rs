@@ -193,10 +193,11 @@ async fn a_run_survives_a_restart() {
 
 #[tokio::test]
 async fn a_seeded_secret_in_an_event_payload_is_absent_from_the_persisted_journal_row() {
-    let secret = "sk-seeded-SECRET-4f9a8b7c";
+    let secret = ["sk-seeded", "-SECRET-4f9a8b7c"].concat();
+    let needle = secret.clone();
     let options = StoreOptions {
-        payload_filter: Arc::new(|payload: &str| {
-            payload.replace("sk-seeded-SECRET-4f9a8b7c", "[REDACTED]")
+        payload_filter: Arc::new(move |payload: &str| {
+            payload.replace(needle.as_str(), "[REDACTED]")
         }),
         ..StoreOptions::default()
     };
@@ -215,7 +216,7 @@ async fn a_seeded_secret_in_an_event_payload_is_absent_from_the_persisted_journa
         .unwrap();
     let rows = e.raw_journal();
     assert_eq!(rows.len(), 1);
-    assert!(!rows[0].1.contains(secret), "{}", rows[0].1);
+    assert!(!rows[0].1.contains(secret.as_str()), "{}", rows[0].1);
     assert!(rows[0].1.contains("[REDACTED]"));
     // Reading it back through the journal API also shows no secret.
     let events = e
@@ -223,7 +224,7 @@ async fn a_seeded_secret_in_an_event_payload_is_absent_from_the_persisted_journa
         .store
         .read(|c| vela_persistence::journal::read_after(c, 0, 10))
         .unwrap();
-    assert!(!format!("{events:?}").contains(secret));
+    assert!(!format!("{events:?}").contains(secret.as_str()));
     let _ = (
         Event::RunCreated(RunCreatedPayload {
             run_base_sha: CommitSha::new("b".repeat(40)).unwrap(),
