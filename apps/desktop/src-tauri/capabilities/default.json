@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "The main window: the registered commands and the event listener, nothing else (no filesystem, shell or HTTP).",
+  "windows": ["main"],
+  "permissions": [
+    "allow-diagnostics-ping",
+    "allow-snapshot-get",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ]
+}

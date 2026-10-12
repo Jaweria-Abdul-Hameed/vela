@@ -15,6 +15,24 @@ export default defineConfig(
     },
   },
   {
+    // Three.js and React Three Fiber stay inside the canvas module (ADR-019); nothing else may import them.
+    files: ['**/*.{ts,tsx}'],
+    ignores: ['packages/ui/src/canvas/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['three', 'three/*', '@react-three/*'],
+              message: 'Three.js may only be imported inside packages/ui/src/canvas (ADR-019).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.{js,mjs}'],
     languageOptions: { globals: globals.node },
   },
