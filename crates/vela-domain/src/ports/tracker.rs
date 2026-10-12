@@ -35,6 +35,19 @@ pub trait IssueTrackerAdapter: Send + Sync {
     fn comment_evidence<'a>(&'a self, id: &'a TicketId, body: &'a str) -> PortFuture<'a, ()>;
     /// Closes or resolves the ticket according to policy.
     fn close_ticket<'a>(&'a self, id: &'a TicketId) -> PortFuture<'a, ()>;
+    /// True when evidence carrying `marker` is already on the ticket. Retried updates call this before re-posting so a retry
+    /// never duplicates a comment (T03). The default reports the capability as missing, which callers treat as "unknown".
+    fn has_evidence_marker<'a>(
+        &'a self,
+        id: &'a TicketId,
+        marker: &'a str,
+    ) -> PortFuture<'a, bool> {
+        let _ = (id, marker);
+        Box::pin(std::future::ready(Err(VelaError::from_code(
+            ErrorCode::CapabilityMissing,
+            "this tracker cannot look up existing evidence",
+        ))))
+    }
     /// Creates or links a pull request where the tracker supports it. The default reports the capability as missing.
     fn link_pull_request<'a>(&'a self, id: &'a TicketId, url: &'a str) -> PortFuture<'a, ()> {
         let _ = (id, url);

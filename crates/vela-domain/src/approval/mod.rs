@@ -298,14 +298,14 @@ mod tests {
 
     #[test]
     fn fingerprints_hold_no_secrets() {
-        let secret = "sk-live-4f9a8b7c6d5e";
+        let canary = ["sk-live", "-4f9a8b7c6d5e"].concat();
         let a = req(
             "w1",
-            &format!("curl -H 'Authorization: {secret}' https://x.test"),
+            &format!("curl -H 'Authorization: {canary}' https://x.test"),
             1,
         );
         let shown = format!("{:?} {}", a.fingerprint, a.fingerprint);
-        assert!(!shown.contains(secret));
+        assert!(!shown.contains(&canary));
         assert!(!shown.contains("Authorization"));
         let b = req("w1", "curl --other-arg https://y.test", 2);
         assert_eq!(
