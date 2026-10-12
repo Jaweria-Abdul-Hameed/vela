@@ -62,7 +62,7 @@ pub fn project_by_path(conn: &Connection, repo_path: &str) -> Result<Option<Proj
 pub fn recent_projects(conn: &Connection, limit: u32) -> Result<Vec<ProjectRow>, VelaError> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, name, repo_path, created_ms, last_opened_ms FROM projects
+            "SELECT id, name, repo_path, created_ms, last_opened_ms FROM projects WHERE removed_ms IS NULL
              ORDER BY COALESCE(last_opened_ms, created_ms) DESC, id LIMIT ?1",
         )
         .map_err(store_error)?;

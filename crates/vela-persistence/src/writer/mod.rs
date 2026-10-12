@@ -8,7 +8,8 @@ use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
-use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior, params};
+pub use rusqlite::Connection;
+use rusqlite::{OpenFlags, Transaction, TransactionBehavior, params};
 use vela_domain::errors::{ErrorClass, ErrorCode, VelaError};
 use vela_domain::events::EventEnvelope;
 
