@@ -39,6 +39,8 @@ pub struct AgyCall {
     pub env_names: Vec<String>,
     /// The id the caller gave the process.
     pub process_id: String,
+    /// The value of `USERPROFILE` the process was given (the isolated profile, a path, never a secret).
+    pub userprofile: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -145,6 +147,12 @@ impl FakeAgy {
             cwd: spec.cwd.as_str().to_owned(),
             env_names: spec.env.iter().map(|(k, _)| k.clone()).collect(),
             process_id: spec.id.clone(),
+            userprofile: spec
+                .env
+                .iter()
+                .rev()
+                .find(|(k, _)| k == "USERPROFILE")
+                .map(|(_, v)| v.clone()),
         };
         let scenario = {
             let mut s = self.state.lock().expect("agy lock");
