@@ -22,16 +22,26 @@ pub const ARMED_ENV_VAR: &str = "VELA_FAULT_POINT";
 pub enum FaultPoint {
     /// Used by the mechanism's own tests and by the F03 harness self-test; no production code places it.
     SelfTest,
+    /// The state store writer, after a transaction's state and journal rows were written and before they commit (F06).
+    PersistenceBeforeCommit,
+    /// The state store writer, right after a transaction committed and before its events are published (F06).
+    PersistenceAfterCommit,
 }
 
 impl FaultPoint {
     /// Every registered point.
-    pub const ALL: &'static [FaultPoint] = &[FaultPoint::SelfTest];
+    pub const ALL: &'static [FaultPoint] = &[
+        FaultPoint::SelfTest,
+        FaultPoint::PersistenceBeforeCommit,
+        FaultPoint::PersistenceAfterCommit,
+    ];
 
     /// The stable name used to arm the point.
     pub const fn name(self) -> &'static str {
         match self {
             FaultPoint::SelfTest => "self_test",
+            FaultPoint::PersistenceBeforeCommit => "persistence_before_commit",
+            FaultPoint::PersistenceAfterCommit => "persistence_after_commit",
         }
     }
 
