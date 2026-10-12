@@ -1,12 +1,17 @@
-//! The `window_state` plugin (F04 stub). The ticket that needs this plugin replaces `install` with the real registration
-//! (and adds its own capability file); no other file changes.
+//! The `window_state` plugin (L04): the main window's size, position and maximized state persist across launches. The
+//! plugin runs in the core, so the renderer needs no permission for it.
 
 use tauri::{Builder, Runtime};
+use tauri_plugin_window_state::StateFlags;
 
 /// The plugin's name in the sorted registry in `plugins/mod.rs`.
 pub const NAME: &str = "window_state";
 
-/// Registers the plugin on the application builder. A stub: registers nothing yet.
+/// Registers the plugin. Visibility is not restored (the window decides that at startup).
 pub fn install<R: Runtime>(builder: Builder<R>) -> Builder<R> {
-    builder
+    builder.plugin(
+        tauri_plugin_window_state::Builder::default()
+            .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+            .build(),
+    )
 }

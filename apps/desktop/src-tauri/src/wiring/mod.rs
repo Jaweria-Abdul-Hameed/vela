@@ -13,9 +13,16 @@ pub mod project;
 pub mod settings;
 pub mod store;
 
-use tauri::{Builder, Runtime};
+use tauri::{Builder, Manager, Runtime};
 
-/// Applies every registered plugin, then the command dispatcher, to `builder`.
+use crate::window;
+
+/// Applies every registered plugin, then the command dispatcher, to `builder`, and at startup opens the real store (which
+/// also starts the event bridge) and makes sure the restored window is on a monitor.
 pub fn compose<R: Runtime>(builder: Builder<R>) -> Builder<R> {
-    crate::commands::install(crate::plugins::install_all(builder))
+    crate::commands::install(crate::plugins::install_all(builder)).setup(|app| {
+        store::install(app)?;
+        window::ensure_main_visible(app.handle());
+        Ok(())
+    })
 }

@@ -142,13 +142,19 @@ mod tests {
     }
 
     #[test]
-    fn the_registry_holds_the_example_command_in_the_diagnostics_group() {
+    fn the_registry_holds_the_registered_commands_in_group_order() {
         let registry = registry();
         let commands: Vec<(CommandGroup, &str)> = registry
             .commands()
             .map(|c| (c.group, c.name.as_str()))
             .collect();
-        assert_eq!(commands, [(CommandGroup::Diagnostics, "diagnostics.ping")]);
+        assert_eq!(
+            commands,
+            [
+                (CommandGroup::Diagnostics, "diagnostics.ping"),
+                (CommandGroup::Snapshot, "snapshot.get"),
+            ]
+        );
     }
 
     #[test]
