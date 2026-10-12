@@ -205,11 +205,15 @@ mod tests {
         let extra = vec![
             "diagnostics.ping".to_owned(),
             "diagnostics.export".to_owned(),
+            "snapshot.get".to_owned(),
         ];
         let mismatch = compare_contract(&registry, &extra).unwrap_err();
         assert_eq!(mismatch.missing_in_rust, ["diagnostics.export"]);
         let mismatch = compare_contract(&registry, &[]).unwrap_err();
-        assert_eq!(mismatch.missing_in_typescript, ["diagnostics.ping"]);
+        assert_eq!(
+            mismatch.missing_in_typescript,
+            ["diagnostics.ping", "snapshot.get"]
+        );
     }
 
     /// The capability files grant exactly the registered commands (through their generated permission identifiers)
