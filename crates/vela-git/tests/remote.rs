@@ -225,9 +225,13 @@ async fn fetch_reports_the_remote_tracking_refs_that_changed() {
     );
     git(&other, &["push", "-q", "origin", "main"]);
     let after = g.fetch(&c, &wt(r.repo.path()), &origin()).await.unwrap();
-    assert_eq!(
-        after.updated_refs,
-        vec!["refs/remotes/origin/main".to_owned()]
+    // Newer Git versions also move the symbolic `origin/HEAD`; what matters is that the branch ref is reported.
+    assert!(
+        after
+            .updated_refs
+            .contains(&"refs/remotes/origin/main".to_owned()),
+        "{:?}",
+        after.updated_refs
     );
 }
 
