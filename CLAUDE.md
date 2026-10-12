@@ -7,14 +7,9 @@ Claude-specific routing.
 2.  Respect ticket scope and the recorded integration fixed point.
 3.  Use repository skills when installed rather than reproducing their
     behavior informally.
-4.  For implementation, follow the repository's `/implement`/TDD/review
+4.  For implementation, follow the repository's `/implement`/TDD
     protocol when available.
-5.  For review, compare against the explicitly recorded fixed point.
-    Never guess the base. A ticket gets one comprehensive independent
-    `/code-review` and then independent verification of the blocking
-    fixes (ADR-021); the reviewer and the verifier are fresh sessions,
-    never the implementing one, and a further review or verification
-    round is a human decision.
+5.  Do not run or request any review while building (ADR-023): implement, commit, get CI green, move on.
 6.  Do not treat a long conversation as durable project memory; write
     durable decisions to Markdown/ADR/issues.
 7.  Do not change product/UI architecture because an alternative seems

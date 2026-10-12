@@ -32,7 +32,7 @@ load what is relevant.
 
 ## Ticket scope
 
-One implementation session owns one ticket. A ticket is expected to be a
+One implementation session owns one mega-ticket (`docs/issues/graph/MEGA_TICKETS.md`, ADR-023), i.e. a group of tickets, implemented in order. A ticket is expected to be a
 tracer-bullet vertical slice. Do not opportunistically implement
 unrelated tickets. Small prerequisite fixes are allowed only when
 necessary to make the ticket correct; record them in the execution log.
@@ -75,13 +75,7 @@ read ticket
 → typecheck/lint frequently
 → complete ticket
 → run full required ticket gate
-→ audit the change against every acceptance criterion
-→ create durable checkpoint commit (required gates green in CI)
-→ one comprehensive independent code review against the recorded fixed point
-→ fix every blocking finding, each with a regression test
-→ rerun the required gates in CI
-→ independent verification of the blocking fixes and of the fix diff
-→ final ticket commit
+→ commit per member ticket (CI green on the branch)
 → push
 → report structured result
 ```
@@ -94,27 +88,12 @@ If Matt Pocock skills are installed, use their intended semantics. Do
 not pretend to invoke a skill: the execution trace must show the real
 invocation when supported.
 
-## Review exit policy
+## Review (disabled for the build process)
 
-The canonical definition is `docs/agents/REVIEW_PROTOCOL.md`; the summary below is non-normative.
-
-Default Vela policy is **Engineering**: - zero blocking findings, -
-zero high-severity correctness/security/spec findings, - zero unresolved
-medium correctness/spec findings, - tests green, - typecheck green, -
-build green when the ticket affects buildable output.
-
-Pure naming preferences, speculative refactors, formatting already
-enforced by tooling, and subjective micro-style findings do not block
-completion unless repository standards explicitly make them
-requirements.
-
-The review is the same for agents building Vela and for the workers Vela runs (ADR-022; `REVIEW_PROTOCOL.md`):
-**one comprehensive independent `/code-review`, then fixes with regression tests, CI, and a targeted independent
-verification of the blocking fixes**. The reviewer and the verifier are fresh sessions that are not the implementer.
-If verification does not confirm every blocking finding resolved, transition to `NEEDS_HUMAN` with kind
-`REVIEW_STALLED`: there is no repair round and no second full review unless a person decides one. Do not
-self-authorize another review or verification round, do not lower a reviewer's severity, and never merge on an
-unverified blocking fix. Exhausted review is never approval.
+Per ADR-023 there is **no review of any kind** while building Vela: no `/code-review`, no verification round, no
+self-audit pass, no `REVIEW_STALLED`. Do not start one. Work is complete when the member tickets are implemented and CI
+is green. This applies to agents building Vela only; the product's own runtime review loop (FR-013, FR-014, D06, S11,
+A10) is a feature to implement as specified and is unchanged.
 
 ## Tests
 
@@ -165,7 +144,7 @@ external actions must obey Vela's policy engine.
 
 Every worker returns structured facts: - ticket ID/title, - base
 commit, - final commit(s), - files changed, - tests/commands and
-results, - review result, - unresolved warnings, - branch/worktree, -
+results, - - unresolved warnings, - branch/worktree, -
 push status, - merge risk, - follow-up dependencies discovered.
 
 Never report success if a required gate was skipped.
