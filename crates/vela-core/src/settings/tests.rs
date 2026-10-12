@@ -204,3 +204,16 @@ async fn onboarding_choices_are_journaled_and_other_settings_are_not() {
     assert!(journal[0].1.contains("autostart"));
     assert_eq!(s.effective(None).unwrap()["autostart"], "true");
 }
+
+#[test]
+fn autonomous_mode_needs_a_met_posture() {
+    use vela_domain::ports::PermissionPosture as P;
+    assert!(validate_run_mode("supervised", P::Unknown).is_ok());
+    assert!(validate_run_mode("autonomous", P::Meets).is_ok());
+    for p in [P::DoesNotMeet, P::Unknown] {
+        assert_eq!(
+            validate_run_mode("autonomous", p).unwrap_err().class(),
+            ErrorClass::PolicyBlock
+        );
+    }
+}

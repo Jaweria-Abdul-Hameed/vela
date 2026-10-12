@@ -158,6 +158,21 @@ pub const KEYS: &[Key] = &[
     },
 ];
 
+/// Autonomous mode is available only when the permission posture provably meets the specification (A06); supervised always is.
+pub fn validate_run_mode(
+    mode: &str,
+    posture: vela_domain::ports::PermissionPosture,
+) -> Result<(), VelaError> {
+    if mode == "autonomous" && posture != vela_domain::ports::PermissionPosture::Meets {
+        return Err(VelaError::of_class(
+            ErrorClass::PolicyBlock,
+            "Autonomous mode needs a verified permission posture, and this installation has not shown one",
+        )
+        .with_user_action("run preflight and fix the posture findings, or use Supervised mode"));
+    }
+    Ok(())
+}
+
 /// Who is asking for a change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {

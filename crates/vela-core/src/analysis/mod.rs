@@ -41,6 +41,9 @@ pub struct AnalystOutput {
     pub write_sets: BTreeMap<TicketId, PredictedWriteSet>,
     /// Hazards that add serialization.
     pub hazards: Vec<AnalystHazard>,
+    /// The analyst that produced this (a prompt version or model label), stored with the graph.
+    #[serde(default)]
+    pub version: String,
 }
 
 /// The analyst hook point.
