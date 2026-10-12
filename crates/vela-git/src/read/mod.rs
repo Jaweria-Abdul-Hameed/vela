@@ -335,14 +335,14 @@ pub fn classify_failure(command: &str, out: &GitOutput) -> VelaError {
             "the remote could not be reached (network)",
         );
     }
-    let excerpt: String = out
+    // Prefer Git's own error line over the progress lines that precede it (for example "Preparing worktree").
+    let line = out
         .stderr
         .lines()
-        .next()
-        .unwrap_or("")
-        .chars()
-        .take(200)
-        .collect();
+        .find(|l| l.starts_with("fatal:") || l.starts_with("error:"))
+        .or_else(|| out.stderr.lines().next())
+        .unwrap_or("");
+    let excerpt: String = line.chars().take(200).collect();
     VelaError::of_class(
         ErrorClass::ValidationFailure,
         format!("git {command} failed: {}", excerpt.trim()),

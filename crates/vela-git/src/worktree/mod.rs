@@ -104,6 +104,14 @@ impl GitCli {
                 "a worktree already exists at that path (names that differ only in case collide on Windows)",
             ));
         }
+        // The filesystem is case-insensitive on Windows, so an existing folder under another spelling is found here even
+        // when Git lists the path differently (short names, drive-letter case).
+        if Path::new(request.path.as_str()).exists() {
+            return Err(VelaError::of_class(
+                ErrorClass::ValidationFailure,
+                "a worktree already exists at that path (names that differ only in case collide on Windows)",
+            ));
+        }
         let _guard = self.locks.acquire(&request.repo, &ctx.operation).await;
         let path = policy::git_path(Path::new(request.path.as_str()));
         self.run_ok(
