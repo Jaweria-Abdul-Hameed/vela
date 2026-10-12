@@ -1,0 +1,1 @@
+You are not signed in. Run `agy` interactively and sign in with your Google account, then try again.
