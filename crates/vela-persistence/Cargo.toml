@@ -15,3 +15,7 @@ rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+# The kill-between-state-and-journal test needs fault points live (a dev-dependency feature, so never in release builds).
+vela-domain = { workspace = true, features = ["fault-injection"] }
