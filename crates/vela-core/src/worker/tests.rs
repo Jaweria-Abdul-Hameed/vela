@@ -184,7 +184,7 @@ async fn a_ticket_goes_from_provisioning_to_ready_to_merge_with_evidence() {
     let op =
         r.e.services
             .store
-            .read(|c| vela_persistence::repositories::r01_operations::list_intended(c))
+            .read(vela_persistence::repositories::r01_operations::list_intended)
             .unwrap();
     assert!(op.is_empty(), "no operation is left half-done");
     assert_eq!(head.as_str().len(), 40);
