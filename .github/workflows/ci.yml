@@ -55,6 +55,8 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          exe=$(ls target/debug/deps/vela_desktop-*.exe | head -1)
           pip install pefile -q
-          python -c "import pefile,sys; pe=pefile.PE(sys.argv[1]); [print(e.dll.decode(), len(e.imports), [i.name.decode() for i in e.imports if i.name][:6] if e.dll.decode().lower().startswith(('comctl','webview','shcore')) else '') for e in pe.DIRECTORY_ENTRY_IMPORT]" "$exe"
+          for exe in target/debug/deps/vela_desktop-eceeb670649ff94d.exe target/debug/deps/vela_desktop-*.exe; do
+            echo "== $exe"
+            python -c "import pefile,sys; pe=pefile.PE(sys.argv[1]); [print(e.dll.decode(), len(e.imports), [i.name.decode() for i in e.imports if i.name][:12] if e.dll.decode().lower().startswith(('comctl','webview','shcore','user32','dwm')) else '') for e in pe.DIRECTORY_ENTRY_IMPORT]" "$exe" || true
+          done
