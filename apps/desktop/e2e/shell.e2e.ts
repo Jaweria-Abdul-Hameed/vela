@@ -5,7 +5,7 @@ test('the renderer starts in a plain browser and reports that no core is attache
 }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Vela' })).toBeVisible();
-  await expect(page.getByRole('alert')).toContainText('Core unavailable');
+  await expect(page.getByRole('alert').filter({ hasText: 'Core unavailable' })).toBeVisible();
 });
 
 test('software GL provides a WebGL context', async ({ page }) => {
