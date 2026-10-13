@@ -48,6 +48,22 @@ pub enum FaultPoint {
     WorkerBeforeCheckpoint,
     /// A worker: the checkpoint exists in Git, nothing has recorded it (S10).
     WorkerAfterCheckpoint,
+    /// The merge lane: the merge is recorded as started, Git has not merged yet (S12).
+    LaneBeforeMerge,
+    /// The merge lane: Git merged, integration validation has not run (S12).
+    LaneAfterMerge,
+    /// The merge lane: validation finished, the result is not recorded (S12).
+    LaneAfterValidation,
+    /// The merge lane: a failed merge was discarded, nothing records it (S12).
+    LaneAfterDiscard,
+    /// Finalization: validated, the final push has not happened (S14).
+    FinalBeforePush,
+    /// Finalization: pushed, nothing records it (S14).
+    FinalAfterPush,
+    /// Finalization: the promotion is recorded, the run is not completed (S14).
+    FinalAfterPromotion,
+    /// Finalization: worktree cleanup is in progress (S14).
+    FinalDuringCleanup,
 }
 
 impl FaultPoint {
@@ -67,6 +83,14 @@ impl FaultPoint {
         FaultPoint::WorkerAfterImplementing,
         FaultPoint::WorkerBeforeCheckpoint,
         FaultPoint::WorkerAfterCheckpoint,
+        FaultPoint::LaneBeforeMerge,
+        FaultPoint::LaneAfterMerge,
+        FaultPoint::LaneAfterValidation,
+        FaultPoint::LaneAfterDiscard,
+        FaultPoint::FinalBeforePush,
+        FaultPoint::FinalAfterPush,
+        FaultPoint::FinalAfterPromotion,
+        FaultPoint::FinalDuringCleanup,
     ];
 
     /// The stable name used to arm the point.
@@ -86,6 +110,14 @@ impl FaultPoint {
             FaultPoint::WorkerAfterImplementing => "worker.after_implementing",
             FaultPoint::WorkerBeforeCheckpoint => "worker.before_checkpoint",
             FaultPoint::WorkerAfterCheckpoint => "worker.after_checkpoint",
+            FaultPoint::LaneBeforeMerge => "lane.before_merge",
+            FaultPoint::LaneAfterMerge => "lane.after_merge",
+            FaultPoint::LaneAfterValidation => "lane.after_validation",
+            FaultPoint::LaneAfterDiscard => "lane.after_discard",
+            FaultPoint::FinalBeforePush => "final.before_push",
+            FaultPoint::FinalAfterPush => "final.after_push",
+            FaultPoint::FinalAfterPromotion => "final.after_promotion",
+            FaultPoint::FinalDuringCleanup => "final.during_cleanup",
         }
     }
 
