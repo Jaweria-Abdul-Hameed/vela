@@ -148,13 +148,16 @@ mod tests {
             .commands()
             .map(|c| (c.group, c.name.as_str()))
             .collect();
-        assert_eq!(
-            commands,
-            [
-                (CommandGroup::Diagnostics, "diagnostics.ping"),
-                (CommandGroup::Snapshot, "snapshot.get"),
-            ]
-        );
+        // Registered in group order, and every group's commands are the ones its module lists.
+        let mut expected = Vec::new();
+        for group in CommandGroup::ALL {
+            let mut names: Vec<&str> = group_commands(group).to_vec();
+            names.sort_unstable();
+            expected.extend(names.into_iter().map(|n| (group, n)));
+        }
+        assert_eq!(commands, expected);
+        assert!(commands.contains(&(CommandGroup::Diagnostics, "diagnostics.ping")));
+        assert!(commands.contains(&(CommandGroup::Run, "run.build")));
     }
 
     #[test]
@@ -202,17 +205,25 @@ mod tests {
     #[test]
     fn the_contract_test_detects_drift_in_either_direction() {
         let registry = registry();
-        let extra = vec![
-            "diagnostics.ping".to_owned(),
-            "diagnostics.export".to_owned(),
-            "snapshot.get".to_owned(),
-        ];
+        let mut extra: Vec<String> = registry
+            .commands()
+            .map(|c| c.name.as_str().to_owned())
+            .collect();
+        extra.push("diagnostics.export".to_owned());
         let mismatch = compare_contract(&registry, &extra).unwrap_err();
         assert_eq!(mismatch.missing_in_rust, ["diagnostics.export"]);
         let mismatch = compare_contract(&registry, &[]).unwrap_err();
+        let registered: BTreeSet<String> = registry
+            .commands()
+            .map(|c| c.name.as_str().to_owned())
+            .collect();
         assert_eq!(
-            mismatch.missing_in_typescript,
-            ["diagnostics.ping", "snapshot.get"]
+            mismatch
+                .missing_in_typescript
+                .iter()
+                .cloned()
+                .collect::<BTreeSet<String>>(),
+            registered
         );
     }
 

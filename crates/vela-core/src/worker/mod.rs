@@ -340,6 +340,50 @@ impl WorkerDriver {
         }
     }
 
+    /// After a failed integration validation the worker is in `FIXING`: the same conversation is asked to fix it, the focused gates
+    /// run again, and the worker is checkpointed and returned to `READY_TO_MERGE` with a new head for the lane.
+    pub async fn fix_integration(
+        &self,
+        t: &WorkerTask,
+        gate: &str,
+    ) -> Result<WorkerOutcome, VelaError> {
+        let conversation = {
+            let w = t.worker.as_str().to_owned();
+            self.services
+                .store
+                .read(|c| o01_workers::get(c, &w))?
+                .and_then(|r| r.conversation_id)
+                .and_then(|id| ConversationId::new(id).ok())
+        };
+        let ask = format!(
+            "After your branch was merged into the integration branch, the check `{gate}` failed. Find the cause in your worktree, fix it, and report again."
+        );
+        let mut turn = match self
+            .turn(t, self.prompts.fix_prompt(&ask), conversation)
+            .await
+        {
+            Ok(turn) => turn,
+            Err(e) => return self.blocked_or_fail(t, e).await,
+        };
+        if let Some(outcome) = self.handle_blocks(t, &turn.observed).await? {
+            return Ok(outcome);
+        }
+        let completion = self.completion(t, &mut turn).await?;
+        if completion.status != CompletionStatus::Complete {
+            return Err(failure("the worker could not fix the integration failure"));
+        }
+        self.advance(t, WorkerPhase::Validating).await?;
+        let failures = self.validate(t).await?;
+        if !failures.is_empty() {
+            return Err(VelaError::of_class(
+                ErrorClass::ValidationFailure,
+                format!("the fix does not pass the focused checks:\n{failures}"),
+            ));
+        }
+        self.advance(t, WorkerPhase::Checkpointing).await?;
+        self.checkpoint_and_ready(t).await
+    }
+
     async fn implement_and_finish(
         &self,
         t: &WorkerTask,

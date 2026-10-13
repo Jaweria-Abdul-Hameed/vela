@@ -1,0 +1,6 @@
+# Permission manifest of the timeline command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-timeline-get"
+description = "Enables the timeline_get command (timeline.get) without any pre-configured scope."
+commands.allow = ["timeline_get"]

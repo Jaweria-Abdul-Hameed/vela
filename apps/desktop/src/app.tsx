@@ -1,6 +1,6 @@
 // Walking-skeleton renderer (F04): proves the typed command round trip and the event channel. It is not product UI;
 // scenes and surfaces register themselves later (SHARED_SURFACE_PROTOCOL.md section 7).
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { PingEvent, PingRequest, PingResult } from '@vela/contracts/commands/diagnostics';
 import { Shell } from '@vela/ui/src/design';
 import { onPingEvent, pingCore } from './ipc';
@@ -23,7 +23,7 @@ function errorText(error: unknown): string {
   return String(error);
 }
 
-export function App({ ipc = defaultIpc }: { ipc?: CoreIpc }) {
+export function App({ ipc = defaultIpc, children }: { ipc?: CoreIpc; children?: ReactNode }) {
   const [result, setResult] = useState<PingResult | null>(null);
   const [event, setEvent] = useState<PingEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +62,7 @@ export function App({ ipc = defaultIpc }: { ipc?: CoreIpc }) {
       <p role="status" aria-label="Core event">
         {event === null ? 'Waiting for the core event' : `Event ${event.sequence} received`}
       </p>
+      {children}
     </Shell>
   );
 }

@@ -1,0 +1,26 @@
+# Permission manifest of the run command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-run-prepare"
+description = "Enables the run_prepare command (run.prepare) without any pre-configured scope."
+commands.allow = ["run_prepare"]
+
+[[permission]]
+identifier = "allow-run-build"
+description = "Enables the run_build command (run.build) without any pre-configured scope."
+commands.allow = ["run_build"]
+
+[[permission]]
+identifier = "allow-run-stop"
+description = "Enables the run_stop command (run.stop) without any pre-configured scope."
+commands.allow = ["run_stop"]
+
+[[permission]]
+identifier = "allow-run-resume"
+description = "Enables the run_resume command (run.resume) without any pre-configured scope."
+commands.allow = ["run_resume"]
+
+[[permission]]
+identifier = "allow-run-status"
+description = "Enables the run_status command (run.status) without any pre-configured scope."
+commands.allow = ["run_status"]

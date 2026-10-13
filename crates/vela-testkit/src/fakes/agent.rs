@@ -40,6 +40,7 @@ pub struct ScriptedAgent {
     scenarios: Mutex<BTreeMap<WorkerId, Scenario>>,
     responses: Mutex<BTreeMap<WorkerId, String>>,
     statuses: Mutex<BTreeMap<WorkerId, SessionStatus>>,
+    default_response: Mutex<String>,
     next_conversation: AtomicU64,
     log: Recorder,
 }
@@ -64,6 +65,11 @@ impl ScriptedAgent {
             .lock()
             .expect("agent lock")
             .insert(worker, status);
+    }
+
+    /// Sets the final text every worker without its own response returns.
+    pub fn set_default_response(&self, text: impl Into<String>) {
+        *self.default_response.lock().expect("agent lock") = text.into();
     }
 
     /// Sets the final text the worker's turns return.
@@ -114,7 +120,7 @@ impl AgentSession for ScriptedAgent {
             .expect("agent lock")
             .get(&request.worker)
             .cloned()
-            .unwrap_or_default();
+            .unwrap_or_else(|| self.default_response.lock().expect("agent lock").clone());
         let finished = |finished| {
             Ok(TurnResult {
                 conversation: Some(conversation.clone()),

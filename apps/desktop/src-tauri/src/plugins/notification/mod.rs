@@ -8,5 +8,5 @@ pub const NAME: &str = "notification";
 
 /// Registers the plugin on the application builder. A stub: registers nothing yet.
 pub fn install<R: Runtime>(builder: Builder<R>) -> Builder<R> {
-    builder
+    builder.plugin(tauri_plugin_notification::init())
 }

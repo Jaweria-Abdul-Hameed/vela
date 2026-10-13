@@ -1,0 +1,11 @@
+# Permission manifest of the settings command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-settings-get"
+description = "Enables the settings_get command (settings.get) without any pre-configured scope."
+commands.allow = ["settings_get"]
+
+[[permission]]
+identifier = "allow-settings-set"
+description = "Enables the settings_set command (settings.set) without any pre-configured scope."
+commands.allow = ["settings_set"]

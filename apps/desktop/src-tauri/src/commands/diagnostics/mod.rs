@@ -281,7 +281,7 @@ mod tests {
         for cmd in [
             "diagnostics_export",
             "diagnostics_ping_all",
-            "project_import",
+            "project_explode",
             "ping",
             "shell_execute",
         ] {

@@ -23,6 +23,7 @@ struct State {
     worktrees: Vec<WorktreeInfo>,
     merges: VecDeque<MergeOutcome>,
     pushed: BTreeMap<String, CommitSha>,
+    keep_changed: bool,
 }
 
 /// In-memory Git. Every operation is recorded; merge outcomes are scripted (a clean merge when the script is empty).
@@ -59,6 +60,7 @@ impl FakeGit {
                 worktrees: Vec::new(),
                 merges: VecDeque::new(),
                 pushed: BTreeMap::new(),
+                keep_changed: false,
             }),
             log: Recorder::new(),
         }
@@ -81,6 +83,11 @@ impl FakeGit {
     /// Sets the paths reported as changed by `status`.
     pub fn set_changed(&self, paths: Vec<String>) {
         self.state.lock().expect("git lock").changed = paths;
+    }
+
+    /// When set, a checkpoint leaves the working tree reported as changed (every worker then has something to commit).
+    pub fn set_keep_changed(&self, keep: bool) {
+        self.state.lock().expect("git lock").keep_changed = keep;
     }
 
     /// Sets the paths reported by `diff_summary`.
@@ -225,7 +232,9 @@ impl GitCheckpoints for FakeGit {
         let new = Self::next_sha(&mut s);
         s.head = Some(new.clone());
         s.refs.insert("HEAD".to_owned(), new.clone());
-        s.changed.clear();
+        if !s.keep_changed {
+            s.changed.clear();
+        }
         ready(Ok(new))
     }
 }

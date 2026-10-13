@@ -1,0 +1,11 @@
+# Permission manifest of the intervention command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-intervention-list"
+description = "Enables the intervention_list command (intervention.list) without any pre-configured scope."
+commands.allow = ["intervention_list"]
+
+[[permission]]
+identifier = "allow-intervention-resolve"
+description = "Enables the intervention_resolve command (intervention.resolve) without any pre-configured scope."
+commands.allow = ["intervention_resolve"]
