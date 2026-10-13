@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
-import { BuildReady, InterventionSheet, TicketInspector } from '@vela/ui/src/components';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import {
+  BuildReady,
+  GraphicsControl,
+  InterventionSheet,
+  ProjectHome,
+  TicketInspector,
+} from '@vela/ui/src/components';
+import type { GraphicsMode } from '@vela/ui/src/canvas/quality';
 import { Glass } from '@vela/ui/src/design';
 import type { GraphCanvasProps, GraphNode, NodeState } from '@vela/ui/src/canvas/graph';
 import { stateOfWorker } from '@vela/ui/src/canvas/graph';
@@ -56,6 +63,13 @@ export interface ConsoleProps {
   Graph: ComponentType<GraphCanvasProps>;
   /** Polling interval for a running run, in milliseconds. */
   pollMs?: number;
+  /** The graphics mode control, when the host has one. */
+  graphics?: {
+    mode: GraphicsMode;
+    onChange: (mode: GraphicsMode) => void;
+    suggestion?: { mode: GraphicsMode; reason: string } | null;
+    onDismissSuggestion?: () => void;
+  };
 }
 
 function message(error: unknown): string {
@@ -68,10 +82,11 @@ function message(error: unknown): string {
 }
 
 /** Vela's working screen: projects, trust, preflight, the plan, the run and what needs you. */
-export function Console({ api, Graph, pollMs = 1500 }: ConsoleProps) {
+export function Console({ api, Graph, pollMs = 1500, graphics }: ConsoleProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [folder, setFolder] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proposal, setProposal] = useState<TrustProposal | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
@@ -153,6 +168,47 @@ export function Console({ api, Graph, pollMs = 1500 }: ConsoleProps) {
     if (s) setMaxWorkers(Number(s['max_parallel_workers'] ?? 2) || 2);
   };
 
+  const doImport = async (path: string) => {
+    setImporting(true);
+    try {
+      const r = await guard(() => api.projectImport(path));
+      if (r) {
+        await refreshProjects();
+        await choose(r.project.id);
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // A folder dropped anywhere on the window is imported (the shell reports drops as events, with real paths).
+  const importDropped = useRef(doImport);
+  useEffect(() => {
+    importDropped.current = doImport;
+  });
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    let alive = true;
+    void api
+      .onFolderDrop?.((e) => {
+        if (e.type === 'over') setDropActive(true);
+        else if (e.type === 'leave') setDropActive(false);
+        else {
+          setDropActive(false);
+          const first = e.paths[0];
+          if (first) void importDropped.current(first);
+        }
+      })
+      .then((stop) => {
+        if (alive) off = stop;
+        else stop();
+      });
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [api]);
+
   const project = projects.find((p) => p.id === selected) ?? null;
   const states = useMemo(
     () => (status ? nodeStates(status) : new Map<string, NodeState>()),
@@ -186,62 +242,30 @@ export function Console({ api, Graph, pollMs = 1500 }: ConsoleProps) {
     <div>
       {error ? <p role="alert">{error}</p> : null}
 
-      <section aria-label="Projects">
-        <h2>Projects</h2>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void (async () => {
-              const r = await guard(() => api.projectImport(folder.trim()));
-              if (r) {
-                setFolder('');
-                await refreshProjects();
-                await choose(r.project.id);
-              }
-            })();
-          }}
-        >
-          <label>
-            Repository folder{' '}
-            <input
-              value={folder}
-              onChange={(e) => setFolder(e.target.value)}
-              placeholder="C:\Users\you\Projects\app"
-            />
-          </label>{' '}
-          <button type="submit" disabled={folder.trim() === ''}>
-            Import
-          </button>
-        </form>
-        {projects.length === 0 ? <p>No projects yet. Import a repository to begin.</p> : null}
-        <ul>
-          {projects.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                aria-pressed={p.id === selected}
-                onClick={() => void choose(p.id)}
-              >
-                {p.name}
-              </button>{' '}
-              <code>{p.repo_path}</code>{' '}
-              <button
-                type="button"
-                aria-label={`Remove ${p.name}`}
-                onClick={() =>
-                  void guard(async () => {
-                    await api.projectRemove(p.id);
-                    if (selected === p.id) setSelected(null);
-                    await refreshProjects();
-                  })
-                }
-              >
-                Remove from Vela
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {graphics ? (
+        <GraphicsControl
+          mode={graphics.mode}
+          onChange={graphics.onChange}
+          suggestion={graphics.suggestion ?? null}
+          onDismissSuggestion={graphics.onDismissSuggestion ?? (() => {})}
+        />
+      ) : null}
+
+      <ProjectHome
+        projects={projects.map((p) => ({ id: p.id, name: p.name, repoPath: p.repo_path }))}
+        selectedId={selected}
+        busy={importing}
+        dropActive={dropActive}
+        onImport={(path) => void doImport(path)}
+        onOpen={(id) => void choose(id)}
+        onRemove={(id) =>
+          void guard(async () => {
+            await api.projectRemove(id);
+            if (selected === id) setSelected(null);
+            await refreshProjects();
+          })
+        }
+      />
 
       {project && proposal ? (
         <section aria-label="Repository">
