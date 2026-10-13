@@ -3,6 +3,8 @@ import {
   BuildReady,
   GraphicsControl,
   InterventionSheet,
+  RunBar,
+  Timeline,
   ProjectHome,
   TicketInspector,
 } from '@vela/ui/src/components';
@@ -441,18 +443,19 @@ export function Console({ api, Graph, pollMs = 1500, graphics }: ConsoleProps) {
               onSelect={(id) => void openTicket(id)}
             />
           </div>
-          <p>
-            {running ? (
-              <button type="button" onClick={() => void guard(() => api.runStop(status.run_id))}>
-                Stop all
-              </button>
-            ) : null}{' '}
-            {runName === 'PAUSED' ? (
-              <button type="button" onClick={() => void guard(() => api.runResume(status.run_id))}>
-                Resume
-              </button>
-            ) : null}
-          </p>
+          <RunBar
+            status={runName
+              .toLowerCase()
+              .replaceAll('_', ' ')
+              .replace(/^./, (c) => c.toUpperCase())}
+            workers={status.workers.length}
+            mode={status.promotion?.mode ?? 'Pull request'}
+            paused={runName === 'PAUSED'}
+            active={running || runName === 'PAUSED'}
+            approval={status.interventions.length > 0 ? 'waiting' : 'active'}
+            onResume={() => void guard(() => api.runResume(status.run_id))}
+            onStopAll={() => void guard(() => api.runStop(status.run_id))}
+          />
           {status.promotion ? (
             <p role="status">
               Result: {status.promotion.state.toLowerCase().replace('_', ' ')}.{' '}
@@ -464,6 +467,8 @@ export function Console({ api, Graph, pollMs = 1500, graphics }: ConsoleProps) {
           ) : null}
         </section>
       ) : null}
+
+      {status && inspected && timeline.length > 0 ? <Timeline items={timeline} /> : null}
 
       {status && inspected ? (
         <TicketInspector

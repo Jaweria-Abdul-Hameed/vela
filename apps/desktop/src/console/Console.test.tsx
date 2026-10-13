@@ -237,6 +237,7 @@ describe('console', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resolve and continue' }));
     await waitFor(() => expect(api.interventionResolve).toHaveBeenCalledWith('iv-1', 'resolve'));
     fireEvent.click(screen.getByRole('button', { name: 'Stop all' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, stop all' }));
     await waitFor(() => expect(api.runStop).toHaveBeenCalledWith('run-1'));
   });
 
