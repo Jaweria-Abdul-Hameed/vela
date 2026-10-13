@@ -8,6 +8,7 @@
 //! [`SnapshotContributor`] with the builder, so adding a message or a snapshot part edits no shared enum or function
 //! (`SHARED_SURFACE_PROTOCOL.md` section 10). Services other modules need are registered by type in [`Services`].
 
+pub mod driver;
 pub mod runs;
 pub mod supervisor;
 #[cfg(test)]
