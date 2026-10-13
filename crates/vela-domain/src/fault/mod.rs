@@ -64,6 +64,10 @@ pub enum FaultPoint {
     FinalAfterPromotion,
     /// Finalization: worktree cleanup is in progress (S14).
     FinalDuringCleanup,
+    /// The approval broker: a decision was persisted, nothing has been delivered (K01).
+    ApprovalDecisionPersisted,
+    /// The approval broker: a delivery was attempted, its result is not recorded (K01).
+    ApprovalDeliveryAttempted,
 }
 
 impl FaultPoint {
@@ -91,6 +95,8 @@ impl FaultPoint {
         FaultPoint::FinalAfterPush,
         FaultPoint::FinalAfterPromotion,
         FaultPoint::FinalDuringCleanup,
+        FaultPoint::ApprovalDecisionPersisted,
+        FaultPoint::ApprovalDeliveryAttempted,
     ];
 
     /// The stable name used to arm the point.
@@ -118,6 +124,8 @@ impl FaultPoint {
             FaultPoint::FinalAfterPush => "final.after_push",
             FaultPoint::FinalAfterPromotion => "final.after_promotion",
             FaultPoint::FinalDuringCleanup => "final.during_cleanup",
+            FaultPoint::ApprovalDecisionPersisted => "approval.decision_persisted",
+            FaultPoint::ApprovalDeliveryAttempted => "approval.delivery_attempted",
         }
     }
 
