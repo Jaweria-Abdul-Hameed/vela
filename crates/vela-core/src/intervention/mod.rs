@@ -92,6 +92,11 @@ impl<'a> Interventions<'a> {
         Self { services, registry }
     }
 
+    /// The precondition registry shared through the services.
+    pub fn registry(&self) -> &Arc<PreconditionRegistry> {
+        &self.registry
+    }
+
     fn record(
         &self,
         run: &RunId,

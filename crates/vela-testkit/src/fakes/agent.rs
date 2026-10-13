@@ -39,6 +39,7 @@ pub enum Scenario {
 pub struct ScriptedAgent {
     scenarios: Mutex<BTreeMap<WorkerId, Scenario>>,
     responses: Mutex<BTreeMap<WorkerId, String>>,
+    statuses: Mutex<BTreeMap<WorkerId, SessionStatus>>,
     next_conversation: AtomicU64,
     log: Recorder,
 }
@@ -55,6 +56,14 @@ impl ScriptedAgent {
             .lock()
             .expect("agent lock")
             .insert(worker, scenario);
+    }
+
+    /// Sets the status `status()` reports for `worker` (a session still running after a restart, for example). `cancel` ends it.
+    pub fn set_status(&self, worker: WorkerId, status: SessionStatus) {
+        self.statuses
+            .lock()
+            .expect("agent lock")
+            .insert(worker, status);
     }
 
     /// Sets the final text the worker's turns return.
@@ -168,12 +177,23 @@ impl AgentSession for ScriptedAgent {
 
     fn cancel<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, ()> {
         self.log.record(format!("cancel:{}", session.worker));
+        self.statuses
+            .lock()
+            .expect("agent lock")
+            .remove(&session.worker);
         ready(Ok(()))
     }
 
     fn status<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, SessionStatus> {
         self.log.record(format!("status:{}", session.worker));
-        ready(Ok(SessionStatus::Idle))
+        let s = self
+            .statuses
+            .lock()
+            .expect("agent lock")
+            .get(&session.worker)
+            .copied()
+            .unwrap_or(SessionStatus::Idle);
+        ready(Ok(s))
     }
 }
 

@@ -300,6 +300,11 @@ impl MergeLane {
         })
     }
 
+    /// True while a merge of `run` is running (the lane lock is held).
+    pub fn is_busy(&self, run: &RunId) -> bool {
+        self.lock_for(run).try_lock().is_err()
+    }
+
     /// The run's persisted integration health.
     pub fn health(&self, run: &RunId) -> Result<IntegrationHealth, VelaError> {
         let r = run.as_str().to_owned();
