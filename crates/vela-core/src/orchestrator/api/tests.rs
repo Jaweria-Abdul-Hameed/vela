@@ -316,6 +316,11 @@ async fn the_whole_product_flow_runs_from_import_to_a_completed_run() {
     assert_eq!(status["workers"].as_array().unwrap().len(), 2);
     assert_eq!(status["graph"]["nodes"].as_array().unwrap().len(), 2);
     assert!(status["interventions"].as_array().unwrap().is_empty());
+    assert_eq!(status["conversations"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        status["conversations"][0]["open"]["available"], false,
+        "the open action is honest about being unverified"
+    );
     let timeline = r.api.timeline_get(&run, "T-1").unwrap();
     assert!(
         timeline

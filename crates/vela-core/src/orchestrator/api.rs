@@ -541,6 +541,13 @@ impl AppApi {
                 "branch": w.branch, "worktree": w.worktree_path,
             })).collect::<Vec<_>>(),
             "interventions": self.interventions_json(&run)?,
+            "conversations": crate::conversations::list_for_run(&self.services, &run)?.iter().map(|c| json!({
+                "kind": c.kind, "ticket": c.ticket, "worker": c.worker, "conversation_id": c.conversation_id,
+                "open": match crate::conversations::open_action(&self.services, c) {
+                    crate::conversations::OpenAction::Launch { .. } => json!({"available": true}),
+                    crate::conversations::OpenAction::Unavailable { reason } => json!({"available": false, "reason": reason}),
+                },
+            })).collect::<Vec<_>>(),
             "promotion": promotion.map(|p| json!({"mode": p.mode, "state": p.state, "pr_url": p.pr_url, "note": p.note})),
         }))
     }

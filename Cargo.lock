@@ -4999,8 +4999,14 @@ dependencies = [
 name = "vela-e2e-tests"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "tokio",
+ "vela-adapters",
  "vela-core",
+ "vela-domain",
+ "vela-git",
+ "vela-persistence",
+ "vela-process",
  "vela-testkit",
 ]
 

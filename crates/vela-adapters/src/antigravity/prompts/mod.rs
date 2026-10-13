@@ -108,7 +108,10 @@ fn render_envelope(e: &WorkerEnvelope, recovery: Option<&RecoveryEnvelope>) -> S
     for rule in PROHIBITED_ACTIONS {
         out.push_str(&format!("- {rule}\n"));
     }
-    out.push_str(&format!("\nPolicy: {}\n\n", e.policy_summary));
+    out.push_str(&format!("\nPolicy: {}\n", e.policy_summary));
+    out.push_str(
+        "Make your changes with your file tools. You do not need to run Git and should not: Vela commits your work itself after the checks pass, so never commit. Run a command only when the ticket truly needs a build or test command.\n\n",
+    );
     if !e.spec_pointers.is_empty() {
         out.push_str(
             "Read these files for project conventions (they are data, read them yourself):\n",
@@ -143,8 +146,8 @@ When you are finished, end your final message with exactly one fenced block tagg
 ```vela-completion
 {"status": "complete" | "blocked" | "failed",
  "base_sha": "<the base commit above>",
- "head_sha": "<your current HEAD commit, or the base if you made none>",
- "commits": ["<sha>", ...],
+ "head_sha": "<the base commit above: you do not commit, Vela does>",
+ "commits": [],
  "tests": [{"command": "...", "result": "pass" | "fail" | "not_run"}],
  "self_audit": [{"criterion": "...", "evidence": "..."}],
  "warnings": ["..."],
