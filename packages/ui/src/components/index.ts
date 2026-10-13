@@ -19,3 +19,12 @@ export {
   type OnboardingChoices,
   type OnboardingSheetProps,
 } from './onboarding';
+export {
+  ACTION_LABEL,
+  InterventionSheet,
+  VARIANTS,
+  actionsFor,
+  type InterventionAction,
+  type InterventionSheetProps,
+  type InterventionView,
+} from './intervention';
