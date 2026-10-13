@@ -48,3 +48,15 @@ export {
   type HomeProject,
   type ProjectHomeProps,
 } from './home';
+export {
+  RunBar,
+  RunSummary,
+  Timeline,
+  describeKind,
+  type ApprovalIndicator,
+  type Outcome,
+  type RunBarProps,
+  type RunSummaryProps,
+  type TimelineItem,
+  type TimelineProps,
+} from './run-surfaces';
