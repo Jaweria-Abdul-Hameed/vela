@@ -444,7 +444,7 @@ export function Console({ api, Graph, pollMs = 1500, graphics }: ConsoleProps) {
             />
           </div>
           <RunBar
-            status={runName
+            status={(runName ?? '')
               .toLowerCase()
               .replaceAll('_', ' ')
               .replace(/^./, (c) => c.toUpperCase())}
