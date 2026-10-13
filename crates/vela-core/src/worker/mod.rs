@@ -33,6 +33,7 @@ use crate::operations::{OPERATION_TRAILER, OperationLog};
 use crate::orchestrator::Services;
 use crate::orchestrator::runs::Runs;
 use crate::provisioning::ProvisioningService;
+use crate::scheduler::{DEFAULT_PROFILE, ProfileAvailabilityService};
 use crate::trust::{ProfileCommand, TrustService};
 
 /// The Git operations a worker needs.
@@ -70,6 +71,15 @@ pub trait WorkerPrompts: Send + Sync {
     fn fix_prompt(&self, failures: &str) -> String;
     /// The prompt that asks for a corrected completion block.
     fn correction_prompt(&self, problem: &str) -> String;
+    /// The first prompt of a recovery-resume session: verified facts only. The default is the ordinary prompt.
+    fn recovery_prompt(
+        &self,
+        task: &WorkerTask,
+        _last_checkpoint: Option<&CommitSha>,
+        _completed_steps: &[String],
+    ) -> String {
+        self.worker_prompt(task)
+    }
     /// Reads the completion from the agent's final text.
     fn parse_completion(&self, response: &str, base: &str) -> Result<Completion, VelaError>;
 }
@@ -243,8 +253,99 @@ impl WorkerDriver {
         self.advance(t, WorkerPhase::ContextLoading).await?;
         let prompt = self.prompts.worker_prompt(t);
 
-        // IMPLEMENTING: a fresh conversation, then validation with bounded fix turns.
         self.advance(t, WorkerPhase::Implementing).await?;
+        self.implement_and_finish(t, prompt).await
+    }
+
+    /// Recovery-resume (R02): a new session at the last checkpoint, never the old conversation as authority. It refuses to start
+    /// on a profile that is not available (for example a provider policy block) and continues from the worker's recorded phase.
+    pub async fn resume(
+        &self,
+        t: &WorkerTask,
+        last_checkpoint: Option<&CommitSha>,
+        completed_steps: &[String],
+    ) -> Result<WorkerOutcome, VelaError> {
+        if let Some(p) = self.services.get::<ProfileAvailabilityService>()
+            && !p.0.is_available(DEFAULT_PROFILE)
+        {
+            return Err(VelaError::of_class(
+                ErrorClass::ExternalTemporary,
+                "the execution profile is not available, so no session is started",
+            ));
+        }
+        let state = Runs::new(&self.services).worker_status(&t.worker)?.state();
+        let WorkerState::Active(phase) = state else {
+            return Err(VelaError::of_class(
+                ErrorClass::ValidationFailure,
+                "only a worker in an active phase can be resumed",
+            ));
+        };
+        let need_checkpoint = || {
+            last_checkpoint.cloned().ok_or_else(|| {
+                VelaError::of_class(
+                    ErrorClass::ValidationFailure,
+                    "the worker has no verified checkpoint to continue from",
+                )
+            })
+        };
+        match phase {
+            WorkerPhase::Provisioning | WorkerPhase::ContextLoading | WorkerPhase::Implementing => {
+                let ctx = self.ctx(&t.project_id)?;
+                let listed = self.git.list_worktrees(&ctx, &t.repo).await?;
+                if !listed.iter().any(|w| w.path == t.worktree) {
+                    self.git
+                        .add_worktree(
+                            &ctx,
+                            &WorktreeRequest {
+                                repo: t.repo.clone(),
+                                path: t.worktree.clone(),
+                                branch: t.branch.clone(),
+                                base: last_checkpoint.cloned().unwrap_or_else(|| t.base.clone()),
+                            },
+                        )
+                        .await?;
+                }
+                if phase == WorkerPhase::Provisioning {
+                    self.advance(t, WorkerPhase::ContextLoading).await?;
+                }
+                if phase != WorkerPhase::Implementing {
+                    self.advance(t, WorkerPhase::Implementing).await?;
+                }
+                let prompt = self
+                    .prompts
+                    .recovery_prompt(t, last_checkpoint, completed_steps);
+                self.implement_and_finish(t, prompt).await
+            }
+            WorkerPhase::FocusedValidation => {
+                self.advance(t, WorkerPhase::Checkpointing).await?;
+                self.checkpoint_and_ready(t).await
+            }
+            WorkerPhase::Checkpointing => self.checkpoint_and_ready(t).await,
+            WorkerPhase::Reviewing => {
+                self.advance(t, WorkerPhase::ReadyToMerge).await?;
+                Ok(WorkerOutcome::ReadyToMerge {
+                    head: need_checkpoint()?,
+                })
+            }
+            WorkerPhase::ReadyToMerge => Ok(WorkerOutcome::ReadyToMerge {
+                head: need_checkpoint()?,
+            }),
+            other => Err(VelaError::of_class(
+                ErrorClass::ValidationFailure,
+                format!(
+                    "a worker in {} belongs to the merge lane, not to a new session",
+                    other.name()
+                ),
+            )),
+        }
+    }
+
+    async fn implement_and_finish(
+        &self,
+        t: &WorkerTask,
+        prompt: String,
+    ) -> Result<WorkerOutcome, VelaError> {
+        // IMPLEMENTING: a fresh conversation, then validation with bounded fix turns.
         let mut turn = match self.turn(t, prompt, None).await {
             Ok(turn) => turn,
             Err(e) => return self.blocked_or_fail(t, e).await,
@@ -311,6 +412,11 @@ impl WorkerDriver {
         // FOCUSED_VALIDATION passed: CHECKPOINTING.
         self.advance(t, WorkerPhase::FocusedValidation).await?;
         self.advance(t, WorkerPhase::Checkpointing).await?;
+        self.checkpoint_and_ready(t).await
+    }
+
+    /// From `CHECKPOINTING`: Vela's own checkpoint commit, then through `REVIEWING` to `READY_TO_MERGE`.
+    async fn checkpoint_and_ready(&self, t: &WorkerTask) -> Result<WorkerOutcome, VelaError> {
         fault::hit(FaultPoint::WorkerBeforeCheckpoint);
         let head = self.checkpoint(t).await?;
         fault::hit(FaultPoint::WorkerAfterCheckpoint);

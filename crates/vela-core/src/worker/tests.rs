@@ -363,3 +363,163 @@ async fn the_supervisor_fails_a_worker_whose_run_returns_an_error() {
     );
     let _ = (Cause::System, RunState::Cancelled);
 }
+
+async fn advance_to(r: &Rig, phases: &[WorkerPhase]) {
+    for p in phases {
+        Runs::new(&r.e.services)
+            .advance_worker(&r.task.run, &r.task.worker, *p, IntegrationHealth::Healthy)
+            .await
+            .unwrap();
+    }
+}
+
+fn checkpoint() -> CommitSha {
+    CommitSha::new("c".repeat(40)).unwrap()
+}
+
+fn turns(r: &Rig) -> usize {
+    r.agent
+        .log()
+        .calls()
+        .iter()
+        .filter(|c| c.starts_with("turn:"))
+        .count()
+}
+
+#[tokio::test]
+async fn recovery_resume_starts_a_new_session_and_finishes_from_an_early_phase() {
+    let r = rig("resume-early", true, "DONE").await;
+    advance_to(&r, &[WorkerPhase::ContextLoading]).await;
+    let out = r
+        .driver
+        .resume(&r.task, None, &["context loaded".to_owned()])
+        .await
+        .unwrap();
+    assert!(matches!(out, WorkerOutcome::ReadyToMerge { .. }));
+    assert_eq!(turns(&r), 1, "one fresh session");
+    assert_eq!(state(&r), WorkerState::Active(WorkerPhase::ReadyToMerge));
+    assert!(
+        r.git
+            .log()
+            .calls()
+            .iter()
+            .any(|c| c.starts_with("add_worktree:")),
+        "a missing worktree is recreated"
+    );
+}
+
+#[tokio::test]
+async fn recovery_resume_after_validation_only_checkpoints_and_never_asks_the_agent_again() {
+    let r = rig("resume-checkpoint", true, "DONE").await;
+    advance_to(
+        &r,
+        &[
+            WorkerPhase::ContextLoading,
+            WorkerPhase::Implementing,
+            WorkerPhase::FocusedValidation,
+        ],
+    )
+    .await;
+    let out = r
+        .driver
+        .resume(&r.task, Some(&checkpoint()), &[])
+        .await
+        .unwrap();
+    assert!(matches!(out, WorkerOutcome::ReadyToMerge { .. }));
+    assert_eq!(turns(&r), 0);
+    assert!(
+        r.git
+            .log()
+            .calls()
+            .iter()
+            .any(|c| c.starts_with("checkpoint:"))
+    );
+}
+
+#[tokio::test]
+async fn recovery_resume_of_a_reviewed_worker_just_reports_its_checkpoint() {
+    let r = rig("resume-ready", true, "DONE").await;
+    advance_to(
+        &r,
+        &[
+            WorkerPhase::ContextLoading,
+            WorkerPhase::Implementing,
+            WorkerPhase::FocusedValidation,
+            WorkerPhase::Checkpointing,
+            WorkerPhase::Reviewing,
+        ],
+    )
+    .await;
+    let out = r
+        .driver
+        .resume(&r.task, Some(&checkpoint()), &[])
+        .await
+        .unwrap();
+    assert_eq!(out, WorkerOutcome::ReadyToMerge { head: checkpoint() });
+    assert_eq!(state(&r), WorkerState::Active(WorkerPhase::ReadyToMerge));
+    // Without a verified checkpoint there is nothing to continue from.
+    let r2 = rig("resume-no-checkpoint", true, "DONE").await;
+    advance_to(
+        &r2,
+        &[
+            WorkerPhase::ContextLoading,
+            WorkerPhase::Implementing,
+            WorkerPhase::FocusedValidation,
+            WorkerPhase::Checkpointing,
+            WorkerPhase::Reviewing,
+            WorkerPhase::ReadyToMerge,
+        ],
+    )
+    .await;
+    assert!(r2.driver.resume(&r2.task, None, &[]).await.is_err());
+}
+
+#[tokio::test]
+async fn a_worker_in_the_merge_lane_is_not_resumed_by_a_new_session() {
+    let r = rig("resume-lane", true, "DONE").await;
+    advance_to(
+        &r,
+        &[
+            WorkerPhase::ContextLoading,
+            WorkerPhase::Implementing,
+            WorkerPhase::FocusedValidation,
+            WorkerPhase::Checkpointing,
+            WorkerPhase::Reviewing,
+            WorkerPhase::ReadyToMerge,
+            WorkerPhase::Merging,
+        ],
+    )
+    .await;
+    let err = r
+        .driver
+        .resume(&r.task, Some(&checkpoint()), &[])
+        .await
+        .unwrap_err();
+    assert!(err.what_failed().contains("merge lane"));
+    assert_eq!(turns(&r), 0);
+}
+
+struct Blocked;
+
+impl crate::scheduler::ProfileAvailability for Blocked {
+    fn is_available(&self, _p: &str) -> bool {
+        false
+    }
+}
+
+#[tokio::test]
+async fn recovery_resume_never_starts_a_session_on_a_blocked_profile() {
+    let r = rig("resume-blocked", true, "DONE").await;
+    r.e.services
+        .register(Arc::new(crate::scheduler::ProfileAvailabilityService(
+            Arc::new(Blocked),
+        )));
+    advance_to(&r, &[WorkerPhase::ContextLoading]).await;
+    assert!(r.driver.resume(&r.task, None, &[]).await.is_err());
+    assert_eq!(turns(&r), 0);
+    assert_eq!(
+        state(&r),
+        WorkerState::Active(WorkerPhase::ContextLoading),
+        "nothing moved"
+    );
+}

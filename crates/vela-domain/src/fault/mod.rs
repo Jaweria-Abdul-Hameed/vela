@@ -68,6 +68,10 @@ pub enum FaultPoint {
     ApprovalDecisionPersisted,
     /// The approval broker: a delivery was attempted, its result is not recorded (K01).
     ApprovalDeliveryAttempted,
+    /// Stop All: the bounded wait for the merge lane expired (R08).
+    StopBoundedWaitExpired,
+    /// Stop All: the discard-versus-abandon decision for an unfinished merge or push was made, nothing recorded it (R08).
+    StopDiscardDecision,
 }
 
 impl FaultPoint {
@@ -97,6 +101,8 @@ impl FaultPoint {
         FaultPoint::FinalDuringCleanup,
         FaultPoint::ApprovalDecisionPersisted,
         FaultPoint::ApprovalDeliveryAttempted,
+        FaultPoint::StopBoundedWaitExpired,
+        FaultPoint::StopDiscardDecision,
     ];
 
     /// The stable name used to arm the point.
@@ -126,6 +132,8 @@ impl FaultPoint {
             FaultPoint::FinalDuringCleanup => "final.during_cleanup",
             FaultPoint::ApprovalDecisionPersisted => "approval.decision_persisted",
             FaultPoint::ApprovalDeliveryAttempted => "approval.delivery_attempted",
+            FaultPoint::StopBoundedWaitExpired => "stop.bounded_wait_expired",
+            FaultPoint::StopDiscardDecision => "stop.discard_decision",
         }
     }
 
