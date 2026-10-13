@@ -355,6 +355,48 @@ impl AppApi {
         })
     }
 
+    /// The runs that are running right now.
+    pub fn active_runs(&self) -> Result<Vec<String>, VelaError> {
+        let rows: Vec<(String, String)> = self.services.store.read(|c| {
+            let mut stmt = c
+                .prepare("SELECT id, state FROM build_runs ORDER BY created_ms")
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            Ok(rows.filter_map(Result::ok).collect())
+        })?;
+        Ok(rows
+            .into_iter()
+            .filter(|(_, s)| {
+                serde_json::from_str::<RunState>(s)
+                    .is_ok_and(|s| s == RunState::Active(vela_domain::state::RunPhase::Running))
+            })
+            .map(|(id, _)| id)
+            .collect())
+    }
+
+    /// Stop All for every running run (the tray, and quitting). Returns how many runs were stopped; a run that cannot be stopped
+    /// is reported in the error text after the others were still attempted.
+    pub async fn stop_all_runs(&self) -> Result<usize, VelaError> {
+        let mut stopped = 0;
+        let mut failures = Vec::new();
+        for run in self.active_runs()? {
+            match self.run_stop(&run).await {
+                Ok(_) => stopped += 1,
+                Err(e) => failures.push(format!("{run}: {}", e.what_failed())),
+            }
+        }
+        if failures.is_empty() {
+            Ok(stopped)
+        } else {
+            Err(VelaError::of_class(
+                ErrorClass::InternalBug,
+                format!("some runs could not be stopped: {}", failures.join("; ")),
+            ))
+        }
+    }
+
     /// Waits for a run's background driver to stop (tests and shutdown).
     pub async fn wait_for_drive(&self, run_id: &str) {
         let handle = self.drives.lock().expect("drives lock").remove(run_id);

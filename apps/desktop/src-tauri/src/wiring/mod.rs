@@ -23,6 +23,8 @@ pub fn compose<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     crate::commands::install(crate::plugins::install_all(builder)).setup(|app| {
         store::install(app)?;
         orchestrator::install(app)?;
+        crate::tray::install(app)?;
+        crate::lifecycle::install(app);
         window::ensure_main_visible(app.handle());
         Ok(())
     })

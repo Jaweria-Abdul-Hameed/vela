@@ -134,7 +134,7 @@ pub const KEYS: &[Key] = &[
     },
     Key {
         name: "background",
-        default: "true",
+        default: "false",
         kind: Kind::Bool,
         scope: Scope::User,
         live: true,

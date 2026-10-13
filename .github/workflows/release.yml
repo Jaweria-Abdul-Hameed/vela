@@ -1,0 +1,83 @@
+# Release build (Z01): a per-user NSIS installer with `vela-hook` as a sidecar. Run by hand.
+#
+# development profile: signs with a throwaway self-signed certificate generated on the runner. The certificate is never committed,
+#   never exported and never represented as trust material; the installer is for development machines only.
+# production profile: Authenticode credentials come from release secrets (supplied by H04). The profile fails closed when they are
+#   absent, and when the signing certificate turns out to be self-signed. Running it for real belongs to Z06.
+name: Release build
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: development or production
+        type: choice
+        options: [development, production]
+        default: development
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: NSIS installer (${{ inputs.profile }})
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install
+      - name: Install from the committed lockfile
+        run: npm ci
+      - name: Build the hook sidecar
+        run: node scripts/prepare-sidecar.mjs
+      - name: Prepare signing
+        id: signing
+        shell: pwsh
+        env:
+          PROFILE: ${{ inputs.profile }}
+          PROD_CERT_PFX_BASE64: ${{ secrets.AUTHENTICODE_PFX_BASE64 }}
+          PROD_CERT_PASSWORD: ${{ secrets.AUTHENTICODE_PASSWORD }}
+        run: |
+          if ($env:PROFILE -eq 'production') {
+            if (-not $env:PROD_CERT_PFX_BASE64 -or -not $env:PROD_CERT_PASSWORD) {
+              throw 'The production profile needs the Authenticode secrets; none are configured. Failing closed.'
+            }
+            $pfx = Join-Path $env:RUNNER_TEMP 'release.pfx'
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PROD_CERT_PFX_BASE64))
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString $env:PROD_CERT_PASSWORD -AsPlainText -Force)
+            Remove-Item $pfx
+            if ($cert.Subject -eq $cert.Issuer) { throw 'The production certificate is self-signed. Failing closed.' }
+            $timestamp = 'http://timestamp.digicert.com'
+          } else {
+            $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=Vela Development Signing (not production trust)' -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddDays(30)
+            $timestamp = ''
+          }
+          $overlay = Join-Path $env:RUNNER_TEMP 'tauri.signing.local.json'
+          @{ bundle = @{ windows = @{ certificateThumbprint = $cert.Thumbprint; digestAlgorithm = 'sha256'; timestampUrl = $timestamp } } } | ConvertTo-Json -Depth 5 | Set-Content $overlay
+          "overlay=$overlay" >> $env:GITHUB_OUTPUT
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+      - name: Build the installer
+        working-directory: apps/desktop
+        run: npx tauri build --config src-tauri/tauri.release.conf.json --config "${{ steps.signing.outputs.overlay }}"
+      - name: Assert the bundle
+        shell: pwsh
+        env:
+          THUMBPRINT: ${{ steps.signing.outputs.thumbprint }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          $installer = Get-ChildItem -Recurse target/release/bundle/nsis -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'No NSIS installer was produced.' }
+          $sig = Get-AuthenticodeSignature $installer.FullName
+          if (-not $sig.SignerCertificate) { throw 'The installer is not signed.' }
+          if ($sig.SignerCertificate.Thumbprint -ne $env:THUMBPRINT) { throw 'The installer is signed with an unexpected certificate.' }
+          if ($env:PROFILE -eq 'production' -and $sig.Status -ne 'Valid') { throw "Production signature status is $($sig.Status)." }
+          Write-Host "Installer: $($installer.Name), signature: $($sig.Status), signer: $($sig.SignerCertificate.Subject)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vela-installer-${{ inputs.profile }}
+          path: target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

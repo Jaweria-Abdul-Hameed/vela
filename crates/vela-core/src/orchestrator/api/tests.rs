@@ -452,3 +452,34 @@ async fn the_issue_source_is_validated_and_stored_per_project() {
     }
     assert!(r.api.project_set_tracker("nope", "local:issues").is_err());
 }
+
+#[tokio::test]
+async fn stop_all_runs_stops_exactly_the_running_ones() {
+    let r = rig("stop-all-runs", vec![ticket("T-1", &[])]);
+    r.agent.set_default_response("BLOCKED");
+    let id = imported(&r).await;
+    r.api
+        .trust_grant(
+            &id,
+            &[ProfileCommand {
+                text: "cargo test".into(),
+                cwd: None,
+            }],
+        )
+        .unwrap();
+    assert!(r.api.active_runs().unwrap().is_empty());
+    assert_eq!(r.api.stop_all_runs().await.unwrap(), 0);
+    let run = r.api.run_prepare(&id).await.unwrap()["run_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        r.api.active_runs().unwrap().is_empty(),
+        "a planned run is not running"
+    );
+    r.api.run_build(&run, None, false).await.unwrap();
+    r.api.wait_for_drive(&run).await;
+    assert_eq!(r.api.active_runs().unwrap(), std::slice::from_ref(&run));
+    assert_eq!(r.api.stop_all_runs().await.unwrap(), 1);
+    assert!(r.api.active_runs().unwrap().is_empty());
+}
