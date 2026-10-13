@@ -6,7 +6,10 @@ import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const triple = process.env.TAURI_TARGET_TRIPLE ?? 'x86_64-pc-windows-msvc';
-execFileSync('cargo', ['build', '--release', '--locked', '-p', 'vela-hook', '--target', triple], { cwd: root, stdio: 'inherit' });
+execFileSync('cargo', ['build', '--release', '--locked', '-p', 'vela-hook', '--target', triple], {
+  cwd: root,
+  stdio: 'inherit',
+});
 const outDir = join(root, 'apps', 'desktop', 'src-tauri', 'binaries');
 mkdirSync(outDir, { recursive: true });
 const exe = triple.includes('windows') ? '.exe' : '';

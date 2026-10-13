@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-const read = (p) => JSON.parse(readFileSync(new URL(`../apps/desktop/src-tauri/${p}`, import.meta.url), 'utf8'));
+const read = (p) =>
+  JSON.parse(readFileSync(new URL(`../apps/desktop/src-tauri/${p}`, import.meta.url), 'utf8'));
 const base = read('tauri.conf.json');
 const release = read('tauri.release.conf.json');
 const dev = read('tauri.dev-signing.conf.json');
