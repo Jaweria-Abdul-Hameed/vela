@@ -1,6 +1,7 @@
 // The console's view of the core: one object of typed calls, bound to the real Tauri `invoke` here and replaced by a fake in
 // tests. Every method is a thin wrapper over a contract in `@vela/contracts`.
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import * as intervention from '@vela/contracts/commands/intervention';
 import * as preflight from '@vela/contracts/commands/preflight';
 import * as project from '@vela/contracts/commands/project';
@@ -95,7 +96,12 @@ export interface TimelineEntry {
   kind: string;
 }
 
+/** What the shell reports while a folder is dragged over the window. */
+export type FolderDrop = { type: 'over' } | { type: 'leave' } | { type: 'drop'; paths: string[] };
+
 export interface ConsoleApi {
+  /** Subscribes to folder drags and drops; resolves to the unsubscribe function. Absent in a plain browser. */
+  onFolderDrop?: (handler: (e: FolderDrop) => void) => Promise<() => void>;
   projectList: () => Promise<Project[]>;
   projectImport: (folder: string) => Promise<{ project: Project; already_known: boolean }>;
   projectRemove: (projectId: string) => Promise<void>;
@@ -122,6 +128,16 @@ const call = invoke as (cmd: string, args?: Record<string, unknown>) => Promise<
 
 /** The real API over Tauri. */
 export const tauriApi: ConsoleApi = {
+  onFolderDrop: async (handler) => {
+    const offs = await Promise.all([
+      listen('tauri://drag-enter', () => handler({ type: 'over' })),
+      listen('tauri://drag-leave', () => handler({ type: 'leave' })),
+      listen<{ paths: string[] }>('tauri://drag-drop', (e) =>
+        handler({ type: 'drop', paths: e.payload.paths }),
+      ),
+    ]);
+    return () => offs.forEach((off) => off());
+  },
   projectList: () => project.projectList<Project[]>(call),
   projectImport: (folder) => project.projectImport(call, folder),
   projectRemove: (id) => project.projectRemove(call, id),

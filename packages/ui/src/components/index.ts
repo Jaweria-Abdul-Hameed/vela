@@ -41,3 +41,10 @@ export {
   type TicketInspection,
   type TicketInspectorProps,
 } from './graph-panels';
+export {
+  GraphicsControl,
+  ProjectHome,
+  type GraphicsControlProps,
+  type HomeProject,
+  type ProjectHomeProps,
+} from './home';
