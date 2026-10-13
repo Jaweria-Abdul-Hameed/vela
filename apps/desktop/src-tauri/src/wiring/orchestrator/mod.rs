@@ -25,7 +25,8 @@ use vela_core::stop::StopService;
 use vela_domain::errors::VelaError;
 use vela_domain::ids::WorktreePath;
 use vela_domain::ports::{
-    AgentSession, GitRead, IssueTrackerAdapter, Notification, Notifier, PortFuture, ProcessRunner, PullRequestPort, RemoteName,
+    AgentSession, GitRead, IssueTrackerAdapter, Notification, Notifier, PortFuture, ProcessRunner,
+    PullRequestPort, RemoteName,
 };
 use vela_persistence::repositories::s02_settings;
 use vela_process::redact::{PatternRedactor, Redactor};
@@ -57,7 +58,10 @@ pub fn origin_of(repo: &Path) -> (bool, Option<String>) {
         } else if in_origin && let Some(url) = line.strip_prefix("url") {
             let url = url.trim_start_matches([' ', '=']).trim();
             if let Some(rest) = url.split("github.com").nth(1) {
-                let path = rest.trim_start_matches([':', '/']).trim_end_matches(".git").trim_end_matches('/');
+                let path = rest
+                    .trim_start_matches([':', '/'])
+                    .trim_end_matches(".git")
+                    .trim_end_matches('/');
                 if path.split('/').count() == 2 && !path.contains(' ') {
                     github = Some(path.to_owned());
                 }
@@ -94,7 +98,9 @@ impl<R: Runtime> Notifier for TauriNotifier<R> {
             .title(notification.title.clone())
             .body(notification.body.clone())
             .show();
-        Box::pin(async move { shown.map_err(|e| VelaError::internal(format!("the notification was not shown: {e}"))) })
+        Box::pin(async move {
+            shown.map_err(|e| VelaError::internal(format!("the notification was not shown: {e}")))
+        })
     }
 }
 
@@ -120,16 +126,20 @@ impl DesktopBackend {
 
     fn tracker_for(&self, p: &ProjectContext) -> Result<Arc<dyn IssueTrackerAdapter>, VelaError> {
         let id = p.id.clone();
-        let spec = self
-            .services
-            .store
-            .read(|c| s02_settings::get_project_setting(c, &id, vela_core::orchestrator::api::TRACKER_KEY))?;
+        let spec = self.services.store.read(|c| {
+            s02_settings::get_project_setting(c, &id, vela_core::orchestrator::api::TRACKER_KEY)
+        })?;
         let repo = Path::new(&p.repo_path);
         if let Some(name) = spec.as_deref().and_then(|s| s.strip_prefix("github:")) {
-            let cwd = WorktreePath::new(p.repo_path.replace('\\', "/"))
-                .map_err(|e| VelaError::internal(format!("the repository path is unusable: {e}")))?;
-            let tracker: Arc<dyn IssueTrackerAdapter> =
-                Arc::new(GhTracker::new(self.adapters.runner.clone(), name, cwd, baseline_env())?);
+            let cwd = WorktreePath::new(p.repo_path.replace('\\', "/")).map_err(|e| {
+                VelaError::internal(format!("the repository path is unusable: {e}"))
+            })?;
+            let tracker: Arc<dyn IssueTrackerAdapter> = Arc::new(GhTracker::new(
+                self.adapters.runner.clone(),
+                name,
+                cwd,
+                baseline_env(),
+            )?);
             return Ok(tracker);
         }
         let dir = match spec.as_deref().and_then(|s| s.strip_prefix("local:")) {
@@ -147,21 +157,40 @@ impl DesktopBackend {
     fn pull_requests_for(&self, p: &ProjectContext) -> Option<Arc<dyn PullRequestPort>> {
         let (_, github) = origin_of(Path::new(&p.repo_path));
         let cwd = WorktreePath::new(p.repo_path.replace('\\', "/")).ok()?;
-        let tracker = GhTracker::new(self.adapters.runner.clone(), &github?, cwd, baseline_env()).ok()?;
+        let tracker =
+            GhTracker::new(self.adapters.runner.clone(), &github?, cwd, baseline_env()).ok()?;
         let port: Arc<dyn PullRequestPort> = Arc::new(tracker);
         Some(port)
     }
 }
 
 fn command_output(program: &str, args: &[&str]) -> Option<(bool, String)> {
-    let out = std::process::Command::new(program).args(args).output().ok()?;
-    Some((out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned()))
+    let out = std::process::Command::new(program)
+        .args(args)
+        .output()
+        .ok()?;
+    Some((
+        out.status.success(),
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+    ))
 }
 
 fn parse_git_version(text: &str) -> Option<(u32, u32, u32)> {
-    let v = text.split_whitespace().find(|w| w.chars().next().is_some_and(|c| c.is_ascii_digit()))?;
-    let mut parts = v.split('.').map(|p| p.chars().take_while(char::is_ascii_digit).collect::<String>().parse::<u32>().ok());
-    Some((parts.next()??, parts.next()??, parts.next().flatten().unwrap_or(0)))
+    let v = text
+        .split_whitespace()
+        .find(|w| w.chars().next().is_some_and(|c| c.is_ascii_digit()))?;
+    let mut parts = v.split('.').map(|p| {
+        p.chars()
+            .take_while(char::is_ascii_digit)
+            .collect::<String>()
+            .parse::<u32>()
+            .ok()
+    });
+    Some((
+        parts.next()??,
+        parts.next()??,
+        parts.next().flatten().unwrap_or(0),
+    ))
 }
 
 impl Backend for DesktopBackend {
@@ -173,7 +202,11 @@ impl Backend for DesktopBackend {
         if let Some(d) = self.drivers.lock().expect("drivers lock").get(&project.id) {
             return Ok(d.clone());
         }
-        let promotion = Arc::new(PromotionService::new(self.services.clone(), self.adapters.git.clone(), self.pull_requests_for(project)));
+        let promotion = Arc::new(PromotionService::new(
+            self.services.clone(),
+            self.adapters.git.clone(),
+            self.pull_requests_for(project),
+        ));
         let agent: Arc<dyn AgentSession> = self.agent.clone();
         let runner: Arc<dyn ProcessRunner> = self.adapters.runner.clone();
         let driver = RunDriver::new(
@@ -186,12 +219,18 @@ impl Backend for DesktopBackend {
             Arc::new(AgyPrompts),
             promotion,
         );
-        self.drivers.lock().expect("drivers lock").insert(project.id.clone(), driver.clone());
+        self.drivers
+            .lock()
+            .expect("drivers lock")
+            .insert(project.id.clone(), driver.clone());
         Ok(driver)
     }
 
     fn forget_driver(&self, project_id: &str) {
-        self.drivers.lock().expect("drivers lock").remove(project_id);
+        self.drivers
+            .lock()
+            .expect("drivers lock")
+            .remove(project_id);
     }
 
     fn stop_service(&self, driver: &Arc<RunDriver>) -> Arc<StopService> {
@@ -208,7 +247,11 @@ impl Backend for DesktopBackend {
     }
 
     fn recovery(&self) -> Arc<Recovery> {
-        Arc::new(Recovery::new(self.services.clone(), self.adapters.git.clone(), self.agent.clone()))
+        Arc::new(Recovery::new(
+            self.services.clone(),
+            self.adapters.git.clone(),
+            self.agent.clone(),
+        ))
     }
 
     fn worktree_root(&self, project_id: &str) -> String {
@@ -221,11 +264,15 @@ impl Backend for DesktopBackend {
     }
 
     fn remote_for(&self, project: &ProjectContext) -> Option<RemoteName> {
-        origin_of(Path::new(&project.repo_path)).0.then(|| RemoteName::new("origin").ok()).flatten()
+        origin_of(Path::new(&project.repo_path))
+            .0
+            .then(|| RemoteName::new("origin").ok())
+            .flatten()
     }
 
     fn fill_facts(&self, facts: &mut PreflightFacts) {
-        facts.git_version = command_output("git", &["--version"]).and_then(|(_, t)| parse_git_version(&t));
+        facts.git_version =
+            command_output("git", &["--version"]).and_then(|(_, t)| parse_git_version(&t));
         facts.gh = match command_output("gh", &["auth", "status"]) {
             None => GhState::Missing,
             Some((true, _)) => GhState::Ready,
@@ -248,7 +295,9 @@ pub fn install<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::E
     let backend = DesktopBackend::new(services.clone(), adapters);
     app.manage(ApiHandle(AppApi::new(services.clone(), backend)));
 
-    let notifier = Arc::new(TauriNotifier { app: app.handle().clone() });
+    let notifier = Arc::new(TauriNotifier {
+        app: app.handle().clone(),
+    });
     let redactor: SharedRedaction = Arc::new(Redact(PatternRedactor::new()));
     let notifications = NotificationService::new(services, notifier, Some(redactor));
     tauri::async_runtime::spawn(async move {
@@ -274,7 +323,11 @@ mod tests {
         assert_eq!(origin_of(&dir), (false, None));
         std::fs::write(dir.join(".git/config"), "[core]\n\tbare = false\n[remote \"origin\"]\n\turl = https://github.com/acme/widgets.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n").unwrap();
         assert_eq!(origin_of(&dir), (true, Some("acme/widgets".to_owned())));
-        std::fs::write(dir.join(".git/config"), "[remote \"origin\"]\n\turl = git@github.com:acme/widgets.git\n").unwrap();
+        std::fs::write(
+            dir.join(".git/config"),
+            "[remote \"origin\"]\n\turl = git@github.com:acme/widgets.git\n",
+        )
+        .unwrap();
         assert_eq!(origin_of(&dir).1.as_deref(), Some("acme/widgets"));
         std::fs::write(dir.join(".git/config"), "[remote \"origin\"]\n\turl = https://example.com/x/y.git\n[remote \"other\"]\n\turl = https://github.com/a/b\n").unwrap();
         assert_eq!(origin_of(&dir), (true, None));
@@ -283,7 +336,10 @@ mod tests {
 
     #[test]
     fn git_versions_are_parsed_from_the_version_line() {
-        assert_eq!(parse_git_version("git version 2.45.1.windows.1"), Some((2, 45, 1)));
+        assert_eq!(
+            parse_git_version("git version 2.45.1.windows.1"),
+            Some((2, 45, 1))
+        );
         assert_eq!(parse_git_version("git version 2.39"), Some((2, 39, 0)));
         assert_eq!(parse_git_version("nonsense"), None);
     }

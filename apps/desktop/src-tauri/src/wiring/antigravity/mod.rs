@@ -7,7 +7,8 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use vela_adapters::antigravity::prompts::{
-    CompletionStatus as AgyStatus, TicketSnapshot, WorkerEnvelope, correction_prompt, parse_completion, render_worker_prompt,
+    CompletionStatus as AgyStatus, TicketSnapshot, WorkerEnvelope, correction_prompt,
+    parse_completion, render_worker_prompt,
 };
 use vela_adapters::antigravity::session::AgyDriver;
 use vela_core::orchestrator::Services;
@@ -56,19 +57,30 @@ impl ProfilingAgent {
             )
             .map_err(|e| VelaError::internal(format!("the worker's run is not recorded: {e}")))
         })?;
-        let context = TrustService::new(&self.services).policy_context(&project_id, worktree.as_str(), RunMode::Supervised)?;
-        let profile = self
-            .adapters
-            .profiles
-            .create(&run_id, worker, &PolicyEngine::new(context))?;
+        let context = TrustService::new(&self.services).policy_context(
+            &project_id,
+            worktree.as_str(),
+            RunMode::Supervised,
+        )?;
+        let profile =
+            self.adapters
+                .profiles
+                .create(&run_id, worker, &PolicyEngine::new(context))?;
         self.driver().set_worker_env(worker.clone(), profile.env());
-        self.ready.lock().expect("ready lock").insert(worker.clone());
+        self.ready
+            .lock()
+            .expect("ready lock")
+            .insert(worker.clone());
         Ok(())
     }
 }
 
 impl AgentSession for ProfilingAgent {
-    fn run_turn<'a>(&'a self, request: &'a TurnRequest, sink: &'a dyn AgentEventSink) -> PortFuture<'a, TurnResult> {
+    fn run_turn<'a>(
+        &'a self,
+        request: &'a TurnRequest,
+        sink: &'a dyn AgentEventSink,
+    ) -> PortFuture<'a, TurnResult> {
         Box::pin(async move {
             self.ensure_profile(&request.worker, &request.worktree)?;
             self.driver().run_turn(request, sink).await

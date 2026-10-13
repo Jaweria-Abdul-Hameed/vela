@@ -14,13 +14,21 @@ pub const COMMANDS: &[&str] = &["settings.get", "settings.set"];
 
 /// `settings.get`: Effective settings.
 #[tauri::command]
-pub async fn settings_get(api: State<'_, ApiHandle>, project_id: Option<String>) -> Result<Value, VelaError> {
+pub async fn settings_get(
+    api: State<'_, ApiHandle>,
+    project_id: Option<String>,
+) -> Result<Value, VelaError> {
     api.0.settings_get(project_id.as_deref())
 }
 
 /// `settings.set`: Sets one setting.
 #[tauri::command]
-pub async fn settings_set(api: State<'_, ApiHandle>, project_id: Option<String>, key: String, value: String) -> Result<(), VelaError> {
+pub async fn settings_set(
+    api: State<'_, ApiHandle>,
+    project_id: Option<String>,
+    key: String,
+    value: String,
+) -> Result<(), VelaError> {
     api.0.settings_set(project_id.as_deref(), &key, &value)
 }
 

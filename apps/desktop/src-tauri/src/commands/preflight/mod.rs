@@ -14,7 +14,10 @@ pub const COMMANDS: &[&str] = &["preflight.run"];
 
 /// `preflight.run`: Runs preflight.
 #[tauri::command]
-pub async fn preflight_run(api: State<'_, ApiHandle>, project_id: String) -> Result<Value, VelaError> {
+pub async fn preflight_run(
+    api: State<'_, ApiHandle>,
+    project_id: String,
+) -> Result<Value, VelaError> {
     api.0.preflight_run(&project_id)
 }
 

@@ -10,18 +10,34 @@ use vela_domain::errors::VelaError;
 use crate::wiring::orchestrator::ApiHandle;
 
 /// Dotted names of this group's commands (the wire name replaces `.` with `_`).
-pub const COMMANDS: &[&str] = &["run.prepare", "run.build", "run.stop", "run.resume", "run.status"];
+pub const COMMANDS: &[&str] = &[
+    "run.prepare",
+    "run.build",
+    "run.stop",
+    "run.resume",
+    "run.status",
+];
 
 /// `run.prepare`: Creates a run and analyzes the issues into a graph.
 #[tauri::command]
-pub async fn run_prepare(api: State<'_, ApiHandle>, project_id: String) -> Result<Value, VelaError> {
+pub async fn run_prepare(
+    api: State<'_, ApiHandle>,
+    project_id: String,
+) -> Result<Value, VelaError> {
     api.0.run_prepare(&project_id).await
 }
 
 /// `run.build`: Approves the graph and starts building.
 #[tauri::command]
-pub async fn run_build(api: State<'_, ApiHandle>, run_id: String, expected_base: Option<String>, acknowledge: bool) -> Result<(), VelaError> {
-    api.0.run_build(&run_id, expected_base.as_deref(), acknowledge).await
+pub async fn run_build(
+    api: State<'_, ApiHandle>,
+    run_id: String,
+    expected_base: Option<String>,
+    acknowledge: bool,
+) -> Result<(), VelaError> {
+    api.0
+        .run_build(&run_id, expected_base.as_deref(), acknowledge)
+        .await
 }
 
 /// `run.stop`: Stop All.
@@ -44,7 +60,10 @@ pub async fn run_status(api: State<'_, ApiHandle>, run_id: String) -> Result<Val
 
 /// Runs the command in `invoke` if this group owns it; returns `false` when it does not.
 pub fn handle<R: Runtime>(invoke: Invoke<R>) -> bool {
-    run(tauri::generate_handler![run_prepare, run_build, run_stop, run_resume, run_status], invoke)
+    run(
+        tauri::generate_handler![run_prepare, run_build, run_stop, run_resume, run_status],
+        invoke,
+    )
 }
 
 /// Gives the handler closure its parameter type from the bound, as `Builder::invoke_handler` does.

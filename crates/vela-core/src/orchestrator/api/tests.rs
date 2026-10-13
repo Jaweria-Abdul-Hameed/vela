@@ -433,8 +433,21 @@ async fn the_issue_source_is_validated_and_stored_per_project() {
     let r = rig("tracker", vec![]);
     let id = imported(&r).await;
     r.api.project_set_tracker(&id, "local:docs/issues").unwrap();
-    r.api.project_set_tracker(&id, "github:acme/widgets").unwrap();
-    for bad in ["", "local:", "local:../outside", "local:C:/x", "local:/abs", "github:acme", "github:-x/y", "github:a/b/c", "ftp:x", "github:a b/c"] {
+    r.api
+        .project_set_tracker(&id, "github:acme/widgets")
+        .unwrap();
+    for bad in [
+        "",
+        "local:",
+        "local:../outside",
+        "local:C:/x",
+        "local:/abs",
+        "github:acme",
+        "github:-x/y",
+        "github:a/b/c",
+        "ftp:x",
+        "github:a b/c",
+    ] {
         assert!(r.api.project_set_tracker(&id, bad).is_err(), "{bad:?}");
     }
     assert!(r.api.project_set_tracker("nope", "local:issues").is_err());

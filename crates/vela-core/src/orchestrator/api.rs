@@ -127,23 +127,44 @@ impl AppApi {
         self.project(project_id)?;
         let local_ok = |d: &str| {
             let d = d.trim();
-            !d.is_empty() && !d.starts_with(['/', '\']) && !d.contains(':') && !d.split(['/', '\']).any(|c| c == "..")
+            !d.is_empty()
+                && !d.starts_with(['/', '\\'])
+                && !d.contains(':')
+                && !d.split(['/', '\\']).any(|c| c == "..")
         };
         let github_ok = |r: &str| {
             let mut parts = r.split('/');
-            let (Some(o), Some(n), None) = (parts.next(), parts.next(), parts.next()) else { return false };
-            [o, n].iter().all(|p| !p.is_empty() && !p.starts_with(['-', '.']) && p.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
+            let (Some(o), Some(n), None) = (parts.next(), parts.next(), parts.next()) else {
+                return false;
+            };
+            [o, n].iter().all(|p| {
+                !p.is_empty()
+                    && !p.starts_with(['-', '.'])
+                    && p.chars()
+                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            })
         };
-        let ok = spec.strip_prefix("local:").is_some_and(local_ok) || spec.strip_prefix("github:").is_some_and(github_ok);
+        let ok = spec.strip_prefix("local:").is_some_and(local_ok)
+            || spec.strip_prefix("github:").is_some_and(github_ok);
         if !ok {
             return Err(VelaError::of_class(
                 ErrorClass::ValidationFailure,
                 "the issue source must be `local:<folder in the repository>` or `github:<owner>/<name>`",
             ));
         }
-        let (p, s, now) = (project_id.to_owned(), spec.trim().to_owned(), self.services.now_ms());
+        let (p, s, now) = (
+            project_id.to_owned(),
+            spec.trim().to_owned(),
+            self.services.now_ms(),
+        );
         self.services.store.write(move |tx| {
-            vela_persistence::repositories::s02_settings::set_project_setting(tx.conn(), &p, TRACKER_KEY, &s, now)
+            vela_persistence::repositories::s02_settings::set_project_setting(
+                tx.conn(),
+                &p,
+                TRACKER_KEY,
+                &s,
+                now,
+            )
         })?;
         self.backend.forget_driver(project_id);
         Ok(())

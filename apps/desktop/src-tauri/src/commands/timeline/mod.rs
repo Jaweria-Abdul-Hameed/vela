@@ -14,7 +14,11 @@ pub const COMMANDS: &[&str] = &["timeline.get"];
 
 /// `timeline.get`: A ticket timeline.
 #[tauri::command]
-pub async fn timeline_get(api: State<'_, ApiHandle>, run_id: String, ticket: String) -> Result<Value, VelaError> {
+pub async fn timeline_get(
+    api: State<'_, ApiHandle>,
+    run_id: String,
+    ticket: String,
+) -> Result<Value, VelaError> {
     api.0.timeline_get(&run_id, &ticket)
 }
 

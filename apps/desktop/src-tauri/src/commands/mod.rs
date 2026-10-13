@@ -205,14 +205,24 @@ mod tests {
     #[test]
     fn the_contract_test_detects_drift_in_either_direction() {
         let registry = registry();
-        let mut extra: Vec<String> = registry.commands().map(|c| c.name.to_string()).collect();
+        let mut extra: Vec<String> = registry
+            .commands()
+            .map(|c| c.name.as_str().to_owned())
+            .collect();
         extra.push("diagnostics.export".to_owned());
         let mismatch = compare_contract(&registry, &extra).unwrap_err();
         assert_eq!(mismatch.missing_in_rust, ["diagnostics.export"]);
         let mismatch = compare_contract(&registry, &[]).unwrap_err();
-        let registered: BTreeSet<String> = registry.commands().map(|c| c.name.to_string()).collect();
+        let registered: BTreeSet<String> = registry
+            .commands()
+            .map(|c| c.name.as_str().to_owned())
+            .collect();
         assert_eq!(
-            mismatch.missing_in_typescript.iter().cloned().collect::<BTreeSet<String>>(),
+            mismatch
+                .missing_in_typescript
+                .iter()
+                .cloned()
+                .collect::<BTreeSet<String>>(),
             registered
         );
     }

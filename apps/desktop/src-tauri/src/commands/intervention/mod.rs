@@ -14,19 +14,31 @@ pub const COMMANDS: &[&str] = &["intervention.list", "intervention.resolve"];
 
 /// `intervention.list`: Open interventions of a run.
 #[tauri::command]
-pub async fn intervention_list(api: State<'_, ApiHandle>, run_id: String) -> Result<Value, VelaError> {
+pub async fn intervention_list(
+    api: State<'_, ApiHandle>,
+    run_id: String,
+) -> Result<Value, VelaError> {
     api.0.intervention_list(&run_id)
 }
 
 /// `intervention.resolve`: Resolves an intervention; the run continues.
 #[tauri::command]
-pub async fn intervention_resolve(api: State<'_, ApiHandle>, intervention_id: String, resolution: String) -> Result<(), VelaError> {
-    api.0.intervention_resolve(&intervention_id, &resolution).await
+pub async fn intervention_resolve(
+    api: State<'_, ApiHandle>,
+    intervention_id: String,
+    resolution: String,
+) -> Result<(), VelaError> {
+    api.0
+        .intervention_resolve(&intervention_id, &resolution)
+        .await
 }
 
 /// Runs the command in `invoke` if this group owns it; returns `false` when it does not.
 pub fn handle<R: Runtime>(invoke: Invoke<R>) -> bool {
-    run(tauri::generate_handler![intervention_list, intervention_resolve], invoke)
+    run(
+        tauri::generate_handler![intervention_list, intervention_resolve],
+        invoke,
+    )
 }
 
 /// Gives the handler closure its parameter type from the bound, as `Builder::invoke_handler` does.

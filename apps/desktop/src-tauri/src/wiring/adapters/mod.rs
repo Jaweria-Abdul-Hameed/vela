@@ -45,7 +45,10 @@ pub struct Adapters {
 /// Builds the adapters under `data_root`.
 pub fn build(data_root: &Path) -> Adapters {
     let redactor: SharedRedactor = Arc::new(PatternRedactor::new());
-    let runner = Arc::new(TokioProcessRunner::new(redactor, Arc::new(TreeRegistry::new())));
+    let runner = Arc::new(TokioProcessRunner::new(
+        redactor,
+        Arc::new(TreeRegistry::new()),
+    ));
     let git = Arc::new(
         GitCli::new(runner.clone(), baseline_env()).with_managed_root(data_root.join("worktrees")),
     );
