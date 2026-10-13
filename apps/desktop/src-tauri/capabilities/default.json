@@ -1,10 +1,30 @@
 {
   "identifier": "default",
   "description": "The main window: the registered commands and the event listener, nothing else (no filesystem, shell or HTTP).",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "allow-diagnostics-ping",
+    "allow-intervention-list",
+    "allow-intervention-resolve",
+    "allow-preflight-run",
+    "allow-project-import",
+    "allow-project-list",
+    "allow-project-remove",
+    "allow-project-set-tracker",
+    "allow-run-build",
+    "allow-run-prepare",
+    "allow-run-resume",
+    "allow-run-status",
+    "allow-run-stop",
+    "allow-settings-get",
+    "allow-settings-set",
     "allow-snapshot-get",
+    "allow-timeline-get",
+    "allow-trust-grant",
+    "allow-trust-propose",
+    "allow-trust-revoke",
     "core:event:allow-listen",
     "core:event:allow-unlisten"
   ]

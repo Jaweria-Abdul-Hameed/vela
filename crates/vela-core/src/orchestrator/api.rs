@@ -28,6 +28,9 @@ use crate::settings::{SettingsService, Source};
 use crate::stop::StopService;
 use crate::trust::{ProfileCommand, TrustService, propose};
 
+/// The project-setting key holding the issue source.
+pub const TRACKER_KEY: &str = "tracker";
+
 /// What the API needs to know about a project to build things for it.
 #[derive(Debug, Clone)]
 pub struct ProjectContext {
@@ -53,6 +56,8 @@ pub trait Backend: Send + Sync {
     fn worktree_root(&self, project_id: &str) -> String;
     /// The remote to push to, when the repository has one.
     fn remote_for(&self, project: &ProjectContext) -> Option<RemoteName>;
+    /// Drops a cached driver (its tracker changed).
+    fn forget_driver(&self, _project_id: &str) {}
     /// Fills the platform facts preflight needs (Git version, GitHub CLI, WebView2, free disk). The default adds nothing.
     fn fill_facts(&self, _facts: &mut PreflightFacts) {}
 }
@@ -115,6 +120,33 @@ impl AppApi {
     /// Removes a project from Vela (never touches the repository).
     pub fn project_remove(&self, id: &str) -> Result<(), VelaError> {
         ProjectService::new(self.services.clone(), self.backend.git_read()).remove(id)
+    }
+
+    /// Chooses where a project's issues live: `local:<folder inside the repository>` or `github:<owner>/<name>`.
+    pub fn project_set_tracker(&self, project_id: &str, spec: &str) -> Result<(), VelaError> {
+        self.project(project_id)?;
+        let local_ok = |d: &str| {
+            let d = d.trim();
+            !d.is_empty() && !d.starts_with(['/', '\']) && !d.contains(':') && !d.split(['/', '\']).any(|c| c == "..")
+        };
+        let github_ok = |r: &str| {
+            let mut parts = r.split('/');
+            let (Some(o), Some(n), None) = (parts.next(), parts.next(), parts.next()) else { return false };
+            [o, n].iter().all(|p| !p.is_empty() && !p.starts_with(['-', '.']) && p.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')))
+        };
+        let ok = spec.strip_prefix("local:").is_some_and(local_ok) || spec.strip_prefix("github:").is_some_and(github_ok);
+        if !ok {
+            return Err(VelaError::of_class(
+                ErrorClass::ValidationFailure,
+                "the issue source must be `local:<folder in the repository>` or `github:<owner>/<name>`",
+            ));
+        }
+        let (p, s, now) = (project_id.to_owned(), spec.trim().to_owned(), self.services.now_ms());
+        self.services.store.write(move |tx| {
+            vela_persistence::repositories::s02_settings::set_project_setting(tx.conn(), &p, TRACKER_KEY, &s, now)
+        })?;
+        self.backend.forget_driver(project_id);
+        Ok(())
     }
 
     // ---- settings ----

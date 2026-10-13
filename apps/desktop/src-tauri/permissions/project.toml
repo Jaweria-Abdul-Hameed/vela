@@ -1,0 +1,21 @@
+# Permission manifest of the project command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-project-import"
+description = "Enables the project_import command (project.import) without any pre-configured scope."
+commands.allow = ["project_import"]
+
+[[permission]]
+identifier = "allow-project-list"
+description = "Enables the project_list command (project.list) without any pre-configured scope."
+commands.allow = ["project_list"]
+
+[[permission]]
+identifier = "allow-project-remove"
+description = "Enables the project_remove command (project.remove) without any pre-configured scope."
+commands.allow = ["project_remove"]
+
+[[permission]]
+identifier = "allow-project-set-tracker"
+description = "Enables the project_set_tracker command (project.set_tracker) without any pre-configured scope."
+commands.allow = ["project_set_tracker"]

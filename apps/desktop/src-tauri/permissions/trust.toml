@@ -1,0 +1,16 @@
+# Permission manifest of the trust command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-trust-propose"
+description = "Enables the trust_propose command (trust.propose) without any pre-configured scope."
+commands.allow = ["trust_propose"]
+
+[[permission]]
+identifier = "allow-trust-grant"
+description = "Enables the trust_grant command (trust.grant) without any pre-configured scope."
+commands.allow = ["trust_grant"]
+
+[[permission]]
+identifier = "allow-trust-revoke"
+description = "Enables the trust_revoke command (trust.revoke) without any pre-configured scope."
+commands.allow = ["trust_revoke"]

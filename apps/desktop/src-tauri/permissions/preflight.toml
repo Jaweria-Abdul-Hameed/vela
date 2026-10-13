@@ -1,0 +1,6 @@
+# Permission manifest of the preflight command group (one file per group, SHARED_SURFACE_PROTOCOL.md section 4).
+
+[[permission]]
+identifier = "allow-preflight-run"
+description = "Enables the preflight_run command (preflight.run) without any pre-configured scope."
+commands.allow = ["preflight_run"]
