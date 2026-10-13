@@ -1,2 +1,30 @@
-// Module skeleton (F01): intentionally empty; implemented by the ticket that owns this module.
-export {};
+export { GraphCanvas, type GraphCanvasProps, type GraphEdge, type GraphNode } from './GraphCanvas';
+export {
+  MAX_ZOOM,
+  MIN_ZOOM,
+  RESET_VIEW,
+  clampZoom,
+  ease,
+  fit,
+  focusOn,
+  keyboardView,
+  panBy,
+  settled,
+  toGraph,
+  toScreen,
+  zoomAt,
+  type Point,
+  type View,
+  type Viewport,
+} from './camera';
+export {
+  NODE_VISUALS,
+  distinguishable,
+  effectFor,
+  playable,
+  stateOfWorker,
+  type Effect,
+  type NodeState,
+  type NodeVisual,
+  type Shape,
+} from './visuals';
