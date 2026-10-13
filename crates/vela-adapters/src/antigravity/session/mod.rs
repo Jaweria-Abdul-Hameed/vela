@@ -357,15 +357,25 @@ impl AgentSession for AgyDriver {
                 TurnClass::TimedOut | TurnClass::Cancelled | TurnClass::Incomplete => {
                     Ok(result(false))
                 }
-                TurnClass::QuotaExhausted { text } => {
+                TurnClass::QuotaExhausted {
+                    text,
+                    reset_after_ms,
+                } => {
                     sink.on_event(AgentEvent::CapacityError {
                         message: text.clone(),
+                        reset_after_ms: *reset_after_ms,
                     });
                     Err(VelaError::of_class(
                         ErrorClass::ExternalTemporary,
                         format!("the provider's capacity is exhausted: {text}"),
                     ))
                 }
+                TurnClass::AccessFailure { text } => Err(VelaError::of_class(
+                    ErrorClass::ExternalAuth,
+                    format!(
+                        "the provider refused access in a way Vela does not recognise, so it will not retry or switch anything: {text}"
+                    ),
+                )),
                 TurnClass::AuthRequired { text } => {
                     sink.on_event(AgentEvent::AuthRequired {
                         message: text.clone(),

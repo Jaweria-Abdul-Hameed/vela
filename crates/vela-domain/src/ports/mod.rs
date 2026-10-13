@@ -38,8 +38,8 @@ pub use basic::{
 };
 pub use git::{
     CheckpointMessage, DiffSummary, FetchOutcome, GitAdapter, GitCheckpoints, GitContext,
-    GitMerges, GitRead, GitRemote, GitWorktrees, MergeOutcome, PushOutcome, RemoteName, RepoStatus,
-    RepoTrust, RevisionSpec, Trailer, WorktreeInfo, WorktreeRequest,
+    GitHistory, GitMerges, GitRead, GitRemote, GitWorktrees, MergeOutcome, PushOutcome, RemoteName,
+    RepoStatus, RepoTrust, RevisionSpec, Trailer, WorktreeInfo, WorktreeRequest,
 };
 pub use process::{
     CommandSpec, OutputChunk, OutputSink, OutputStream, ProcessOutcome, ProcessRunner,

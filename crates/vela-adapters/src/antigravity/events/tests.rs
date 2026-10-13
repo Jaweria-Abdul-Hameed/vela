@@ -33,6 +33,7 @@ fn class_name(c: &TurnClass) -> &'static str {
         TurnClass::HookFailed { .. } => "hook_failed",
         TurnClass::QuotaExhausted { .. } => "quota_exhausted",
         TurnClass::AuthRequired { .. } => "auth_required",
+        TurnClass::AccessFailure { .. } => "access_failure",
         TurnClass::ProviderPolicyBlock { .. } => "provider_policy_block",
         TurnClass::Waiting => "waiting",
         TurnClass::TimedOut => "timed_out",

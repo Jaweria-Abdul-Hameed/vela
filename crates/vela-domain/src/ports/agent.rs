@@ -202,6 +202,8 @@ pub enum AgentEvent {
     CapacityError {
         /// Redacted message.
         message: String,
+        /// Milliseconds until the provider says capacity returns, when it said.
+        reset_after_ms: Option<i64>,
     },
     /// Authentication is required.
     AuthRequired {
