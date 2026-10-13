@@ -3,7 +3,13 @@
 // Wrappers take the Tauri `invoke` function as an argument so they are testable without a window.
 
 /** Command names (dotted, as in the registry). Read by the Rust contract test: keep it a plain literal array. */
-export const commandNames = ['run.prepare', 'run.build', 'run.stop', 'run.resume', 'run.status'] as const;
+export const commandNames = [
+  'run.prepare',
+  'run.build',
+  'run.stop',
+  'run.resume',
+  'run.status',
+] as const;
 
 export type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 
@@ -13,7 +19,12 @@ export async function runPrepare<T = unknown>(invoke: InvokeFn, projectId: strin
 }
 
 /** `run.build`: Approves the graph and starts building. */
-export async function runBuild(invoke: InvokeFn, runId: string, expectedBase: string | null, acknowledge: boolean): Promise<void> {
+export async function runBuild(
+  invoke: InvokeFn,
+  runId: string,
+  expectedBase: string | null,
+  acknowledge: boolean,
+): Promise<void> {
   await invoke('run_build', { runId, expectedBase, acknowledge });
 }
 

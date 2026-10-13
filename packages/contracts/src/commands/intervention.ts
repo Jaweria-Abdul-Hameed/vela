@@ -13,6 +13,10 @@ export async function interventionList<T = unknown>(invoke: InvokeFn, runId: str
 }
 
 /** `intervention.resolve`: Resolves an intervention; the run continues. */
-export async function interventionResolve(invoke: InvokeFn, interventionId: string, resolution: string): Promise<void> {
+export async function interventionResolve(
+  invoke: InvokeFn,
+  interventionId: string,
+  resolution: string,
+): Promise<void> {
   await invoke('intervention_resolve', { interventionId, resolution });
 }

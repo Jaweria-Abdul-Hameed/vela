@@ -1,9 +1,7 @@
 {
   "identifier": "default",
   "description": "The main window: the registered commands and the event listener, nothing else (no filesystem, shell or HTTP).",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "allow-diagnostics-ping",
     "allow-intervention-list",

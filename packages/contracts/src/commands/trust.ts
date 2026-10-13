@@ -13,7 +13,11 @@ export async function trustPropose<T = unknown>(invoke: InvokeFn, projectId: str
 }
 
 /** `trust.grant`: Trusts the repository with the confirmed command profile. */
-export async function trustGrant(invoke: InvokeFn, projectId: string, commands: { text: string; cwd?: string | null }[]): Promise<void> {
+export async function trustGrant(
+  invoke: InvokeFn,
+  projectId: string,
+  commands: { text: string; cwd?: string | null }[],
+): Promise<void> {
   await invoke('trust_grant', { projectId, commands });
 }
 

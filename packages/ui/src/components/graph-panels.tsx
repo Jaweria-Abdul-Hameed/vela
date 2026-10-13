@@ -8,9 +8,9 @@ export interface TicketInspection {
   /** Plain status label ("being worked on"). */
   status: string;
   /** The worker's stage ("IMPLEMENTING"), when there is a worker. */
-  stage?: string;
-  branch?: string;
-  worktree?: string;
+  stage?: string | undefined;
+  branch?: string | undefined;
+  worktree?: string | undefined;
   dependsOn: string[];
   blocks: string[];
   tests: { command: string; passed: boolean; durationMs: number; tail?: string }[];
@@ -119,7 +119,7 @@ export interface PreflightCheckView {
   title: string;
   severity: 'PASS' | 'WARN' | 'BLOCK';
   detail: string;
-  remediation?: string;
+  remediation?: string | undefined;
 }
 
 /** Why two same-layer tickets are or are not allowed to run together. */

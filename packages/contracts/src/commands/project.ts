@@ -3,7 +3,12 @@
 // Wrappers take the Tauri `invoke` function as an argument so they are testable without a window.
 
 /** Command names (dotted, as in the registry). Read by the Rust contract test: keep it a plain literal array. */
-export const commandNames = ['project.import', 'project.list', 'project.remove', 'project.set_tracker'] as const;
+export const commandNames = [
+  'project.import',
+  'project.list',
+  'project.remove',
+  'project.set_tracker',
+] as const;
 
 export type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 
@@ -23,6 +28,10 @@ export async function projectRemove(invoke: InvokeFn, projectId: string): Promis
 }
 
 /** `project.set_tracker`: Chooses the issue source: `local:<folder>` or `github:<owner>/<name>`. */
-export async function projectSetTracker(invoke: InvokeFn, projectId: string, spec: string): Promise<void> {
+export async function projectSetTracker(
+  invoke: InvokeFn,
+  projectId: string,
+  spec: string,
+): Promise<void> {
   await invoke('project_set_tracker', { projectId, spec });
 }

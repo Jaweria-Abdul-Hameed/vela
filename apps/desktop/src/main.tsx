@@ -1,9 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { GraphCanvas } from '@vela/ui/src/canvas/graph';
 import { DotField } from '@vela/ui/src/canvas/lattice';
 import '@vela/ui/src/design/tokens.css';
 import '@vela/ui/src/design/base.css';
 import { App } from './app';
+import { tauriApi } from './console/api';
+import { Console } from './console/Console';
 import { onCoreEvents, snapshotCore, startSync } from './ipc';
 import { useCoreStore } from './state';
 import './styles.css';
@@ -13,7 +16,9 @@ if (container === null) throw new Error('index.html has no #root element');
 createRoot(container).render(
   <StrictMode>
     <DotField />
-    <App />
+    <App>
+      <Console api={tauriApi} Graph={GraphCanvas} />
+    </App>
   </StrictMode>,
 );
 

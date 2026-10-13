@@ -8,6 +8,10 @@ export const commandNames = ['timeline.get'] as const;
 export type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 
 /** `timeline.get`: A ticket timeline. */
-export async function timelineGet<T = unknown>(invoke: InvokeFn, runId: string, ticket: string): Promise<T> {
+export async function timelineGet<T = unknown>(
+  invoke: InvokeFn,
+  runId: string,
+  ticket: string,
+): Promise<T> {
   return (await invoke('timeline_get', { runId, ticket })) as T;
 }

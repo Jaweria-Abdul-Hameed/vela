@@ -9,10 +9,10 @@ export interface InterventionView {
   summary: string;
   evidence: string[];
   preservedWork: string;
-  lastSafeCommit?: string;
+  lastSafeCommit?: string | undefined;
   consequences: string;
   /** Scope text of the rule a user could create, for approval kinds. */
-  ruleScope?: string;
+  ruleScope?: string | undefined;
 }
 
 export type InterventionAction =

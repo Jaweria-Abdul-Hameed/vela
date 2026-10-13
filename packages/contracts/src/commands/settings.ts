@@ -8,11 +8,19 @@ export const commandNames = ['settings.get', 'settings.set'] as const;
 export type InvokeFn = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 
 /** `settings.get`: Effective settings. */
-export async function settingsGet<T = unknown>(invoke: InvokeFn, projectId: string | null): Promise<T> {
+export async function settingsGet<T = unknown>(
+  invoke: InvokeFn,
+  projectId: string | null,
+): Promise<T> {
   return (await invoke('settings_get', { projectId })) as T;
 }
 
 /** `settings.set`: Sets one setting. */
-export async function settingsSet(invoke: InvokeFn, projectId: string | null, key: string, value: string): Promise<void> {
+export async function settingsSet(
+  invoke: InvokeFn,
+  projectId: string | null,
+  key: string,
+  value: string,
+): Promise<void> {
   await invoke('settings_set', { projectId, key, value });
 }
