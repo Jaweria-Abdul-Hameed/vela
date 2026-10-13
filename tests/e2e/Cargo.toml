@@ -1,6 +1,6 @@
 [package]
 name = "vela-e2e-tests"
-description = "Fixture-run end-to-end tests with the scripted fake agent (placeholder at bootstrap)"
+description = "End-to-end tests: the real Git and process adapters under the whole core, with a scripted or the real agent"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,6 +10,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+vela-domain.workspace = true
+vela-persistence.workspace = true
+vela-process.workspace = true
+vela-git.workspace = true
+vela-adapters.workspace = true
 vela-core.workspace = true
 vela-testkit.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+serde_json.workspace = true
