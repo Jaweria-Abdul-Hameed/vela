@@ -24,10 +24,10 @@ float mass(vec2 p, vec2 c, float r) {
 void main() {
   vec2 p = vUv;
   float t = uTime * 0.02;
-  vec3 col = uA * mass(p, vec2(0.25 + 0.10 * sin(t), 0.30 + 0.08 * cos(t * 1.3)), 0.75)
-           + uB * mass(p, vec2(0.75 + 0.08 * cos(t * 0.8), 0.65 + 0.10 * sin(t)), 0.80)
-           + uC * mass(p, vec2(0.50 + 0.12 * sin(t * 0.6), 0.90 + 0.05 * cos(t * 1.1)), 0.70);
-  gl_FragColor = vec4(col * 0.10, 1.0);
+  vec3 col = uA * mass(p, vec2(0.02 + 0.04 * sin(t), 0.24 + 0.05 * cos(t * 1.3)), 0.60)
+           + uB * mass(p, vec2(0.98 + 0.03 * cos(t * 0.8), 0.28 + 0.06 * sin(t)), 0.60)
+           + uC * mass(p, vec2(0.50 + 0.10 * sin(t * 0.6), -0.12 + 0.03 * cos(t * 1.1)), 0.55);
+  gl_FragColor = vec4(col * 0.42, 1.0);
 }`;
 
 function token(name: string): THREE.Color {

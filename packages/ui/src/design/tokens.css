@@ -9,6 +9,8 @@
   --vela-surface-solid: #0b0d16;
   --vela-border: rgb(255 255 255 / 0.08);
   --vela-border-strong: rgb(255 255 255 / 0.16);
+  --vela-fill-soft: rgb(255 255 255 / 0.06);
+  --vela-fill-hover: rgb(255 255 255 / 0.12);
 
   /* text */
   --vela-text-primary: #eef0f7;
