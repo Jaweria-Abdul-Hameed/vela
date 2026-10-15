@@ -517,6 +517,18 @@ impl CapabilityProbe {
         ))
     }
 
+    /// Only the CLI's version (one cheap command), for the drift check at a turn boundary. `None` when it does not run.
+    pub async fn version(&self) -> Option<String> {
+        match self.run(&["--version"]).await {
+            Ok((Some(0), out, _)) => out
+                .lines()
+                .next()
+                .map(|l| l.trim().to_owned())
+                .filter(|v| !v.is_empty()),
+            _ => None,
+        }
+    }
+
     /// Discovers everything. A missing `agy` is not an error: it is the report's answer.
     pub async fn probe(&self) -> CapabilityReport {
         let desktop = DesktopInstall {

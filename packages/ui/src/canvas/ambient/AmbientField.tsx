@@ -99,7 +99,7 @@ export function AmbientField({
       dpr={[1, profile.dprCap]}
       gl={{ alpha: false, antialias: false, powerPreference: 'low-power' }}
       aria-hidden="true"
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}
     >
       <Field
         intervalMs={ambientFrameIntervalMs(profile, reducedMotion)}

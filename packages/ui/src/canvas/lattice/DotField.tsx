@@ -194,7 +194,7 @@ export const DotField = forwardRef<CanvasHandle, DotFieldProps>(function DotFiel
       camera={{ position: [0, 0, 10], zoom: 1 }}
       gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
       aria-hidden="true"
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}
     >
       <Field
         quality={quality}

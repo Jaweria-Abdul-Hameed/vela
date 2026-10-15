@@ -230,7 +230,7 @@ describe('console', () => {
     render(<Console api={api} Graph={Graph} pollMs={20} />);
     await importDemo();
     fireEvent.click(screen.getByRole('button', { name: 'Plan a build' }));
-    expect(await screen.findByText('Run: RUNNING')).toBeTruthy();
+    expect(await screen.findByText('running')).toBeTruthy();
     expect(await screen.findByText('The ticket needs a decision')).toBeTruthy();
     expect(screen.getByText('T-1 needs_human')).toBeTruthy();
 

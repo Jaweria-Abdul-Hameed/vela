@@ -24,6 +24,7 @@ use vela_core::recovery::Recovery;
 use vela_core::stop::StopService;
 use vela_domain::errors::VelaError;
 use vela_domain::ids::WorktreePath;
+use vela_domain::ports::Clock;
 use vela_domain::ports::{
     AgentSession, GitRead, IssueTrackerAdapter, Notification, Notifier, PortFuture, ProcessRunner,
     PullRequestPort, RemoteName,
@@ -283,6 +284,89 @@ impl Backend for DesktopBackend {
     }
 }
 
+/// The post-wake checks (R06) over what this process can really ask: the network, and the provider's sign-in.
+struct EnvironmentChecks {
+    adapters: Arc<Adapters>,
+}
+
+impl vela_core::recovery::environment::WakeChecks for EnvironmentChecks {
+    fn run<'a>(&'a self, check: vela_core::recovery::environment::Check) -> PortFuture<'a, ()> {
+        use vela_core::recovery::environment::Check;
+        Box::pin(async move {
+            match check {
+                // Nothing is assumed to have stayed alive: workers whose process is gone are found by the run driver's own supervision.
+                Check::Processes | Check::Locks => Ok(()),
+                Check::Network => {
+                    let reachable = tokio::task::spawn_blocking(|| {
+                        use std::net::{TcpStream, ToSocketAddrs};
+                        "github.com:443"
+                            .to_socket_addrs()
+                            .ok()
+                            .and_then(|mut a| a.next())
+                            .is_some_and(|addr| {
+                                TcpStream::connect_timeout(&addr, Duration::from_secs(5)).is_ok()
+                            })
+                    })
+                    .await
+                    .unwrap_or(false);
+                    if reachable {
+                        Ok(())
+                    } else {
+                        Err(VelaError::of_class(
+                            vela_domain::errors::ErrorClass::ExternalTemporary,
+                            "the network is not reachable yet",
+                        ))
+                    }
+                }
+                Check::Authentication => {
+                    let report = self.adapters.agy.capability_probe().probe().await;
+                    match report.auth {
+                        vela_adapters::antigravity::capability::AuthState::Unauthenticated(m) => {
+                            Err(VelaError::of_class(
+                                vela_domain::errors::ErrorClass::ExternalAuth,
+                                format!("Antigravity is not signed in: {m}"),
+                            ))
+                        }
+                        _ => Ok(()),
+                    }
+                }
+            }
+        })
+    }
+}
+
+/// Watches for the machine having slept (a heartbeat that comes far too late) and, on wake, re-checks the environment in the
+/// order the recovery module fixes. A failed check is reported to the person; nothing is assumed to have survived the sleep.
+fn spawn_wake_monitor<R: Runtime>(app: AppHandle<R>, adapters: Arc<Adapters>) {
+    use vela_core::recovery::environment::{GapDetector, post_wake};
+    tauri::async_runtime::spawn(async move {
+        let detector = GapDetector::default();
+        let checks = EnvironmentChecks { adapters };
+        let mut last = SystemClock.now_ms();
+        loop {
+            tokio::time::sleep(Duration::from_millis(detector.interval_ms as u64)).await;
+            let now = SystemClock.now_ms();
+            let gap = detector.gap(last, now);
+            last = now;
+            let Some(gap) = gap else { continue };
+            tracing::info!(gap_ms = gap, "the machine woke from sleep; re-checking");
+            let outcome = post_wake(&checks).await;
+            if let Some((check, why)) = outcome.failed {
+                tracing::warn!(?check, %why, "a post-wake check failed");
+                use tauri_plugin_notification::NotificationExt;
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title("Vela woke from sleep")
+                    .body(format!(
+                        "A check failed ({check:?}): {why}. Work will continue when it passes."
+                    ))
+                    .show();
+            }
+        }
+    });
+}
+
 /// Builds the services, registers what must be registered, creates the API and starts the notification loop.
 pub fn install<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::Error>> {
     let store = app.state::<StoreHandle>().0.clone();
@@ -292,6 +376,7 @@ pub fn install<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::E
     vela_core::merge_lane::register_recipes(&services);
 
     let adapters = Arc::new(adapters::build(&data_root()));
+    spawn_wake_monitor(app.handle().clone(), adapters.clone());
     // What the policy asked about, and one-time approvals, for Antigravity workers.
     services.register(Arc::new(vela_core::worker::AskedCommandsService(Arc::new(
         crate::wiring::antigravity::AgyAsked::new(services.clone(), adapters.clone()),

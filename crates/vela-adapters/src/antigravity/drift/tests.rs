@@ -256,3 +256,35 @@ fn rules_expire_and_never_outlive_their_worker() {
         "expiry is inclusive"
     );
 }
+
+#[test]
+fn a_report_becomes_a_snapshot_of_its_version_and_provided_capabilities() {
+    use crate::antigravity::capability::{
+        AuthState, CapId, CapabilityReport, CapabilityResult, DesktopInstall, Installation,
+        Outcome, Support,
+    };
+    let result = |id, support| CapabilityResult {
+        id,
+        support,
+        outcome: Outcome::Ready,
+        evidence: String::new(),
+    };
+    let report = CapabilityReport {
+        installation: Installation {
+            version: Some("1.3.5".to_owned()),
+            ..Installation::default()
+        },
+        auth: AuthState::Authenticated,
+        desktop: DesktopInstall::default(),
+        results: vec![
+            result(CapId::Cap01, Support::Supported),
+            result(CapId::Cap02, Support::Unsupported),
+            result(CapId::Cap03, Support::Unverified),
+        ],
+    };
+    let s = snapshot_of(&report);
+    assert_eq!(s.agy_version, "1.3.5");
+    assert_eq!(s.capabilities.len(), 1, "{:?}", s.capabilities);
+    assert!(s.capabilities.contains(CapId::Cap01.label()));
+    assert!(diff(&s, &s).is_empty());
+}

@@ -100,7 +100,7 @@ export function Console({ api, Graph, pollMs = 1500, graphics }: ConsoleProps) {
   const [maxWorkers, setMaxWorkers] = useState(2);
   const [ticket, setTicket] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [tracker, setTracker] = useState('');
+  const [tracker, setTracker] = useState('local:issues');
 
   const guard = useCallback(async <T,>(work: () => Promise<T>): Promise<T | undefined> => {
     try {
@@ -241,278 +241,327 @@ export function Console({ api, Graph, pollMs = 1500, graphics }: ConsoleProps) {
   const inspected = ticket && status ? status.workers.find((w) => w.ticket === ticket) : undefined;
 
   return (
-    <div>
-      {error ? <p role="alert">{error}</p> : null}
+    <div className="vc">
+      <aside className="vc__rail" aria-label="Projects">
+        {graphics ? (
+          <GraphicsControl
+            mode={graphics.mode}
+            onChange={graphics.onChange}
+            suggestion={graphics.suggestion ?? null}
+            onDismissSuggestion={graphics.onDismissSuggestion ?? (() => {})}
+          />
+        ) : null}
 
-      {graphics ? (
-        <GraphicsControl
-          mode={graphics.mode}
-          onChange={graphics.onChange}
-          suggestion={graphics.suggestion ?? null}
-          onDismissSuggestion={graphics.onDismissSuggestion ?? (() => {})}
-        />
-      ) : null}
-
-      <ProjectHome
-        projects={projects.map((p) => ({ id: p.id, name: p.name, repoPath: p.repo_path }))}
-        selectedId={selected}
-        busy={importing}
-        dropActive={dropActive}
-        onImport={(path) => void doImport(path)}
-        onOpen={(id) => void choose(id)}
-        onRemove={(id) =>
-          void guard(async () => {
-            await api.projectRemove(id);
-            if (selected === id) setSelected(null);
-            await refreshProjects();
-          })
-        }
-      />
-
-      {project && proposal ? (
-        <section aria-label="Repository">
-          <h2>{project.name}</h2>
-          {proposal.state === 'Untrusted' ? (
-            <Glass role="group" aria-label="Trust this repository">
-              <h3>This repository is data only</h3>
-              <p>
-                Vela can read it, but it will not build or run anything in it until you trust it.
-                Trusting lets these commands run without asking:
-              </p>
-              <ul>
-                {proposal.commands.map((c) => (
-                  <li key={c.text}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={chosen.has(c.text)}
-                        onChange={(e) => {
-                          const next = new Set(chosen);
-                          if (e.target.checked) next.add(c.text);
-                          else next.delete(c.text);
-                          setChosen(next);
-                        }}
-                      />{' '}
-                      <code>{c.text}</code>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-              {proposal.executable_surfaces.length > 0 ? (
-                <p>It also contains: {proposal.executable_surfaces.join(', ')}.</p>
-              ) : null}
-              <button
-                type="button"
-                onClick={() =>
-                  void guard(async () => {
-                    await api.trustGrant(
-                      project.id,
-                      proposal.commands.filter((c) => chosen.has(c.text)),
-                    );
-                    await choose(project.id);
-                  })
-                }
-              >
-                Trust this repository
-              </button>
-            </Glass>
-          ) : (
-            <p>
-              Trusted.{' '}
-              <button
-                type="button"
-                onClick={() =>
-                  void guard(async () => {
-                    await api.trustRevoke(project.id);
-                    await choose(project.id);
-                  })
-                }
-              >
-                Revoke trust
-              </button>
-            </p>
-          )}
-          <label>
-            Issue source{' '}
-            <input
-              value={tracker}
-              onChange={(e) => setTracker(e.target.value)}
-              placeholder="local:issues or github:owner/name"
-            />
-          </label>{' '}
-          <button
-            type="button"
-            disabled={tracker.trim() === ''}
-            onClick={() => void guard(() => api.projectSetTracker(project.id, tracker.trim()))}
-          >
-            Use this source
-          </button>
-          <p>
-            <button
-              type="button"
-              onClick={() => void guard(async () => setReport(await api.preflightRun(project.id)))}
-            >
-              Check readiness
-            </button>{' '}
-            <button
-              type="button"
-              disabled={proposal.state !== 'Trusted'}
-              onClick={() =>
-                void guard(async () => {
-                  const p = await api.runPrepare(project.id);
-                  setPrepared(p);
-                  setRunId(p.run_id);
-                })
-              }
-            >
-              Plan a build
-            </button>
-          </p>
-          {report ? (
-            <p role="status">
-              Readiness: {report.verdict}.{' '}
-              {report.checks.filter((c) => c.severity === 'Block').length} blocking,{' '}
-              {report.checks.filter((c) => c.severity === 'Warn').length} warnings.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-
-      {prepared && !prepared.valid ? (
-        <Glass role="alert">
-          <h3>The issues contain a cycle</h3>
-          <ul>
-            {(prepared.cycles ?? []).map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-          <p>Remove one dependency in the tracker, then plan again.</p>
-        </Glass>
-      ) : null}
-
-      {status && prepared?.valid && runName === 'GRAPH_READY' ? (
-        <BuildReady
-          tickets={prepared.tickets ?? 0}
-          layers={prepared.layers ?? 0}
-          edges={prepared.edges ?? 0}
-          analysis={status.graph?.analyzed ? 'ANALYZED' : 'SEQUENTIAL_FALLBACK'}
-          checks={(report?.checks ?? []).map((c) => ({
-            id: c.id,
-            title: c.title,
-            severity: c.severity.toUpperCase() as 'PASS' | 'WARN' | 'BLOCK',
-            detail: c.detail,
-            remediation: c.remediation ?? undefined,
-          }))}
-          pairs={(status.graph?.pairs ?? []).map((p) => ({
-            a: p.a,
-            b: p.b,
-            label: p.label,
-            reasons: p.reasons,
-          }))}
-          maxWorkers={maxWorkers}
-          onMaxWorkers={(n) => {
-            setMaxWorkers(n);
-            void guard(() => api.settingsSet(selected, 'max_parallel_workers', String(n)));
-          }}
-          building={building}
-          onBuild={() =>
+        <ProjectHome
+          projects={projects.map((p) => ({ id: p.id, name: p.name, repoPath: p.repo_path }))}
+          selectedId={selected}
+          busy={importing}
+          dropActive={dropActive}
+          onImport={(path) => void doImport(path)}
+          onOpen={(id) => void choose(id)}
+          onRemove={(id) =>
             void guard(async () => {
-              setBuilding(true);
-              try {
-                await api.runBuild(status.run_id);
-              } finally {
-                setBuilding(false);
-              }
+              await api.projectRemove(id);
+              if (selected === id) setSelected(null);
+              await refreshProjects();
             })
           }
         />
-      ) : null}
+      </aside>
 
-      {status && nodes.length > 0 ? (
-        <section aria-label="Run">
-          <h2>Run: {runName}</h2>
-          <div style={{ height: 420 }}>
-            <Graph
-              nodes={nodes}
-              edges={(status.graph?.edges ?? []).map((e) => ({
-                from: e.from,
-                to: e.to,
-                origin: 'authored' as const,
-              }))}
-              selected={ticket}
-              onSelect={(id) => void openTicket(id)}
-            />
-          </div>
-          <RunBar
-            status={(runName ?? '')
-              .toLowerCase()
-              .replaceAll('_', ' ')
-              .replace(/^./, (c) => c.toUpperCase())}
-            workers={status.workers.length}
-            mode={status.promotion?.mode ?? 'Pull request'}
-            paused={runName === 'PAUSED'}
-            active={running || runName === 'PAUSED'}
-            approval={status.interventions.length > 0 ? 'waiting' : 'active'}
-            onResume={() => void guard(() => api.runResume(status.run_id))}
-            onStopAll={() => void guard(() => api.runStop(status.run_id))}
-          />
-          {status.promotion ? (
-            <p role="status">
-              Result: {status.promotion.state.toLowerCase().replace('_', ' ')}.{' '}
-              {status.promotion.note}{' '}
-              {status.promotion.pr_url ? (
-                <a href={status.promotion.pr_url}>Open the pull request</a>
-              ) : null}
+      <div className="vc__work">
+        {error ? (
+          <p role="alert" className="vc__error">
+            {error}
+          </p>
+        ) : null}
+        {!project ? (
+          <Glass className="vc__empty">
+            <h2>Start with a repository</h2>
+            <p>
+              Import a Git repository from the list on the left. Vela reads its issues, plans which
+              can run together, and builds them with Antigravity in isolated worktrees. Your own
+              checkout is never touched.
             </p>
-          ) : null}
-        </section>
-      ) : null}
+          </Glass>
+        ) : null}
 
-      {status && inspected && timeline.length > 0 ? <Timeline items={timeline} /> : null}
+        {project && proposal ? (
+          <section aria-label="Repository" className="vc__repo">
+            <header className="vc__head">
+              <h2>{project.name}</h2>
+              <span
+                className={proposal.state === 'Trusted' ? 'vc__badge vc__badge--ok' : 'vc__badge'}
+              >
+                {proposal.state === 'Trusted' ? 'Trusted' : 'Data only'}
+              </span>
+            </header>
+            <p className="vc__path">{project.repo_path}</p>
+            {proposal.state === 'Untrusted' ? (
+              <Glass role="group" aria-label="Trust this repository">
+                <h3>This repository is data only</h3>
+                <p>
+                  Vela can read it, but it will not build or run anything in it until you trust it.
+                  Trusting lets these commands run without asking:
+                </p>
+                <ul>
+                  {proposal.commands.map((c) => (
+                    <li key={c.text}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={chosen.has(c.text)}
+                          onChange={(e) => {
+                            const next = new Set(chosen);
+                            if (e.target.checked) next.add(c.text);
+                            else next.delete(c.text);
+                            setChosen(next);
+                          }}
+                        />{' '}
+                        <code>{c.text}</code>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+                {proposal.executable_surfaces.length > 0 ? (
+                  <p>It also contains: {proposal.executable_surfaces.join(', ')}.</p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    void guard(async () => {
+                      await api.trustGrant(
+                        project.id,
+                        proposal.commands.filter((c) => chosen.has(c.text)),
+                      );
+                      await choose(project.id);
+                    })
+                  }
+                >
+                  Trust this repository
+                </button>
+              </Glass>
+            ) : (
+              <p className="vc__row">
+                <span>Commands in the confirmed profile run without asking.</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void guard(async () => {
+                      await api.trustRevoke(project.id);
+                      await choose(project.id);
+                    })
+                  }
+                >
+                  Revoke trust
+                </button>
+              </p>
+            )}
+            <label className="vc__row">
+              <span>Issue source</span>
+              <input
+                value={tracker}
+                onChange={(e) => setTracker(e.target.value)}
+                placeholder="local:issues or github:owner/name"
+              />
+              <button
+                type="button"
+                disabled={tracker.trim() === ''}
+                onClick={() => void guard(() => api.projectSetTracker(project.id, tracker.trim()))}
+              >
+                Use this source
+              </button>
+            </label>
+            <p className="vc__row vc__actions">
+              <button
+                type="button"
+                onClick={() =>
+                  void guard(async () => setReport(await api.preflightRun(project.id)))
+                }
+              >
+                Check readiness
+              </button>
+              <button
+                type="button"
+                className="vc__primary"
+                disabled={proposal.state !== 'Trusted'}
+                onClick={() =>
+                  void guard(async () => {
+                    const p = await api.runPrepare(project.id);
+                    setPrepared(p);
+                    setRunId(p.run_id);
+                  })
+                }
+              >
+                Plan a build
+              </button>
+            </p>
+            {report ? (
+              <div role="status" className="vc__checks">
+                <p>
+                  Readiness: {report.verdict}.{' '}
+                  {report.checks.filter((c) => c.severity === 'Block').length} blocking,{' '}
+                  {report.checks.filter((c) => c.severity === 'Warn').length} warnings.
+                </p>
+                <ul>
+                  {report.checks.map((c) => (
+                    <li key={c.id} className={`vc__check vc__check--${c.severity.toLowerCase()}`}>
+                      <strong>{c.title}</strong>
+                      <span>{c.detail}</span>
+                      {c.remediation ? <em>{c.remediation}</em> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
-      {status && inspected ? (
-        <TicketInspector
-          inspection={{
-            id: inspected.ticket,
-            title: inspected.ticket,
-            status: stateName(inspected.state).toLowerCase().replaceAll('_', ' '),
-            stage: stateName(inspected.state),
-            branch: inspected.branch ?? undefined,
-            worktree: inspected.worktree ?? undefined,
-            dependsOn: (status.graph?.edges ?? [])
-              .filter((e) => e.to === inspected.ticket)
-              .map((e) => e.from),
-            blocks: (status.graph?.edges ?? [])
-              .filter((e) => e.from === inspected.ticket)
-              .map((e) => e.to),
-            tests: [],
-            findings: timeline.map((t) => ({ severity: 'info', summary: t.kind, blocking: false })),
-          }}
-          onClose={() => setTicket(null)}
-          onOpenTicket={(id) => void openTicket(id)}
-        />
-      ) : null}
+        {prepared && !prepared.valid ? (
+          <Glass role="alert">
+            <h3>The issues contain a cycle</h3>
+            <ul>
+              {(prepared.cycles ?? []).map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+            <p>Remove one dependency in the tracker, then plan again.</p>
+          </Glass>
+        ) : null}
 
-      {status?.interventions.map((iv) => (
-        <InterventionSheet
-          key={iv.id}
-          intervention={{
-            id: iv.id,
-            kind: iv.kind,
-            summary: iv.summary,
-            evidence: iv.evidence ?? [],
-            preservedWork: iv.preserved_work,
-            lastSafeCommit: iv.last_safe_commit ?? undefined,
-            consequences: iv.consequences,
-          }}
-          onAction={(action) => {
-            if (action === 'cancel') void guard(() => api.runStop(status.run_id));
-            else if (action === 'view_evidence')
-              void openTicket(status.workers.find((w) => w.id === iv.worker_id)?.ticket ?? null);
-            else void guard(() => api.interventionResolve(iv.id, action));
-          }}
-        />
-      ))}
+        {status && prepared?.valid && runName === 'GRAPH_READY' ? (
+          <BuildReady
+            tickets={prepared.tickets ?? 0}
+            layers={prepared.layers ?? 0}
+            edges={prepared.edges ?? 0}
+            analysis={status.graph?.analyzed ? 'ANALYZED' : 'SEQUENTIAL_FALLBACK'}
+            checks={(report?.checks ?? []).map((c) => ({
+              id: c.id,
+              title: c.title,
+              severity: c.severity.toUpperCase() as 'PASS' | 'WARN' | 'BLOCK',
+              detail: c.detail,
+              remediation: c.remediation ?? undefined,
+            }))}
+            pairs={(status.graph?.pairs ?? []).map((p) => ({
+              a: p.a,
+              b: p.b,
+              label: p.label,
+              reasons: p.reasons,
+            }))}
+            maxWorkers={maxWorkers}
+            onMaxWorkers={(n) => {
+              setMaxWorkers(n);
+              void guard(() => api.settingsSet(selected, 'max_parallel_workers', String(n)));
+            }}
+            building={building}
+            onBuild={() =>
+              void guard(async () => {
+                setBuilding(true);
+                try {
+                  await api.runBuild(status.run_id);
+                } finally {
+                  setBuilding(false);
+                }
+              })
+            }
+          />
+        ) : null}
+
+        {status && nodes.length > 0 ? (
+          <section aria-label="Run" className="vc__run">
+            <header className="vc__head">
+              <h2>Run</h2>
+              <span className="vc__badge">
+                {(runName ?? '').toLowerCase().replaceAll('_', ' ')}
+              </span>
+            </header>
+            <div className="vc__graph">
+              <Graph
+                nodes={nodes}
+                edges={(status.graph?.edges ?? []).map((e) => ({
+                  from: e.from,
+                  to: e.to,
+                  origin: 'authored' as const,
+                }))}
+                selected={ticket}
+                onSelect={(id) => void openTicket(id)}
+              />
+            </div>
+            <RunBar
+              status={(runName ?? '')
+                .toLowerCase()
+                .replaceAll('_', ' ')
+                .replace(/^./, (c) => c.toUpperCase())}
+              workers={status.workers.length}
+              mode={status.promotion?.mode ?? 'Pull request'}
+              paused={runName === 'PAUSED'}
+              active={running || runName === 'PAUSED'}
+              approval={status.interventions.length > 0 ? 'waiting' : 'active'}
+              onResume={() => void guard(() => api.runResume(status.run_id))}
+              onStopAll={() => void guard(() => api.runStop(status.run_id))}
+            />
+            {status.promotion ? (
+              <p role="status">
+                Result: {status.promotion.state.toLowerCase().replace('_', ' ')}.{' '}
+                {status.promotion.note}{' '}
+                {status.promotion.pr_url ? (
+                  <a href={status.promotion.pr_url}>Open the pull request</a>
+                ) : null}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {status && inspected && timeline.length > 0 ? <Timeline items={timeline} /> : null}
+
+        {status && inspected ? (
+          <TicketInspector
+            inspection={{
+              id: inspected.ticket,
+              title: inspected.ticket,
+              status: stateName(inspected.state).toLowerCase().replaceAll('_', ' '),
+              stage: stateName(inspected.state),
+              branch: inspected.branch ?? undefined,
+              worktree: inspected.worktree ?? undefined,
+              dependsOn: (status.graph?.edges ?? [])
+                .filter((e) => e.to === inspected.ticket)
+                .map((e) => e.from),
+              blocks: (status.graph?.edges ?? [])
+                .filter((e) => e.from === inspected.ticket)
+                .map((e) => e.to),
+              tests: [],
+              findings: timeline.map((t) => ({
+                severity: 'info',
+                summary: t.kind,
+                blocking: false,
+              })),
+            }}
+            onClose={() => setTicket(null)}
+            onOpenTicket={(id) => void openTicket(id)}
+          />
+        ) : null}
+
+        {status?.interventions.map((iv) => (
+          <InterventionSheet
+            key={iv.id}
+            intervention={{
+              id: iv.id,
+              kind: iv.kind,
+              summary: iv.summary,
+              evidence: iv.evidence ?? [],
+              preservedWork: iv.preserved_work,
+              lastSafeCommit: iv.last_safe_commit ?? undefined,
+              consequences: iv.consequences,
+            }}
+            onAction={(action) => {
+              if (action === 'cancel') void guard(() => api.runStop(status.run_id));
+              else if (action === 'view_evidence')
+                void openTicket(status.workers.find((w) => w.id === iv.worker_id)?.ticket ?? null);
+              else void guard(() => api.interventionResolve(iv.id, action));
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
