@@ -2,6 +2,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { ambientFrameIntervalMs, profileFor } from '../quality';
+import { useIdle } from './idle';
 
 const VERTEX = `
 varying vec2 vUv;
@@ -89,6 +90,8 @@ export function AmbientField({
   suspended = false,
 }: AmbientFieldProps) {
   const profile = profileFor(mode);
+  // After the mode's idle time with no input the field stops asking for frames (zero animation-frame callbacks when idle).
+  const idle = useIdle(profile.idleSuspendMs, profile.ambient);
   if (!profile.ambient) return null;
   return (
     <Canvas
@@ -98,7 +101,10 @@ export function AmbientField({
       aria-hidden="true"
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
     >
-      <Field intervalMs={ambientFrameIntervalMs(profile, reducedMotion)} paused={suspended} />
+      <Field
+        intervalMs={ambientFrameIntervalMs(profile, reducedMotion)}
+        paused={suspended || idle}
+      />
     </Canvas>
   );
 }

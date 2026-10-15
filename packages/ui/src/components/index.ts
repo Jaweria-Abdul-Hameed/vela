@@ -60,3 +60,12 @@ export {
   type TimelineItem,
   type TimelineProps,
 } from './run-surfaces';
+export {
+  GraphTree,
+  ShortcutHelp,
+  buildRows,
+  type GraphTreeProps,
+  type ShortcutHelpProps,
+  type TreeEdge,
+  type TreeTicket,
+} from './graph-tree';

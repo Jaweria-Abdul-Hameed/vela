@@ -18,3 +18,4 @@ vela-adapters.workspace = true
 vela-core.workspace = true
 vela-testkit.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+serde_json.workspace = true
