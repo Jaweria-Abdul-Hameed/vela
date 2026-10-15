@@ -6,7 +6,7 @@ import { DotField } from '@vela/ui/src/canvas/lattice';
 import { isGraphicsMode, suggest, type GraphicsMode } from '@vela/ui/src/canvas/quality';
 import '@vela/ui/src/design/tokens.css';
 import '@vela/ui/src/design/base.css';
-import { App } from './app';
+import { Shell } from '@vela/ui/src/design';
 import { tauriApi } from './console/api';
 import { Console } from './console/Console';
 import { onCoreEvents, snapshotCore, startSync } from './ipc';
@@ -57,7 +57,7 @@ function Root() {
     <>
       <AmbientField mode={mode} reducedMotion={reduced} />
       <DotField quality={mode} reducedMotion={reduced} />
-      <App>
+      <Shell>
         <Console
           api={tauriApi}
           Graph={GraphCanvas}
@@ -68,7 +68,7 @@ function Root() {
             onDismissSuggestion: () => setDismissed(true),
           }}
         />
-      </App>
+      </Shell>
     </>
   );
 }

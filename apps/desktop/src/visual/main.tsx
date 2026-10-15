@@ -5,7 +5,7 @@ import { GraphCanvas, type GraphCanvasProps } from '@vela/ui/src/canvas/graph';
 import { DotField } from '@vela/ui/src/canvas/lattice';
 import '@vela/ui/src/design/tokens.css';
 import '@vela/ui/src/design/base.css';
-import { App } from '../app';
+import { Shell } from '@vela/ui/src/design';
 import { Console } from '../console/Console';
 import '../styles.css';
 import { fixtureApi, isVisualState } from './fixtures';
@@ -14,11 +14,6 @@ import { fixtureApi, isVisualState } from './fixtures';
  *  same frame every time. */
 const requested = new URLSearchParams(window.location.search).get('state');
 const state = isVisualState(requested) ? requested : 'home';
-
-const idleCore = {
-  ping: () => Promise.resolve({ reply: 'fixture', sequence: 0 }),
-  onPing: () => Promise.resolve(() => {}),
-};
 
 function StillGraph(props: GraphCanvasProps) {
   return <GraphCanvas {...props} reducedMotion />;
@@ -30,8 +25,8 @@ createRoot(container).render(
   <StrictMode>
     <AmbientField mode="balanced" reducedMotion />
     <DotField quality="balanced" reducedMotion />
-    <App ipc={idleCore as never}>
+    <Shell>
       <Console api={fixtureApi(state)} Graph={StillGraph} pollMs={600_000} />
-    </App>
+    </Shell>
   </StrictMode>,
 );
