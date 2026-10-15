@@ -137,7 +137,13 @@ mod tests {
         let s = services("approval-no-capability");
         Onboarding::new(&s).grant(UI_AUTOMATION).unwrap();
         assert!(!ui_automation_available(&s, false));
-        let path = build(s, Arc::new(FakeSessionProbe::new()), false);
+        let path = build(
+            s,
+            Arc::new(FakeSessionProbe::new(
+                vela_domain::ports::SessionAvailability::Available,
+            )),
+            false,
+        );
         assert!(!path.ui_automation);
     }
 
@@ -147,7 +153,13 @@ mod tests {
         use vela_uia::delivery::Consent;
         let s = services("approval-wired");
         Onboarding::new(&s).grant(UI_AUTOMATION).unwrap();
-        let path = build(s.clone(), Arc::new(FakeSessionProbe::new()), true);
+        let path = build(
+            s.clone(),
+            Arc::new(FakeSessionProbe::new(
+                vela_domain::ports::SessionAvailability::Available,
+            )),
+            true,
+        );
         assert!(path.ui_automation && path.source.is_some());
         let live = PersistedConsent::new(s.clone());
         assert!(live.granted());
