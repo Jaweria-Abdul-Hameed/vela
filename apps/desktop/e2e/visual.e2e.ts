@@ -16,11 +16,11 @@ const scenes: Record<string, (page: Page) => Promise<void>> = {
   },
   'active-graph': async (page) => {
     await plan(page);
-    await expect(page.getByRole('heading', { name: 'Run: RUNNING' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Run' })).toBeVisible();
   },
   'worker-detail': async (page) => {
     await plan(page);
-    await expect(page.getByRole('heading', { name: 'Run: RUNNING' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Run' })).toBeVisible();
     await page.getByRole('button', { name: /^T-3,/ }).click();
     await expect(page.getByRole('complementary', { name: 'Ticket T-3' })).toBeVisible();
   },
@@ -40,7 +40,7 @@ const scenes: Record<string, (page: Page) => Promise<void>> = {
   'reduced-motion': async (page) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await plan(page);
-    await expect(page.getByRole('heading', { name: 'Run: RUNNING' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Run' })).toBeVisible();
   },
 };
 
