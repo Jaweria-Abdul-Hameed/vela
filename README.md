@@ -1,6 +1,6 @@
 # Vela --- Autonomous AI Engineering Control Plane
 
-> **Status:** Product definition overview; normative precedence is defined in `DOCUMENTATION_INDEX.md`\
+> **Status:** Product definition overview; normative precedence is defined in `AGENTS.md`\
 > **Target:** Windows-first native desktop application\
 > **Primary purpose:** Safely orchestrate long-running, multi-issue AI
 > coding work across isolated agent sessions while making the execution
@@ -136,7 +136,6 @@ Start with:
 -   `docs/testing/TEST_STRATEGY.md` --- validation gates.
 -   `docs/issues/ISSUE_AUTHORING.md` --- converting this pack into
     tracer-bullet GitHub issues.
--   `docs/roadmap/IMPLEMENTATION_PLAN.md` --- staged delivery.
 
 ## 5. Current external assumptions
 

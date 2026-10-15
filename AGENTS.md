@@ -32,7 +32,7 @@ load what is relevant.
 
 ## Ticket scope
 
-One implementation session owns one mega-ticket (`docs/issues/graph/MEGA_TICKETS.md`, ADR-023), i.e. a group of tickets, implemented in order. A ticket is expected to be a
+One implementation session owns one mega-ticket (ADR-023), i.e. a group of tickets, implemented in order. A ticket is expected to be a
 tracer-bullet vertical slice. Do not opportunistically implement
 unrelated tickets. Small prerequisite fixes are allowed only when
 necessary to make the ticket correct; record them in the execution log.

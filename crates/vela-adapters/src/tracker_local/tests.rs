@@ -110,21 +110,6 @@ fn a_malformed_file_does_not_stop_the_others() {
     ));
 }
 
-/// The real ticket corpus of this repository parses cleanly and yields exactly the published reduced edge set size.
-#[test]
-fn the_repository_graph_tickets_parse_without_warnings() {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/issues/graph/tickets");
-    let corpus = TicketCorpus::load_dir(&dir).expect("tickets directory");
-    assert!(corpus.warnings.is_empty(), "{:#?}", corpus.warnings);
-    assert_eq!(corpus.tickets.len(), 135);
-    assert_eq!(corpus.edges.len(), 277);
-    let t01 = corpus.ticket(&id("T01")).expect("T01");
-    assert_eq!(t01.blockers, vec![id("F02")]);
-    assert!(t01.labels.contains(&"area:tracker".to_owned()));
-    let f01 = corpus.ticket(&id("F01")).expect("F01");
-    assert!(f01.blockers.is_empty());
-}
-
 #[test]
 fn loading_a_directory_skips_non_markdown_oversized_and_non_utf8_files() {
     let dir = TempDir::new();
