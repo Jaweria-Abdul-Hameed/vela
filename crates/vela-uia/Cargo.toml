@@ -29,3 +29,15 @@ features = [
   "Win32_UI_Accessibility",
   "Win32_UI_WindowsAndMessaging",
 ]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[target.'cfg(windows)'.dev-dependencies.windows]
+workspace = true
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_LibraryLoader",
+  "Win32_UI_WindowsAndMessaging",
+]
