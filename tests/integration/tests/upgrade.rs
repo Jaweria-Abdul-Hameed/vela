@@ -60,9 +60,7 @@ fn the_upgrade_keeps_the_data_and_backs_up_before_migrating() {
         })
         .unwrap();
     assert_eq!(backups, 1, "migrating took its own backup first");
-    let applied = store
-        .read(|c| vela_persistence::migrations::applied(c))
-        .unwrap();
+    let applied = store.read(vela_persistence::migrations::applied).unwrap();
     assert_eq!(
         applied.into_iter().max(),
         MIGRATIONS.iter().map(|m| m.0).max()

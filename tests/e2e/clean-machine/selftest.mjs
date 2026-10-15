@@ -9,9 +9,13 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 const here = import.meta.dirname;
+// Windows PowerShell started from a PowerShell 7 parent inherits its module path and cannot load its own built-in modules; the guest has
+// no such parent, so the test starts it the way the guest does.
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== 'psmodulepath'));
 const ps = (script, args) =>
   spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join(here, script), ...args], {
     encoding: 'utf8',
+    env,
   });
 
 test('verify-hashes passes for matching files and fails on a changed or missing one', { skip: process.platform !== 'win32' }, () => {
@@ -60,7 +64,7 @@ test('the scripts parse as PowerShell', { skip: process.platform !== 'win32' }, 
     const out = execFileSync(
       'powershell',
       ['-NoProfile', '-NonInteractive', '-Command', `$e=$null;[void][System.Management.Automation.Language.Parser]::ParseFile('${join(here, s)}',[ref]$null,[ref]$e);$e.Count`],
-      { encoding: 'utf8' },
+      { encoding: 'utf8', env },
     );
     assert.equal(out.trim(), '0', s);
   }
