@@ -1,0 +1,2 @@
+PARAPHRASE of the documented changelog entry (S7, 2026-07-31): a distinct sign-in error with an appeal link for accounts blocked for a Terms violation. The exact provider text is NOT recorded.
+Sign-in failed: this account is blocked because of a Terms of Service violation. You can appeal this decision at https://example.invalid/appeal?token=abcdefghijklmnopqrstuvwxyz0123456789

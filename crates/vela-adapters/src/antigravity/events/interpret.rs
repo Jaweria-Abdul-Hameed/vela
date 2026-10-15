@@ -75,9 +75,16 @@ pub enum TurnClass {
     QuotaExhausted {
         /// The provider's text.
         text: String,
+        /// Milliseconds until the quota resets, when the text says.
+        reset_after_ms: Option<i64>,
     },
     /// The provider blocked the account or service for terms or policy reasons: never retried, never worked around.
     ProviderPolicyBlock {
+        /// The provider's text.
+        text: String,
+    },
+    /// An access failure that matches no known signal: surfaced with its evidence, never retried, never a policy block.
+    AccessFailure {
         /// The provider's text.
         text: String,
     },
@@ -128,51 +135,22 @@ pub struct TurnOutcome {
     pub stderr_excerpt: String,
 }
 
-/// What kind of provider message a text is, when it is one of the known failure shapes.
+/// What kind of provider message a text is, when it is one of the known failure shapes (the signal tables live in
+/// [`crate::antigravity::capacity`]).
 pub fn classify_text(text: &str) -> Option<TurnClass> {
-    let lower = text.to_ascii_lowercase();
-    let has = |needles: &[&str]| needles.iter().any(|n| lower.contains(n));
-    let excerpt = || {
-        text.lines()
-            .find(|l| !l.trim().is_empty())
-            .unwrap_or("")
-            .trim()
-            .chars()
-            .take(300)
-            .collect::<String>()
-    };
-    if has(&[
-        "account has been suspended",
-        "account has been disabled",
-        "violation of the terms",
-        "violates the terms of service",
-        "access to this service has been blocked",
-    ]) {
-        return Some(TurnClass::ProviderPolicyBlock { text: excerpt() });
-    }
-    if has(&[
-        "not signed in",
-        "not authenticated",
-        "unauthenticated",
-        "sign in with your google",
-        "authentication required",
-        "please log in",
-        "login required",
-    ]) {
-        return Some(TurnClass::AuthRequired { text: excerpt() });
-    }
-    if has(&[
-        "resource_exhausted",
-        "exhausted your capacity",
-        "quota will reset",
-        "rate limit",
-        "too many requests",
-        "quota exceeded",
-        "(code 429)",
-    ]) {
-        return Some(TurnClass::QuotaExhausted { text: excerpt() });
-    }
-    None
+    use crate::antigravity::capacity::{AccessClass, classify_access};
+    Some(match classify_access(text)? {
+        AccessClass::PolicyBlock(d) => TurnClass::ProviderPolicyBlock { text: d.evidence },
+        AccessClass::SignInRequired { evidence } => TurnClass::AuthRequired { text: evidence },
+        AccessClass::Capacity {
+            evidence,
+            reset_after_ms,
+        } => TurnClass::QuotaExhausted {
+            text: evidence,
+            reset_after_ms,
+        },
+        AccessClass::Unclassified { evidence } => TurnClass::AccessFailure { text: evidence },
+    })
 }
 
 /// Tool names grouped by the permission action they need.

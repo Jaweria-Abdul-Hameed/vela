@@ -162,6 +162,7 @@ impl AgentSession for ScriptedAgent {
             Scenario::Capacity => {
                 sink.on_event(AgentEvent::CapacityError {
                     message: "capacity exhausted".to_owned(),
+                    reset_after_ms: None,
                 });
                 Err(VelaError::of_class(
                     ErrorClass::ExternalTemporary,

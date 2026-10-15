@@ -343,7 +343,9 @@ impl RunDriver {
                 LaneOutcome::SentBackToFix { gate, .. } => {
                     match self.worker.fix_integration(&task, &gate).await? {
                         WorkerOutcome::ReadyToMerge { head: next } => head = next,
-                        WorkerOutcome::NeedsHuman { .. } => return Ok(()),
+                        WorkerOutcome::NeedsHuman { .. } | WorkerOutcome::Paused { .. } => {
+                            return Ok(());
+                        }
                     }
                 }
             }

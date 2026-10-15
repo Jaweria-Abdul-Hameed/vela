@@ -559,12 +559,18 @@ impl Recovery {
         }
         let choice =
             SettingsService::new(&self.services).effective(None)?["recovery_continuation"].clone();
-        let reason = if choice == "auto_safe" && report.is_clean() {
-            return Ok(());
-        } else if choice == "auto_safe" {
-            PausedReason::RecoveredAwaitingResume
-        } else {
-            PausedReason::AwaitingRecoveryConfirmation
+        let gate = self
+            .services
+            .get::<continuation::InteractiveGate>()
+            .map(|g| *g)
+            .unwrap_or_default();
+        let reason = match continuation::decide(
+            continuation::Policy::parse(&choice),
+            report.is_clean(),
+            gate,
+        ) {
+            continuation::Continuation::Resume => return Ok(()),
+            continuation::Continuation::Pause(reason) => reason,
         };
         let health = self
             .services

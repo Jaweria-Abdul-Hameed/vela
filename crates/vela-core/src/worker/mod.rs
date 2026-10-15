@@ -130,6 +130,11 @@ pub enum WorkerOutcome {
         /// The intervention.
         intervention_id: String,
     },
+    /// The provider ran out of capacity: this worker is paused where it was and resumes when the profile's cooldown ends.
+    Paused {
+        /// When the profile is available again, epoch milliseconds.
+        until_ms: i64,
+    },
 }
 
 #[derive(Default)]
@@ -162,6 +167,9 @@ pub struct WorkerDriver {
     runner: Arc<dyn ProcessRunner>,
     git: Arc<dyn WorkerGit>,
     prompts: Arc<dyn WorkerPrompts>,
+    /// What a failed turn reported before it failed, by worker, so a capacity error the provider raised as an error is still
+    /// recognised as one.
+    failed_turn_events: Mutex<std::collections::HashMap<String, Vec<AgentEvent>>>,
 }
 
 fn failure(msg: impl Into<String>) -> VelaError {
@@ -183,6 +191,7 @@ impl WorkerDriver {
             runner,
             git,
             prompts,
+            failed_turn_events: Mutex::new(std::collections::HashMap::new()),
         }
     }
 
@@ -490,7 +499,18 @@ impl WorkerDriver {
                 },
                 &observed,
             )
-            .await?;
+            .await;
+        let result = match result {
+            Ok(r) => r,
+            Err(e) => {
+                let events = observed.events.lock().expect("events lock").clone();
+                self.failed_turn_events
+                    .lock()
+                    .expect("failed events lock")
+                    .insert(t.worker.as_str().to_owned(), events);
+                return Err(e);
+            }
+        };
         if let Some(c) = &result.conversation {
             let (w, c, now) = (
                 t.worker.as_str().to_owned(),
@@ -527,11 +547,17 @@ impl WorkerDriver {
                 AgentEvent::ProviderPolicyBlock { evidence } => {
                     (InterventionKind::ProviderPolicyBlock, evidence)
                 }
-                AgentEvent::CapacityError { message } => {
-                    return Err(VelaError::of_class(
-                        ErrorClass::ExternalTemporary,
-                        format!("the provider has no capacity: {message}"),
-                    ));
+                AgentEvent::CapacityError { reset_after_ms, .. } => {
+                    // Only this worker pauses; the profile cools down with the provider's reset time when it gave one.
+                    let until_ms = crate::capacity::CapacityService::new(self.services.clone())
+                        .on_capacity(
+                            &t.run,
+                            DEFAULT_PROFILE,
+                            reset_after_ms,
+                            std::slice::from_ref(&t.worker),
+                        )
+                        .await?;
+                    return Ok(Some(WorkerOutcome::Paused { until_ms }));
                 }
                 AgentEvent::ApprovalBlocked { description } => {
                     (InterventionKind::ApprovalAsk, description)
@@ -552,9 +578,31 @@ impl WorkerDriver {
         t: &WorkerTask,
         e: VelaError,
     ) -> Result<WorkerOutcome, VelaError> {
+        let failed_events = self
+            .failed_turn_events
+            .lock()
+            .expect("failed events lock")
+            .remove(t.worker.as_str())
+            .unwrap_or_default();
+        if let Some(reset_after_ms) = failed_events.iter().find_map(|ev| match ev {
+            AgentEvent::CapacityError { reset_after_ms, .. } => Some(*reset_after_ms),
+            _ => None,
+        }) {
+            let until_ms = crate::capacity::CapacityService::new(self.services.clone())
+                .on_capacity(
+                    &t.run,
+                    DEFAULT_PROFILE,
+                    reset_after_ms,
+                    std::slice::from_ref(&t.worker),
+                )
+                .await?;
+            return Ok(WorkerOutcome::Paused { until_ms });
+        }
         let kind = match e.code() {
             Some(ErrorCode::ProviderPolicyBlock) => InterventionKind::ProviderPolicyBlock,
             Some(ErrorCode::AuthRequired) => InterventionKind::AuthRequired,
+            // An access failure nobody could classify: a person looks at it, with its evidence. Never retried.
+            None if e.class() == ErrorClass::ExternalAuth => InterventionKind::Other,
             _ => return Err(e),
         };
         let id = self.raise(t, kind, e.what_failed(), &[]).await?;
