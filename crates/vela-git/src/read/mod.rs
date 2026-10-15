@@ -500,7 +500,9 @@ impl vela_domain::ports::GitHistory for GitCli {
         prefix: &'a str,
     ) -> PortFuture<'a, Vec<(vela_domain::ids::BranchName, CommitSha)>> {
         Box::pin(async move {
-            let pattern = format!("refs/heads/{prefix}*");
+            // `for-each-ref` matches a pattern literally up to a slash; a trailing `*` after a directory matched nothing on a real
+            // repository, so every local branch is listed and the prefix is applied here.
+            let pattern = "refs/heads/".to_owned();
             let text = self
                 .run_ok(
                     ctx,
@@ -517,12 +519,45 @@ impl vela_domain::ports::GitHistory for GitCli {
                 .lines()
                 .filter_map(|l| {
                     let (name, sha) = l.trim().rsplit_once(' ')?;
+                    if !name.starts_with(prefix) {
+                        return None;
+                    }
                     Some((
                         vela_domain::ids::BranchName::new(name).ok()?,
                         CommitSha::new(sha).ok()?,
                     ))
                 })
                 .collect())
+        })
+    }
+
+    fn find_commit_by_trailer<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+        key: &'a str,
+        value: &'a str,
+    ) -> PortFuture<'a, Option<CommitSha>> {
+        Box::pin(async move {
+            let text = self
+                .run_ok(
+                    ctx,
+                    repo,
+                    Mode::Read,
+                    &["log", "-n", "300", "--format=%H%x1f%B%x1e", "HEAD"],
+                )
+                .await?;
+            for record in text.split('\u{1e}') {
+                let record = record.trim_start_matches('\n');
+                let Some((sha, message)) = record.split_once('\u{1f}') else {
+                    continue;
+                };
+                let wanted = format!("{key}: {value}");
+                if message.lines().any(|l| l.trim() == wanted) {
+                    return Ok(CommitSha::new(sha.trim()).ok());
+                }
+            }
+            Ok(None)
         })
     }
 

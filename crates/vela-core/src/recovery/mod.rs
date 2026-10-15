@@ -171,6 +171,79 @@ impl Recovery {
         Ok(from_journal.or_else(|| base.map(str::to_owned)))
     }
 
+    /// Journals the checkpoint commits that interrupted operations turned out to have made.
+    fn adopt_found_checkpoints(
+        &self,
+        run: &RunId,
+        operations: &[ReconcileReport],
+    ) -> Result<(), VelaError> {
+        let r = run.as_str().to_owned();
+        let rows = self
+            .services
+            .store
+            .read(|c| o01_workers::list_for_run(c, &r))?;
+        for report in operations {
+            let crate::operations::Reconciled::Completed(result) = &report.outcome else {
+                continue;
+            };
+            let Some(commit) = result
+                .get("commit")
+                .and_then(|c| c.as_str())
+                .and_then(|c| CommitSha::new(c).ok())
+            else {
+                continue;
+            };
+            let id = report.id.clone();
+            let Some(op) = self
+                .services
+                .store
+                .read(|c| vela_persistence::repositories::r01_operations::get(c, &id))?
+            else {
+                continue;
+            };
+            if op.kind != "checkpoint" || op.run_id.as_deref() != Some(run.as_str()) {
+                continue;
+            }
+            let worktree = serde_json::from_str::<serde_json::Value>(&op.intent)
+                .ok()
+                .and_then(|v| {
+                    v.get("worktree")
+                        .and_then(|w| w.as_str())
+                        .map(str::to_owned)
+                });
+            let Some(row) = rows.iter().find(|w| {
+                w.worktree_path.as_deref().map(|p| p.replace('\\', "/"))
+                    == worktree.as_deref().map(|p| p.replace('\\', "/"))
+            }) else {
+                continue;
+            };
+            if self.expected_head(
+                &WorkerId::new(row.id.clone()).map_err(|e| VelaError::internal(e.to_string()))?,
+                None,
+            )? == Some(commit.as_str().to_owned())
+            {
+                continue;
+            }
+            let Some(base) = row.base_sha.clone().and_then(|b| CommitSha::new(b).ok()) else {
+                continue;
+            };
+            let worker =
+                WorkerId::new(row.id.clone()).map_err(|e| VelaError::internal(e.to_string()))?;
+            let event = self.append(
+                run,
+                Some(&worker),
+                Event::CheckpointCommitted(vela_domain::events::CheckpointCommittedPayload {
+                    commit,
+                    fixed_point: base,
+                }),
+            );
+            self.services
+                .store
+                .write(move |tx| tx.append(&event).map(|_| ()))?;
+        }
+        Ok(())
+    }
+
     /// Reconciles the run with reality and applies the run's recovery-continuation choice.
     pub async fn reconcile(&self, input: &RecoveryInput) -> Result<RecoveryReport, VelaError> {
         let run = &input.run;
@@ -187,6 +260,9 @@ impl Recovery {
 
         // 1. Interrupted operations: each recipe decides, and an operation without one is never retried.
         let operations = OperationLog::new(&self.services).reconcile_all().await?;
+        // A checkpoint commit the recipe found by its trailer was made but never recorded: record it now, so the worker's branch is
+        // where the journal says and the worker continues from it instead of redoing the work.
+        self.adopt_found_checkpoints(run, &operations)?;
 
         let trust = crate::trust::TrustService::new(&self.services).git_trust(&input.project_id)?;
         let ctx = trusted_ctx(&self.services, trust);

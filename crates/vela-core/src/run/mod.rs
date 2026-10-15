@@ -201,6 +201,139 @@ impl BuildService {
         Ok(record)
     }
 
+    /// Completes a start that was interrupted: the run is `STARTING`. Everything is idempotent against what the crash left. The base
+    /// is the one recorded when the run was created (never a branch that may have moved since); an integration worktree that
+    /// already exists is adopted only when its branch is exactly at that base, anything else is left for a person.
+    pub async fn resume_start(
+        &self,
+        run: &RunId,
+        options: &StartOptions,
+    ) -> Result<Option<RunBase>, VelaError> {
+        let runs = Runs::new(&self.services);
+        if runs.run_state(run)? != RunState::Active(RunPhase::Starting) {
+            return Ok(None);
+        }
+        if let Some(done) = self.base_of(run)? {
+            runs.transition_run(
+                run,
+                RunState::Active(RunPhase::Running),
+                Cause::System,
+                IntegrationHealth::Healthy,
+                Vec::new(),
+            )
+            .await?;
+            return Ok(Some(done));
+        }
+        let trust = TrustService::new(&self.services);
+        trust.require_trusted(&options.project_id, "Build")?;
+        let git_trust = trust.git_trust(&options.project_id)?;
+        let r = run.as_str().to_owned();
+        let created: Option<String> = self.services.store.read(|c| {
+            let mut stmt = c
+                .prepare("SELECT payload FROM event_journal WHERE run_id = ?1 AND kind = 'RunCreated' ORDER BY seq LIMIT 1")
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            let mut rows = stmt
+                .query([&r])
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            Ok(rows
+                .next()
+                .map_err(|e| VelaError::internal(e.to_string()))?
+                .and_then(|row| row.get::<_, String>(0).ok()))
+        })?;
+        let base = created
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+            .and_then(|v| {
+                v.get("run_base_sha")
+                    .and_then(|s| s.as_str())
+                    .map(str::to_owned)
+            })
+            .and_then(|s| CommitSha::new(s).ok())
+            .ok_or_else(|| VelaError::internal("the run has no recorded base to start from"))?;
+        let integration_branch = BranchName::new(format!("vela/{}/integration", run.as_str()))
+            .map_err(|e| VelaError::of_class(ErrorClass::ValidationFailure, e.to_string()))?;
+        let ctx = self.ctx(git_trust);
+        let live = self.git.list_worktrees(&ctx, &options.repo).await?;
+        match live.iter().find(|w| w.path == options.integration_worktree) {
+            Some(w) if w.head == base => {}
+            Some(_) => {
+                return Err(VelaError::of_class(
+                    ErrorClass::UserActionRequired,
+                    "the integration worktree exists but is not at the run's base, so Vela will not adopt it",
+                )
+                .with_user_action("inspect the integration worktree, then start the run again"));
+            }
+            None => {
+                self.git
+                    .add_worktree(
+                        &ctx,
+                        &WorktreeRequest {
+                            repo: options.repo.clone(),
+                            path: options.integration_worktree.clone(),
+                            branch: integration_branch.clone(),
+                            base: base.clone(),
+                        },
+                    )
+                    .await?;
+            }
+        }
+        let record = RunBase {
+            base_sha: base.as_str().to_owned(),
+            base_branch: options.base_branch.as_str().to_owned(),
+            integration_branch: integration_branch.as_str().to_owned(),
+            integration_worktree: options.integration_worktree.as_str().to_owned(),
+        };
+        self.record_start(run, &record, &base, &integration_branch, options)?;
+        runs.transition_run(
+            run,
+            RunState::Active(RunPhase::Running),
+            Cause::System,
+            IntegrationHealth::Healthy,
+            Vec::new(),
+        )
+        .await?;
+        Ok(Some(record))
+    }
+
+    /// Records the provisioned integration branch and worktree in one transaction.
+    fn record_start(
+        &self,
+        run: &RunId,
+        record: &RunBase,
+        base: &CommitSha,
+        integration_branch: &BranchName,
+        options: &StartOptions,
+    ) -> Result<(), VelaError> {
+        let provisioned = NewEvent {
+            ts: self.services.now_ms(),
+            run_id: Some(run.clone()),
+            ticket_id: None,
+            worker_id: None,
+            event: Event::WorktreeProvisioned(WorktreeProvisionedPayload {
+                worktree: options.integration_worktree.clone(),
+                branch: integration_branch.clone(),
+                base_sha: base.clone(),
+            }),
+        };
+        let (run_text, now, rec) = (
+            run.as_str().to_owned(),
+            self.services.now_ms(),
+            record.clone(),
+        );
+        self.services.store.write(move |tx| {
+            s08_build::set_run_base(tx.conn(), &run_text, &rec)?;
+            s08_build::insert_worktree(
+                tx.conn(),
+                &rec.integration_worktree,
+                &run_text,
+                "INTEGRATION",
+                &rec.integration_branch,
+                &rec.base_sha,
+                now,
+            )?;
+            tx.append(&provisioned).map(|_| ())
+        })
+    }
+
     /// The recorded base of a started run.
     pub fn base_of(&self, run: &RunId) -> Result<Option<RunBase>, VelaError> {
         let r = run.as_str().to_owned();

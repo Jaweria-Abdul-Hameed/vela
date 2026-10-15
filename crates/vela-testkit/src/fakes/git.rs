@@ -352,6 +352,23 @@ impl vela_domain::ports::GitHistory for FakeGit {
             .collect()))
     }
 
+    fn find_commit_by_trailer<'a>(
+        &'a self,
+        _ctx: &'a GitContext,
+        _repo: &'a WorktreePath,
+        key: &'a str,
+        value: &'a str,
+    ) -> PortFuture<'a, Option<CommitSha>> {
+        let s = self.state.lock().expect("git lock");
+        let wanted = format!("{key}: {value}");
+        ready(Ok(s.messages.iter().find_map(|(sha, msg)| {
+            msg.lines()
+                .any(|l| l.trim() == wanted)
+                .then(|| CommitSha::new(sha.clone()).ok())
+                .flatten()
+        })))
+    }
+
     fn commit_message<'a>(
         &'a self,
         _ctx: &'a GitContext,
