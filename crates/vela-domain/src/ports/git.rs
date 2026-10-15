@@ -433,6 +433,15 @@ pub trait GitHistory: Send + Sync {
         repo: &'a WorktreePath,
         prefix: &'a str,
     ) -> PortFuture<'a, Vec<(BranchName, CommitSha)>>;
+    /// The most recent commit reachable from `HEAD` of `repo` (a worktree or repository) whose message has the trailer
+    /// `key: value`, if one is among the last few hundred commits.
+    fn find_commit_by_trailer<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+        key: &'a str,
+        value: &'a str,
+    ) -> PortFuture<'a, Option<CommitSha>>;
     /// The full message of a commit.
     fn commit_message<'a>(
         &'a self,

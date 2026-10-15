@@ -165,6 +165,7 @@ async fn drive_flow(dir: &Path, scenario: Scenario) {
     }
     let services = services(&fx);
     let git_adapter = git_adapter(&fx);
+    register_recipes(&services, &git_adapter);
     let project = import_and_trust_with(&services, &git_adapter, &fx, scenario).await;
     let driver = driver(
         &services,
@@ -268,6 +269,7 @@ async fn drive_approval(dir: &Path) {
     let fx = fixture(dir, Scenario::Approval);
     let services = services(&fx);
     let git_adapter = git_adapter(&fx);
+    register_recipes(&services, &git_adapter);
     let project = import_and_trust(&services, &git_adapter, &fx).await;
     // A run with one worker, through the real services, then one allowed request through the broker.
     let driver = driver(
@@ -364,6 +366,14 @@ impl vela_domain::ports::ApprovalDeliveryAdapter for AllowOnce {
 
 // ------------------------------------------------------------------------------------------------------------------ restart
 
+/// What the composition root registers: the recipes that reconcile interrupted operations.
+fn register_recipes(services: &Arc<Services>, git: &Arc<vela_git::read::GitCli>) {
+    vela_core::capacity::register(services);
+    vela_core::broker::register_recipes(services);
+    vela_core::merge_lane::register_recipes(services);
+    vela_core::operations::register_checkpoint_recipe(services, git.clone());
+}
+
 fn runs_in(services: &Arc<Services>) -> Vec<(String, String)> {
     services
         .store
@@ -396,6 +406,7 @@ async fn verify_restart(dir: &Path, scenario: Scenario) {
     };
     out("integrity_issues", issues.len());
     let git_adapter = git_adapter(&fx);
+    register_recipes(&services, &git_adapter);
     let runs = runs_in(&services);
     out("runs", runs.len());
     let mut outcome = "no_run".to_owned();
@@ -408,6 +419,32 @@ async fn verify_restart(dir: &Path, scenario: Scenario) {
             Arc::new(FileAgent),
             &fx,
             Arc::new(PlainPrompts),
+        );
+        if let Ok(choice) = std::env::var("VELA_MATRIX_CONTINUATION") {
+            vela_core::settings::SettingsService::new(&services)
+                .set_user(
+                    vela_core::settings::Source::User,
+                    "recovery_continuation",
+                    &choice,
+                )
+                .expect("the continuation setting is stored");
+        }
+        let started = drv.recover_start(&run, &cfg).await;
+        out("build_start_completed", started.as_ref().is_ok_and(|b| *b));
+        let stopper = StopService::new(
+            services.clone(),
+            Arc::new(FileAgent),
+            runner(),
+            git_adapter.clone(),
+            drv.lane(),
+            Duration::from_secs(5),
+        );
+        let finished = stopper
+            .finish_interrupted(&run, &project, &integration_of(&cfg, &run))
+            .await;
+        out(
+            "stop_completed",
+            finished.as_ref().is_ok_and(|s| s.is_some()),
         );
         let recovery = Recovery::new(services.clone(), git_adapter.clone(), Arc::new(FileAgent));
         let report_r = recovery
@@ -425,6 +462,10 @@ async fn verify_restart(dir: &Path, scenario: Scenario) {
         out("discrepancies", rr.discrepancies.len());
         let runs_svc = Runs::new(&services);
         let state = runs_svc.run_state(&run).unwrap();
+        out("state_after_reconcile", state.name());
+        if let RunState::Paused { reason, .. } = &state {
+            out("paused_reason", format!("{reason:?}"));
+        }
         outcome = match state {
             RunState::Active(vela_domain::state::RunPhase::Running) => "running".into(),
             RunState::Paused { .. } => {
@@ -651,3 +692,71 @@ fn the_process_killed_at_every_declared_point_recovers_to_a_consistent_state() {
     eprintln!("crash matrix:\n{}", table.join("\n"));
     assert!(failures.is_empty(), "{failures:#?}\n{}", table.join("\n"));
 }
+
+fn kill_with(point: FaultPoint, scenario: Scenario, continuation: Option<&str>) -> Vec<String> {
+    let mut h = KillRestartHarness::new("matrix_child")
+        .expect("harness")
+        .with_timeout(Duration::from_secs(240))
+        .with_env("VELA_MATRIX_SCENARIO", scenario.name());
+    if let Some(c) = continuation {
+        h = h.with_env("VELA_MATRIX_CONTINUATION", c);
+    }
+    let r = h
+        .kill_and_restart(point)
+        .unwrap_or_else(|e| panic!("{}: {e}", point.name()));
+    assert!(
+        r.restart.success,
+        "restart failed:
+{}
+{}",
+        r.restart.stdout, r.restart.stderr
+    );
+    r.restart.reports.clone()
+}
+
+/// AT-005: terminate after the checkpoint but before the worker completion is recorded; the relaunch detects the commit and
+/// resumes without duplicate implementation.
+#[test]
+fn at_005_a_crash_after_the_checkpoint_resumes_without_implementing_again() {
+    let reports = kill_with(FaultPoint::WorkerAfterCheckpoint, Scenario::Flow, None);
+    assert_eq!(value(&reports, "duplicate_merges"), Some("0"));
+    assert_eq!(value(&reports, "integrity_issues"), Some("0"));
+    assert_eq!(value(&reports, "lock_files"), Some("0"));
+    // The checkpoint commit is found and used: nothing is left half done.
+    assert_ne!(value(&reports, "outcome"), Some("reconcile_failed"));
+}
+
+/// AT-019 (reboot): reconciliation runs first, then continuation follows the persisted setting. With `ask` the run waits for the
+/// user; with `auto_safe` it continues by itself only when reconciliation found nothing.
+#[test]
+fn at_019_after_a_reboot_the_continuation_setting_decides() {
+    let ask = kill_with(
+        FaultPoint::WorkerAfterCheckpoint,
+        Scenario::Flow,
+        Some("ask"),
+    );
+    assert_eq!(
+        value(&ask, "state_after_reconcile"),
+        Some("PAUSED"),
+        "{ask:?}"
+    );
+    assert_eq!(
+        value(&ask, "paused_reason"),
+        Some("AwaitingRecoveryConfirmation"),
+        "{ask:?}"
+    );
+    let auto = kill_with(
+        FaultPoint::WorkerAfterCheckpoint,
+        Scenario::Flow,
+        Some("auto_safe"),
+    );
+    let state = value(&auto, "state_after_reconcile").unwrap_or("?");
+    let reason = value(&auto, "paused_reason");
+    // Either it carried on (RUNNING), or reconciliation found something and it paused for the user; it never waits on the
+    // blanket confirmation that only `ask` uses.
+    assert!(
+        state == "RUNNING" || (state == "PAUSED" && reason != Some("AwaitingRecoveryConfirmation")),
+        "{auto:?}"
+    );
+}
+// try 1

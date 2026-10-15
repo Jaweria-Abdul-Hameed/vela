@@ -24,3 +24,4 @@ serde_json.workspace = true
 # The crash matrix aborts child processes at fault points; the points only fire with this feature on (dev-dependency features are
 # not transitive, so this crate must enable it itself).
 vela-domain = { workspace = true, features = ["fault-injection"] }
+rusqlite.workspace = true

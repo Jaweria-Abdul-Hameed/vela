@@ -808,10 +808,39 @@ impl WorkerDriver {
     }
 
     /// Vela's own checkpoint commit, recorded as an operation so a crash between the commit and its record reconciles by trailer.
+    /// The commit of the worker's newest recorded checkpoint, if there is one.
+    fn last_recorded_checkpoint(&self, t: &WorkerTask) -> Result<Option<CommitSha>, VelaError> {
+        let w = t.worker.as_str().to_owned();
+        let payload: Option<String> = self.services.store.read(|c| {
+            let mut stmt = c
+                .prepare("SELECT payload FROM event_journal WHERE worker_id = ?1 AND kind = 'CheckpointCommitted' ORDER BY seq DESC LIMIT 1")
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            let mut rows = stmt
+                .query([&w])
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            Ok(rows
+                .next()
+                .map_err(|e| VelaError::internal(e.to_string()))?
+                .and_then(|r| r.get::<_, String>(0).ok()))
+        })?;
+        Ok(payload
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
+            .and_then(|v| v.get("commit").and_then(|c| c.as_str()).map(str::to_owned))
+            .and_then(|c| CommitSha::new(c).ok()))
+    }
+
     async fn checkpoint(&self, t: &WorkerTask) -> Result<CommitSha, VelaError> {
         let ctx = self.ctx(&t.project_id)?;
         let status = self.git.status(&ctx, &t.worktree).await?;
         if status.is_clean() {
+            // A checkpoint that was made and journaled before a crash is simply continued from: the worktree is clean because its
+            // work is already committed, and the branch is at the recorded commit.
+            if let Some(recorded) = self.last_recorded_checkpoint(t)?
+                && status.head.as_ref() == Some(&recorded)
+                && recorded != t.base
+            {
+                return Ok(recorded);
+            }
             return Err(VelaError::of_class(
                 ErrorClass::ValidationFailure,
                 "the worker finished but changed nothing in the worktree",

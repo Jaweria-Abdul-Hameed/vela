@@ -241,6 +241,18 @@ pub fn driver(
     fx: &Fixture,
     prompts: Arc<dyn WorkerPrompts>,
 ) -> Arc<RunDriver> {
+    driver_with(services, git_adapter, agent, fx, prompts, None)
+}
+
+/// [`driver`] with an analyst, so a scenario can say which tickets write which files.
+pub fn driver_with(
+    services: &Arc<Services>,
+    git_adapter: &Arc<GitCli>,
+    agent: Arc<dyn AgentSession>,
+    fx: &Fixture,
+    prompts: Arc<dyn WorkerPrompts>,
+    analyst: Option<Arc<dyn vela_core::analysis::AnalystHook>>,
+) -> Arc<RunDriver> {
     let tracker: Arc<dyn IssueTrackerAdapter> = Arc::new(LocalTracker::new(fx.repo.join("issues")));
     let promotion = Arc::new(PromotionService::new(
         services.clone(),
@@ -250,7 +262,7 @@ pub fn driver(
     RunDriver::new(
         services.clone(),
         tracker,
-        None,
+        analyst,
         git_adapter.clone(),
         agent,
         runner(),
@@ -397,5 +409,195 @@ impl vela_domain::ports::AgentSession for FileAgent {
         _s: &'a vela_domain::ports::SessionRef,
     ) -> vela_domain::ports::PortFuture<'a, vela_domain::ports::SessionStatus> {
         Box::pin(async { Ok(vela_domain::ports::SessionStatus::Idle) })
+    }
+}
+
+/// What a scripted ticket does when its worker's turn runs.
+#[derive(Debug, Clone)]
+pub enum Behavior {
+    /// Writes `<ticket>.txt`.
+    Write,
+    /// Writes `shared.txt` with this content (two tickets doing this conflict when merged).
+    WriteShared(String),
+    /// Reports it cannot proceed (an ambiguous or contradictory ticket).
+    Blocked,
+    /// The first turn reports exhausted capacity (with this reset time); later turns succeed.
+    CapacityOnce(Option<i64>),
+    /// Every turn reports a provider policy block.
+    PolicyBlock,
+    /// Writes its file after this many milliseconds, so concurrency is observable.
+    Slow(u64),
+}
+
+/// A scripted agent with a behaviour per ticket, that records how many turns ran at once.
+pub struct ScenarioAgent {
+    by_ticket: std::sync::Mutex<std::collections::HashMap<String, Behavior>>,
+    used_once: std::sync::Mutex<std::collections::HashSet<String>>,
+    current: std::sync::atomic::AtomicU32,
+    max: std::sync::atomic::AtomicU32,
+    turns: std::sync::Mutex<Vec<String>>,
+}
+
+impl Default for ScenarioAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScenarioAgent {
+    /// An agent where every ticket writes its file.
+    pub fn new() -> Self {
+        Self {
+            by_ticket: std::sync::Mutex::new(std::collections::HashMap::new()),
+            used_once: std::sync::Mutex::new(std::collections::HashSet::new()),
+            current: std::sync::atomic::AtomicU32::new(0),
+            max: std::sync::atomic::AtomicU32::new(0),
+            turns: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Sets what `ticket` (for example `T-1`) does.
+    pub fn set(&self, ticket: &str, behavior: Behavior) -> &Self {
+        self.by_ticket
+            .lock()
+            .unwrap()
+            .insert(ticket.to_ascii_lowercase(), behavior);
+        self
+    }
+
+    /// The most turns that ran at the same moment.
+    pub fn max_concurrent(&self) -> u32 {
+        self.max.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// The tickets whose turns ran, in order.
+    pub fn turns(&self) -> Vec<String> {
+        self.turns.lock().unwrap().clone()
+    }
+}
+
+impl vela_domain::ports::AgentSession for ScenarioAgent {
+    fn run_turn<'a>(
+        &'a self,
+        request: &'a vela_domain::ports::TurnRequest,
+        sink: &'a dyn vela_domain::ports::AgentEventSink,
+    ) -> vela_domain::ports::PortFuture<'a, vela_domain::ports::TurnResult> {
+        use std::sync::atomic::Ordering;
+        use vela_domain::errors::{ErrorClass, ErrorCode};
+        use vela_domain::ports::{AgentEvent, ConversationId, TurnResult};
+        Box::pin(async move {
+            let ticket = request
+                .prompt
+                .split_whitespace()
+                .nth(1)
+                .unwrap_or("x")
+                .trim_end_matches(':')
+                .to_ascii_lowercase();
+            self.turns.lock().unwrap().push(ticket.clone());
+            let now = self.current.fetch_add(1, Ordering::SeqCst) + 1;
+            self.max.fetch_max(now, Ordering::SeqCst);
+            let behavior = self
+                .by_ticket
+                .lock()
+                .unwrap()
+                .get(&ticket)
+                .cloned()
+                .unwrap_or(Behavior::Write);
+            let result = async {
+                let dir = Path::new(request.worktree.as_str());
+                let finished = |response: &str| TurnResult {
+                    conversation: ConversationId::new(format!("conv-{ticket}")).ok(),
+                    finished: true,
+                    response: response.to_owned(),
+                };
+                match behavior {
+                    Behavior::Write | Behavior::Slow(_) | Behavior::CapacityOnce(_) => {
+                        if let Behavior::Slow(ms) = behavior {
+                            tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+                        }
+                        if let Behavior::CapacityOnce(reset) = behavior
+                            && self.used_once.lock().unwrap().insert(ticket.clone())
+                        {
+                            sink.on_event(AgentEvent::CapacityError {
+                                message: "RESOURCE_EXHAUSTED: capacity exhausted".into(),
+                                reset_after_ms: reset,
+                            });
+                            return Err(VelaError::of_class(
+                                ErrorClass::ExternalTemporary,
+                                "the provider's capacity is exhausted",
+                            ));
+                        }
+                        std::fs::write(
+                            dir.join(format!("{ticket}.txt")),
+                            format!("done by Vela for {ticket}\n"),
+                        )
+                        .map_err(|e| VelaError::internal(e.to_string()))?;
+                        sink.on_event(AgentEvent::TurnFinished);
+                        Ok(finished("DONE"))
+                    }
+                    Behavior::WriteShared(content) => {
+                        std::fs::write(dir.join("shared.txt"), content)
+                            .map_err(|e| VelaError::internal(e.to_string()))?;
+                        sink.on_event(AgentEvent::TurnFinished);
+                        Ok(finished("DONE"))
+                    }
+                    Behavior::Blocked => {
+                        sink.on_event(AgentEvent::TurnFinished);
+                        Ok(finished("BLOCKED"))
+                    }
+                    Behavior::PolicyBlock => {
+                        sink.on_event(AgentEvent::ProviderPolicyBlock {
+                            evidence: "SYNTHETIC: the provider blocked the account".into(),
+                        });
+                        Err(VelaError::from_code(
+                            ErrorCode::ProviderPolicyBlock,
+                            "the provider blocked the account or service",
+                        ))
+                    }
+                }
+            }
+            .await;
+            self.current.fetch_sub(1, Ordering::SeqCst);
+            result
+        })
+    }
+    fn cancel<'a>(
+        &'a self,
+        _s: &'a vela_domain::ports::SessionRef,
+    ) -> vela_domain::ports::PortFuture<'a, ()> {
+        Box::pin(async { Ok(()) })
+    }
+    fn status<'a>(
+        &'a self,
+        _s: &'a vela_domain::ports::SessionRef,
+    ) -> vela_domain::ports::PortFuture<'a, vela_domain::ports::SessionStatus> {
+        Box::pin(async { Ok(vela_domain::ports::SessionStatus::Idle) })
+    }
+}
+
+/// An analyst that says exactly which files each ticket writes (and proposes nothing else).
+pub struct ScriptedAnalyst(pub std::collections::BTreeMap<String, Vec<String>>);
+
+impl vela_core::analysis::AnalystHook for ScriptedAnalyst {
+    fn analyze<'a>(
+        &'a self,
+        _tickets: &'a [vela_domain::ports::TrackerTicket],
+        _graph: &'a vela_domain::graph::DependencyGraph,
+    ) -> vela_domain::ports::PortFuture<'a, vela_core::analysis::AnalystOutput> {
+        let mut out = vela_core::analysis::AnalystOutput::default();
+        for (ticket, files) in &self.0 {
+            let Ok(id) = vela_domain::ids::TicketId::new(ticket.clone()) else {
+                continue;
+            };
+            out.write_sets.insert(
+                id,
+                vela_domain::parallel::PredictedWriteSet {
+                    files: files.iter().cloned().collect(),
+                    ..Default::default()
+                },
+            );
+        }
+        out.version = "scripted".to_owned();
+        Box::pin(async move { Ok(out) })
     }
 }

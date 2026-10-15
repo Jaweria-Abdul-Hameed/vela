@@ -138,3 +138,39 @@ async fn a_folder_that_is_not_a_repository_is_a_typed_error() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[tokio::test]
+async fn branches_with_a_prefix_and_commit_messages_are_read_from_a_real_repository() {
+    use vela_domain::ports::GitHistory;
+    let repo = FixtureRepo::create(FixtureKind::MultiPackage).unwrap();
+    let path = wt(repo.path());
+    let run = |args: &[&str]| {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo.path())
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    };
+    run(&["branch", "vela/run-1/integration"]);
+    run(&["branch", "vela/run-1/t-1"]);
+    run(&["branch", "feature/other"]);
+    let git = git_cli();
+    let c = ctx(RepoTrust::Trusted);
+    let found = git.list_branches(&c, &path, "vela/").await.unwrap();
+    let names: Vec<&str> = found.iter().map(|(b, _)| b.as_str()).collect();
+    assert_eq!(names, ["vela/run-1/integration", "vela/run-1/t-1"]);
+    let tip = git
+        .resolve_ref(&c, &path, &RevisionSpec::new("HEAD").unwrap())
+        .await
+        .unwrap();
+    assert!(found.iter().all(|(_, sha)| *sha == tip));
+    let msg = git.commit_message(&c, &path, &tip).await.unwrap();
+    assert!(!msg.trim().is_empty());
+    assert_eq!(repo.fired_markers().unwrap(), Vec::<String>::new());
+}

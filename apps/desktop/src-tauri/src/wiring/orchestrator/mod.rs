@@ -292,8 +292,21 @@ pub fn install<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::E
     vela_core::merge_lane::register_recipes(&services);
 
     let adapters = Arc::new(adapters::build(&data_root()));
+    // An interrupted checkpoint is found again by the trailer on its commit (or redone), never guessed at.
+    vela_core::operations::register_checkpoint_recipe(&services, adapters.git.clone());
     let backend = DesktopBackend::new(services.clone(), adapters);
-    app.manage(ApiHandle(AppApi::new(services.clone(), backend)));
+    let api = AppApi::new(services.clone(), backend);
+    app.manage(ApiHandle(api.clone()));
+    // Startup reconciliation: finish what a crash interrupted and apply the persisted continuation choice.
+    {
+        let api = api.clone();
+        tauri::async_runtime::spawn(async move {
+            match api.startup_recovery().await {
+                Ok(v) => tracing::info!(recovered = %v, "startup recovery finished"),
+                Err(e) => tracing::warn!(error = %e.what_failed(), "startup recovery failed"),
+            }
+        });
+    }
 
     let notifier = Arc::new(TauriNotifier {
         app: app.handle().clone(),

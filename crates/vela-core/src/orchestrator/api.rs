@@ -456,6 +456,90 @@ impl AppApi {
         }))
     }
 
+    /// Startup reconciliation (`RECOVERY.md`): for every run that was not finished when the process last stopped, finish what the
+    /// crash interrupted (a build start, a Stop All), compare the record with reality, and apply the persisted continuation choice.
+    /// With `ask` (the default) a run that was running waits, paused, for the person; with `auto_safe` a clean run carries on by
+    /// itself. Returns what happened to each run. A run that cannot be recovered is reported, never guessed at.
+    pub async fn startup_recovery(self: &Arc<Self>) -> Result<Value, VelaError> {
+        let runs: Vec<(String, String)> = self.services.store.read(|c| {
+            let mut stmt = c
+                .prepare("SELECT id, state FROM build_runs ORDER BY created_ms")
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            let rows = stmt
+                .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+                .map_err(|e| VelaError::internal(e.to_string()))?;
+            Ok(rows.filter_map(Result::ok).collect())
+        })?;
+        let mut out = Vec::new();
+        for (id, state) in runs {
+            let terminal = serde_json::from_str::<RunState>(&state).is_ok_and(|s| {
+                matches!(
+                    s,
+                    RunState::Completed | RunState::Failed | RunState::Cancelled
+                )
+            });
+            if terminal {
+                continue;
+            }
+            let note = match self.recover_one(&id).await {
+                Ok(n) => n,
+                Err(e) => json!({"run": id, "recovered": false, "reason": e.what_failed()}),
+            };
+            out.push(note);
+        }
+        Ok(Value::Array(out))
+    }
+
+    async fn recover_one(self: &Arc<Self>, run_id: &str) -> Result<Value, VelaError> {
+        let run = RunId::new(run_id)
+            .map_err(|e| VelaError::of_class(ErrorClass::ValidationFailure, e.to_string()))?;
+        let p = self.project(&self.project_of_run(&run)?)?;
+        let driver = self.backend.driver(&p)?;
+        let cfg = self.config(&p)?;
+        let started = driver.recover_start(&run, &cfg).await?;
+        let r = run.as_str().to_owned();
+        let integration = self
+            .services
+            .store
+            .read(|c| s08_build::get_run_base(c, &r))?
+            .map(|b| WorktreePath::new(b.integration_worktree))
+            .transpose()
+            .map_err(|e| VelaError::internal(e.to_string()))?;
+        let stopped = match &integration {
+            Some(i) => self
+                .backend
+                .stop_service(&driver)
+                .finish_interrupted(&run, &p.id, i)
+                .await?
+                .is_some(),
+            None => false,
+        };
+        let report = self
+            .backend
+            .recovery()
+            .reconcile(&RecoveryInput {
+                run: run.clone(),
+                project_id: p.id.clone(),
+                repo: cfg.repo.clone(),
+                reason: "startup".to_owned(),
+            })
+            .await?;
+        let state = Runs::new(&self.services).run_state(&run)?;
+        if state == RunState::Active(vela_domain::state::RunPhase::Running) {
+            // The persisted choice let it carry on.
+            self.spawn_drive(run, driver, cfg);
+        }
+        Ok(json!({
+            "run": run_id,
+            "recovered": true,
+            "state": state.name(),
+            "build_start_completed": started,
+            "stop_completed": stopped,
+            "discrepancies": report.discrepancies.len(),
+            "held": report.held.len(),
+        }))
+    }
+
     /// Resume after Stop All or a restart: reconcile first, then continue only if nothing needs a decision.
     pub async fn run_resume(self: &Arc<Self>, run_id: &str) -> Result<Value, VelaError> {
         let run = RunId::new(run_id)
