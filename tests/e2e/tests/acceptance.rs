@@ -670,8 +670,7 @@ async fn at_007_a_capacity_pause_stops_only_the_affected_worker_and_it_resumes_w
         .iter()
         .find(|(t, _)| t == "T-1")
         .expect("T-1 has a worker")
-        .1
-        .clone();
+        .1;
     assert!(
         matches!(t1, WorkerState::Paused { .. }),
         "T-1 is paused for capacity, not failed: {t1:?} ({outcome:?})"
@@ -680,8 +679,7 @@ async fn at_007_a_capacity_pause_stops_only_the_affected_worker_and_it_resumes_w
         .iter()
         .find(|(t, _)| t == "T-2")
         .expect("T-2 has a worker")
-        .1
-        .clone();
+        .1;
     assert_eq!(
         t2,
         WorkerState::Complete,

@@ -401,7 +401,7 @@ async fn verify_restart(dir: &Path, scenario: Scenario) {
         let conn_issues = vela_persistence::integrity::check;
         services
             .store
-            .read(|c| conn_issues(c))
+            .read(conn_issues)
             .expect("integrity check runs")
     };
     out("integrity_issues", issues.len());
@@ -463,6 +463,33 @@ async fn verify_restart(dir: &Path, scenario: Scenario) {
         let runs_svc = Runs::new(&services);
         let state = runs_svc.run_state(&run).unwrap();
         out("state_after_reconcile", state.name());
+        if scenario == Scenario::Approval {
+            // The approval scenario has no driver behind it: what matters is that a persisted decision is never replayed.
+            let r = run.as_str().to_owned();
+            let (states, deliveries): (Vec<String>, i64) = services
+                .store
+                .read(|c| {
+                    let mut s = c
+                        .prepare("SELECT state FROM approval_requests WHERE run_id = ?1")
+                        .unwrap();
+                    let states = s
+                        .query_map([&r], |row| row.get::<_, String>(0))
+                        .unwrap()
+                        .map(Result::unwrap)
+                        .collect();
+                    let d = c
+                        .query_row("SELECT COUNT(*) FROM approval_deliveries", [], |row| {
+                            row.get(0)
+                        })
+                        .unwrap_or(0);
+                    Ok((states, d))
+                })
+                .unwrap();
+            out("approval_states", states.join(","));
+            out("approval_deliveries", deliveries);
+            outcome = "approval_checked".into();
+            continue;
+        }
         if let RunState::Paused { reason, .. } = &state {
             out("paused_reason", format!("{reason:?}"));
         }
@@ -685,6 +712,11 @@ fn the_process_killed_at_every_declared_point_recovers_to_a_consistent_state() {
         if get("duplicate_merges") != "0" {
             failures.push(format!("{}: a ticket was merged twice", point.name()));
         }
+        if *scenario == Scenario::Approval
+            && get("approval_deliveries").parse::<i64>().unwrap_or(99) > 1
+        {
+            failures.push(format!("{}: an approval was delivered twice", point.name()));
+        }
         if get("outcome") == "reconcile_failed" {
             failures.push(format!("{}: reconciliation failed", point.name()));
         }
@@ -759,4 +791,3 @@ fn at_019_after_a_reboot_the_continuation_setting_decides() {
         "{auto:?}"
     );
 }
-// try 1
