@@ -52,9 +52,37 @@ pub fn open(root: &Path) -> Result<StoreHandle, VelaError> {
     }
 }
 
+/// Like [`open`], but a store that is damaged and has no usable backup does not stop the application from starting: the damaged
+/// files are moved aside (never deleted) and a new empty store is created. The branches and worktrees of earlier runs are
+/// untouched in Git; the projects have to be imported again.
+pub fn open_or_quarantine(root: &Path) -> Result<StoreHandle, VelaError> {
+    match open(root) {
+        Ok(h) => Ok(h),
+        Err(e) if e.code() == Some(vela_domain::errors::ErrorCode::StateStoreCorrupt) => {
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs());
+            for ext in ["", "-wal", "-shm"] {
+                let from = root.join(format!("state.db{ext}"));
+                if from.exists() {
+                    let to = root.join(format!("state.db{ext}.unrecoverable-{stamp}"));
+                    std::fs::rename(&from, &to).map_err(|io| {
+                        VelaError::internal(format!(
+                            "the damaged store could not be moved aside: {io}"
+                        ))
+                    })?;
+                }
+            }
+            tracing::warn!(error = %e.what_failed(), "the state store is unrecoverable; starting with a new one");
+            open(root)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 /// Opens the store at [`data_root`], manages it, and starts the event bridge. Called from `compose`'s setup.
 pub fn install<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::Error>> {
-    let handle = open(&data_root()).map_err(|e| e.to_string())?;
+    let handle = open_or_quarantine(&data_root()).map_err(|e| e.to_string())?;
     let events = handle.0.subscribe();
     crate::events::spawn_bridge(app.handle().clone(), events);
     app.manage(handle);
@@ -122,6 +150,23 @@ mod tests {
         };
         assert!(!err.user_action().is_empty());
         assert!(root.join("state.db").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_unrecoverable_store_is_moved_aside_and_the_application_still_starts() {
+        let root = temp_root("quarantine");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("state.db"), b"damaged bytes").unwrap();
+        let handle = open_or_quarantine(&root).expect("starts with a new store");
+        assert_eq!(handle.0.read(vela_persistence::journal::tip).unwrap(), 0);
+        let kept = std::fs::read_dir(&root).unwrap().flatten().any(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .starts_with("state.db.unrecoverable-")
+        });
+        assert!(kept, "the damaged file is kept, not deleted");
+        drop(handle);
         let _ = std::fs::remove_dir_all(&root);
     }
 

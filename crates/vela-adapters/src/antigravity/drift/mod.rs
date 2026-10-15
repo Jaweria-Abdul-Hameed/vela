@@ -33,6 +33,22 @@ pub struct VersionSnapshot {
     pub posture: String,
 }
 
+/// The snapshot a capability report amounts to: the version and the set of capabilities that are provided. The permission posture
+/// is probed separately and is not part of this cheap snapshot.
+pub fn snapshot_of(report: &super::capability::CapabilityReport) -> VersionSnapshot {
+    VersionSnapshot {
+        agy_version: report.installation.version.clone().unwrap_or_default(),
+        desktop_version: None,
+        capabilities: report
+            .results
+            .iter()
+            .filter(|r| r.support == super::capability::Support::Supported)
+            .map(|r| r.id.label().to_owned())
+            .collect(),
+        posture: String::new(),
+    }
+}
+
 /// One way the installation changed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DriftReason {
@@ -124,6 +140,11 @@ impl DriftGuard {
         } else {
             Gate::Blocked(self.blocked.clone())
         }
+    }
+
+    /// The snapshot being compared against.
+    pub fn baseline(&self) -> &VersionSnapshot {
+        &self.baseline
     }
 
     /// Whether resume is currently blocked.

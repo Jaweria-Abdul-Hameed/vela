@@ -6,6 +6,9 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
+use vela_adapters::antigravity::drift::{
+    DriftGuard, DriftReason, Gate, VersionSnapshot, snapshot_of,
+};
 use vela_adapters::antigravity::prompts::{
     CompletionStatus as AgyStatus, TicketSnapshot, WorkerEnvelope, correction_prompt,
     parse_completion, render_worker_prompt,
@@ -14,7 +17,7 @@ use vela_adapters::antigravity::session::AgyDriver;
 use vela_core::orchestrator::Services;
 use vela_core::trust::TrustService;
 use vela_core::worker::{Completion, CompletionStatus, WorkerPrompts, WorkerTask};
-use vela_domain::errors::VelaError;
+use vela_domain::errors::{ErrorClass, VelaError};
 use vela_domain::ids::{WorkerId, WorktreePath};
 use vela_domain::policy::{PolicyEngine, RunMode};
 use vela_domain::ports::{
@@ -28,6 +31,8 @@ pub struct ProfilingAgent {
     services: Arc<Services>,
     adapters: Arc<Adapters>,
     ready: Mutex<HashSet<WorkerId>>,
+    /// The installation as it was at the first turn of this session; checked at every turn boundary (A14).
+    drift: tokio::sync::Mutex<Option<DriftGuard>>,
 }
 
 impl ProfilingAgent {
@@ -37,6 +42,48 @@ impl ProfilingAgent {
             services,
             adapters,
             ready: Mutex::new(HashSet::new()),
+            drift: tokio::sync::Mutex::new(None),
+        }
+    }
+
+    /// The drift check at a turn boundary. A changed CLI version with the same capabilities is accepted (the CLI updates itself in
+    /// the background) and becomes the new baseline; a lost capability blocks the turn until the person plans again.
+    async fn check_drift(&self) -> Result<(), VelaError> {
+        let probe = self.driver().capability_probe();
+        let mut guard = self.drift.lock().await;
+        let Some(g) = guard.as_mut() else {
+            *guard = Some(DriftGuard::new(snapshot_of(&probe.probe().await)));
+            return Ok(());
+        };
+        let version = probe.version().await.unwrap_or_default();
+        let cheap = VersionSnapshot {
+            agy_version: version,
+            ..g.baseline().clone()
+        };
+        if matches!(g.check(&cheap), Gate::Proceed) {
+            return Ok(());
+        }
+        let full = snapshot_of(&probe.probe().await);
+        match g.check(&full) {
+            Gate::Proceed => Ok(()),
+            Gate::Blocked(reasons)
+                if reasons
+                    .iter()
+                    .all(|r| matches!(r, DriftReason::AgyVersion { .. })) =>
+            {
+                tracing::info!(
+                    ?reasons,
+                    "Antigravity was updated; capabilities are unchanged, carrying on"
+                );
+                g.confirm(full);
+                Ok(())
+            }
+            Gate::Blocked(reasons) => Err(VelaError::of_class(
+                ErrorClass::ExternalTemporary,
+                format!(
+                    "Antigravity changed since this session started ({reasons:?}), so no new turn is started. Restart Vela to re-detect it."
+                ),
+            )),
         }
     }
 
@@ -83,6 +130,7 @@ impl AgentSession for ProfilingAgent {
     ) -> PortFuture<'a, TurnResult> {
         Box::pin(async move {
             self.ensure_profile(&request.worker, &request.worktree)?;
+            self.check_drift().await?;
             self.driver().run_turn(request, sink).await
         })
     }
