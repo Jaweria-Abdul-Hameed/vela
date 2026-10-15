@@ -53,11 +53,15 @@ pub struct Fixture {
     pub repo: PathBuf,
     /// Vela's data root.
     pub data: PathBuf,
+    /// Keep the folder when dropped (a crash-matrix child leaves its state for the restart).
+    keep: bool,
 }
 
 impl Drop for Fixture {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.base);
+        if !self.keep {
+            let _ = std::fs::remove_dir_all(&self.base);
+        }
     }
 }
 
@@ -66,6 +70,24 @@ impl Fixture {
     pub fn new(tag: &str, issues: &[(&str, &str)]) -> Self {
         let base = std::env::temp_dir().join(format!("vela-e2e-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
+        Self::build(base, issues, false)
+    }
+
+    /// The fixture rooted at `base`, which survives being dropped: created on the first launch of a crash-matrix child and
+    /// reopened, untouched, by the restart.
+    pub fn at(base: &Path, issues: &[(&str, &str)]) -> Self {
+        if base.join("repo").join(".git").exists() {
+            return Self {
+                base: base.to_path_buf(),
+                repo: base.join("repo"),
+                data: base.join("data"),
+                keep: true,
+            };
+        }
+        Self::build(base.to_path_buf(), issues, true)
+    }
+
+    fn build(base: PathBuf, issues: &[(&str, &str)], keep: bool) -> Self {
         let repo = base.join("repo");
         let data = base.join("data");
         std::fs::create_dir_all(repo.join("issues")).unwrap();
@@ -80,7 +102,12 @@ impl Fixture {
         }
         git(&repo, &["add", "-A"]);
         git(&repo, &["commit", "-q", "-m", "initial"]);
-        Self { base, repo, data }
+        Self {
+            base,
+            repo,
+            data,
+            keep,
+        }
     }
 
     /// The repository as a Git path (forward slashes).
@@ -323,5 +350,52 @@ pub fn record_result(name: &str, passed: bool, seconds: u64) {
     {
         use std::io::Write;
         let _ = writeln!(f, "{line}");
+    }
+}
+
+/// An agent that does what the ticket asks by writing one file named after the ticket into the worktree.
+pub struct FileAgent;
+
+impl vela_domain::ports::AgentSession for FileAgent {
+    fn run_turn<'a>(
+        &'a self,
+        request: &'a vela_domain::ports::TurnRequest,
+        sink: &'a dyn vela_domain::ports::AgentEventSink,
+    ) -> vela_domain::ports::PortFuture<'a, vela_domain::ports::TurnResult> {
+        Box::pin(async move {
+            let ticket = request
+                .prompt
+                .split_whitespace()
+                .nth(1)
+                .unwrap_or("x")
+                .trim_end_matches(':')
+                .to_ascii_lowercase();
+            std::fs::write(
+                Path::new(request.worktree.as_str()).join(format!("{ticket}.txt")),
+                format!(
+                    "done by Vela for {ticket}
+"
+                ),
+            )
+            .map_err(|e| VelaError::internal(e.to_string()))?;
+            sink.on_event(vela_domain::ports::AgentEvent::TurnFinished);
+            Ok(vela_domain::ports::TurnResult {
+                conversation: vela_domain::ports::ConversationId::new("conv-e2e").ok(),
+                finished: true,
+                response: "DONE".to_owned(),
+            })
+        })
+    }
+    fn cancel<'a>(
+        &'a self,
+        _s: &'a vela_domain::ports::SessionRef,
+    ) -> vela_domain::ports::PortFuture<'a, ()> {
+        Box::pin(async { Ok(()) })
+    }
+    fn status<'a>(
+        &'a self,
+        _s: &'a vela_domain::ports::SessionRef,
+    ) -> vela_domain::ports::PortFuture<'a, vela_domain::ports::SessionStatus> {
+        Box::pin(async { Ok(vela_domain::ports::SessionStatus::Idle) })
     }
 }

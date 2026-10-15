@@ -19,3 +19,8 @@ vela-core.workspace = true
 vela-testkit.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 serde_json.workspace = true
+
+[dev-dependencies]
+# The crash matrix aborts child processes at fault points; the points only fire with this feature on (dev-dependency features are
+# not transitive, so this crate must enable it itself).
+vela-domain = { workspace = true, features = ["fault-injection"] }
