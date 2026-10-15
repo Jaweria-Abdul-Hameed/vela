@@ -6,14 +6,7 @@
       "file": "success-pong",
       "scenario": "A tool-free prompt succeeds",
       "synthetic": false,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json",
-        "--print-timeout",
-        "90s"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json", "--print-timeout", "90s"],
       "exitCode": 0,
       "expect": {
         "class": "completed",
@@ -49,18 +42,11 @@
       "file": "soft-denial",
       "scenario": "A command tool in headless mode with no allow rule is soft-denied: exit 0, result SUCCESS, empty response, denied_actions, stderr text; the tool step still reports DONE",
       "synthetic": false,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
       "exitCode": 0,
       "expect": {
         "class": "soft_denied",
-        "deniedActions": [
-          "command"
-        ],
+        "deniedActions": ["command"],
         "executedTools": [
           {
             "name": "run_command",
@@ -118,12 +104,7 @@
       "file": "quota-text",
       "scenario": "Quota exhaustion (wording from the documented bug, so synthetic)",
       "synthetic": true,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
       "exitCode": 0,
       "expect": {
         "class": "quota_exhausted"
@@ -133,12 +114,7 @@
       "file": "auth-error",
       "scenario": "Not signed in: no events, text on stderr (synthetic)",
       "synthetic": true,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
       "exitCode": 1,
       "expect": {
         "class": "auth_required"
@@ -148,12 +124,7 @@
       "file": "waiting",
       "scenario": "result.status WAITING (undefined by the provider; never observed headless; synthetic)",
       "synthetic": true,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
       "exitCode": 0,
       "expect": {
         "class": "waiting"
@@ -163,12 +134,7 @@
       "file": "truncated",
       "scenario": "The stream ends mid-line with no result event (synthetic)",
       "synthetic": true,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
       "exitCode": 1,
       "expect": {
         "class": "incomplete"
@@ -178,17 +144,44 @@
       "file": "malformed",
       "scenario": "Garbage lines, an unknown event, a wrongly typed field and an unknown field are tolerated (synthetic)",
       "synthetic": true,
-      "args": [
-        "-p",
-        "<prompt>",
-        "--output-format",
-        "stream-json"
-      ],
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
       "exitCode": 0,
       "expect": {
         "class": "completed",
         "response": "ok\n",
         "malformedLines": 2
+      }
+    },
+    {
+      "file": "synthetic-policy-block",
+      "scenario": "Policy block, invented wording (synthetic)",
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
+      "exitCode": 0,
+      "synthetic": true,
+      "expect": {
+        "class": "provider_policy_block",
+        "signal": "synthetic-account-suspended"
+      }
+    },
+    {
+      "file": "documented-style-policy-block",
+      "scenario": "Policy block, paraphrase of the documented changelog entry (exact text unrecorded; synthetic)",
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
+      "exitCode": 0,
+      "synthetic": true,
+      "expect": {
+        "class": "provider_policy_block",
+        "signal": "documented-terms-block-with-appeal"
+      }
+    },
+    {
+      "file": "access-unclassified",
+      "scenario": "Access failure matching no known signal (synthetic)",
+      "args": ["-p", "<prompt>", "--output-format", "stream-json"],
+      "exitCode": 0,
+      "synthetic": true,
+      "expect": {
+        "class": "access_failure"
       }
     }
   ],

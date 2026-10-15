@@ -24,6 +24,8 @@ struct State {
     merges: VecDeque<MergeOutcome>,
     pushed: BTreeMap<String, CommitSha>,
     keep_changed: bool,
+    messages: BTreeMap<String, String>,
+    push_failures: Vec<VelaError>,
 }
 
 /// In-memory Git. Every operation is recorded; merge outcomes are scripted (a clean merge when the script is empty).
@@ -61,6 +63,8 @@ impl FakeGit {
                 merges: VecDeque::new(),
                 pushed: BTreeMap::new(),
                 keep_changed: false,
+                messages: BTreeMap::new(),
+                push_failures: Vec::new(),
             }),
             log: Recorder::new(),
         }
@@ -88,6 +92,19 @@ impl FakeGit {
     /// When set, a checkpoint leaves the working tree reported as changed (every worker then has something to commit).
     pub fn set_keep_changed(&self, keep: bool) {
         self.state.lock().expect("git lock").keep_changed = keep;
+    }
+
+    /// The next pushes fail with these errors, one each, before pushes succeed again.
+    pub fn fail_next_pushes(&self, errors: Vec<VelaError>) {
+        self.state.lock().expect("git lock").push_failures = errors;
+    }
+
+    /// Records the message of a commit and a branch at it, for history reads.
+    pub fn set_branch_with_message(&self, branch: &str, commit: &CommitSha, message: &str) {
+        let mut s = self.state.lock().expect("git lock");
+        s.refs.insert(branch.to_owned(), commit.clone());
+        s.messages
+            .insert(commit.as_str().to_owned(), message.to_owned());
     }
 
     /// Sets the paths reported by `diff_summary`.
@@ -306,6 +323,9 @@ impl GitRemote for FakeGit {
     ) -> PortFuture<'a, PushOutcome> {
         self.log.record(format!("push:{remote}:{branch}"));
         let mut s = self.state.lock().expect("git lock");
+        if !s.push_failures.is_empty() {
+            return ready(Err(s.push_failures.remove(0)));
+        }
         let head = s.head.clone().unwrap_or_else(|| sha(1));
         let remote_head = s
             .pushed
@@ -313,5 +333,36 @@ impl GitRemote for FakeGit {
             .or_insert(head)
             .clone();
         ready(Ok(PushOutcome { remote_head }))
+    }
+}
+
+impl vela_domain::ports::GitHistory for FakeGit {
+    fn list_branches<'a>(
+        &'a self,
+        _ctx: &'a GitContext,
+        _repo: &'a WorktreePath,
+        prefix: &'a str,
+    ) -> PortFuture<'a, Vec<(BranchName, CommitSha)>> {
+        let s = self.state.lock().expect("git lock");
+        ready(Ok(s
+            .refs
+            .iter()
+            .filter(|(k, _)| k.starts_with(prefix))
+            .filter_map(|(k, v)| Some((BranchName::new(k.as_str()).ok()?, v.clone())))
+            .collect()))
+    }
+
+    fn commit_message<'a>(
+        &'a self,
+        _ctx: &'a GitContext,
+        _repo: &'a WorktreePath,
+        commit: &'a CommitSha,
+    ) -> PortFuture<'a, String> {
+        let s = self.state.lock().expect("git lock");
+        ready(Ok(s
+            .messages
+            .get(commit.as_str())
+            .cloned()
+            .unwrap_or_default()))
     }
 }

@@ -1,0 +1,2 @@
+SYNTHETIC FIXTURE (A13): an access failure that matches no known signal.
+jetski: permission denied (code 403) for this account on model gemini-x

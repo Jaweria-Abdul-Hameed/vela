@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use vela_domain::ports::{OutputChunk, OutputStream};
-use vela_domain::state::{Cause, RunPhase, RunState};
+use vela_domain::state::{Cause, PausedReason, RunPhase, RunState};
 use vela_persistence::repositories::s10_test_runs;
 use vela_testkit::fakes::{FakeGit, FakeProcessRunner, Scenario, Scripted, ScriptedAgent};
 
@@ -286,10 +286,22 @@ async fn a_provider_policy_block_is_a_held_human_decision_not_a_failure() {
 async fn capacity_failure_and_an_invalid_completion_fail_the_worker() {
     let r = rig("capacity", true, "DONE").await;
     r.agent.script(r.task.worker.clone(), Scenario::Capacity);
-    assert_eq!(
-        r.driver.run(&r.task).await.unwrap_err().class(),
-        ErrorClass::ExternalTemporary
-    );
+    // The provider ran out of capacity: this worker pauses where it was and the profile cools down; nothing fails.
+    let WorkerOutcome::Paused { until_ms } = r.driver.run(&r.task).await.unwrap() else {
+        panic!("expected a capacity pause")
+    };
+    assert!(until_ms > 0);
+    assert!(matches!(
+        state(&r),
+        WorkerState::Paused {
+            reason: PausedReason::Capacity,
+            ..
+        }
+    ));
+    let profile = crate::capacity::CapacityService::new(r.e.services.clone())
+        .profile(crate::scheduler::DEFAULT_PROFILE)
+        .unwrap();
+    assert_eq!(profile.state, "COOLDOWN");
 
     let r = rig("garbage", true, "I think I am done").await;
     let err = r.driver.run(&r.task).await.unwrap_err();

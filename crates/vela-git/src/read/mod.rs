@@ -492,6 +492,58 @@ impl GitRead for GitCli {
     }
 }
 
+impl vela_domain::ports::GitHistory for GitCli {
+    fn list_branches<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+        prefix: &'a str,
+    ) -> PortFuture<'a, Vec<(vela_domain::ids::BranchName, CommitSha)>> {
+        Box::pin(async move {
+            let pattern = format!("refs/heads/{prefix}*");
+            let text = self
+                .run_ok(
+                    ctx,
+                    repo,
+                    Mode::Read,
+                    &[
+                        "for-each-ref",
+                        "--format=%(refname:short) %(objectname)",
+                        &pattern,
+                    ],
+                )
+                .await?;
+            Ok(text
+                .lines()
+                .filter_map(|l| {
+                    let (name, sha) = l.trim().rsplit_once(' ')?;
+                    Some((
+                        vela_domain::ids::BranchName::new(name).ok()?,
+                        CommitSha::new(sha).ok()?,
+                    ))
+                })
+                .collect())
+        })
+    }
+
+    fn commit_message<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+        commit: &'a CommitSha,
+    ) -> PortFuture<'a, String> {
+        Box::pin(async move {
+            self.run_ok(
+                ctx,
+                repo,
+                Mode::Read,
+                &["log", "-1", "--format=%B", commit.as_str()],
+            )
+            .await
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
