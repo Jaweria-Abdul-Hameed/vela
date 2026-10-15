@@ -659,6 +659,28 @@ impl AppApi {
             .get(intervention_id)?
             .ok_or_else(|| not_found("intervention"))?
             .run_id;
+        // An allow-once on a command the policy asked about: the exact, expiring rule goes into that worker's profile and the
+        // resumed session is told, before the intervention is resolved and the run continues.
+        let before = ivs.get(intervention_id)?;
+        if resolution == "allow_once"
+            && let Some(iv) = before.filter(|i| i.kind == "APPROVAL_ASK")
+            && let Some(worker) = iv.worker_id.as_deref().and_then(|w| WorkerId::new(w).ok())
+            && let Some(asked) = self.services.get::<crate::worker::AskedCommandsService>()
+        {
+            let executables: Vec<String> = serde_json::from_str(&iv.evidence).unwrap_or_default();
+            let notes = self
+                .services
+                .get::<crate::worker::ApprovedNotes>()
+                .unwrap_or_else(|| {
+                    let n = Arc::new(crate::worker::ApprovedNotes::new());
+                    self.services.register(n.clone());
+                    n
+                });
+            for exe in executables {
+                asked.0.grant_once(&worker, &exe, self.services.now_ms())?;
+                notes.add(&worker, &exe);
+            }
+        }
         ivs.resolve(intervention_id, resolution).await?;
         if matches!(
             Runs::new(&self.services).run_state(

@@ -455,3 +455,17 @@ fn project_and_settings_repositories_round_trip() {
     let dup: Result<(), _> = store.write(|tx| repo::insert_project(tx.conn(), "c", "C", "C:/a", 1));
     assert!(dup.is_err(), "repository path is unique");
 }
+
+#[test]
+fn a_file_that_is_not_a_database_is_a_corrupt_store_not_a_bug() {
+    let dir = std::env::temp_dir().join(format!("vela-notdb-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("state.db");
+    std::fs::write(&path, b"damaged bytes, not a sqlite file at all").unwrap();
+    let Err(err) = StateStore::open(&path, StoreOptions::default()) else {
+        panic!("a file that is not a database cannot be opened");
+    };
+    assert_eq!(err.code(), Some(ErrorCode::StateStoreCorrupt), "{err:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

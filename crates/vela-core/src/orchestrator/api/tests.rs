@@ -488,3 +488,74 @@ async fn stop_all_runs_stops_exactly_the_running_ones() {
     assert_eq!(r.api.stop_all_runs().await.unwrap(), 1);
     assert!(r.api.active_runs().unwrap().is_empty());
 }
+
+struct Grants {
+    asked: std::sync::Mutex<Vec<String>>,
+    granted: std::sync::Mutex<Vec<(String, String)>>,
+}
+
+impl crate::worker::AskedCommands for Grants {
+    fn take_asked(&self, _w: &vela_domain::ids::WorkerId) -> Vec<String> {
+        std::mem::take(&mut *self.asked.lock().unwrap())
+    }
+    fn grant_once(
+        &self,
+        w: &vela_domain::ids::WorkerId,
+        e: &str,
+        _now: i64,
+    ) -> Result<(), VelaError> {
+        self.granted
+            .lock()
+            .unwrap()
+            .push((w.as_str().to_owned(), e.to_owned()));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn allowing_a_command_once_grants_it_to_that_worker_and_the_run_finishes() {
+    let r = rig("allow-once", vec![ticket("T-1", &[])]);
+    let grants = Arc::new(Grants {
+        asked: std::sync::Mutex::new(vec!["npm".into()]),
+        granted: std::sync::Mutex::new(Vec::new()),
+    });
+    r.e.services
+        .register(Arc::new(crate::worker::AskedCommandsService(
+            grants.clone(),
+        )));
+    r.agent.set_default_response("BLOCKED");
+    let id = imported(&r).await;
+    r.api
+        .trust_grant(
+            &id,
+            &[ProfileCommand {
+                text: "cargo test".into(),
+                cwd: None,
+            }],
+        )
+        .unwrap();
+    let run = r.api.run_prepare(&id).await.unwrap()["run_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    r.api.run_build(&run, None, false).await.unwrap();
+    r.api.wait_for_drive(&run).await;
+    let open = r.api.intervention_list(&run).unwrap();
+    assert_eq!(open[0]["kind"], "APPROVAL_ASK");
+    assert!(open[0]["summary"].as_str().unwrap().contains("`npm`"));
+
+    // "Keep refusing" grants nothing.
+    // (A different resolution string never installs a rule.)
+    assert!(grants.granted.lock().unwrap().is_empty());
+
+    r.agent.set_default_response("DONE");
+    r.api
+        .intervention_resolve(open[0]["id"].as_str().unwrap(), "allow_once")
+        .await
+        .unwrap();
+    let granted = grants.granted.lock().unwrap().clone();
+    assert_eq!(granted.len(), 1);
+    assert_eq!(granted[0].1, "npm");
+    r.api.wait_for_drive(&run).await;
+    assert_eq!(r.api.run_status(&run).unwrap()["state"], "COMPLETED");
+}

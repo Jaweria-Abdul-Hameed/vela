@@ -20,7 +20,19 @@ use crate::recovery;
 
 /// Converts any displayable failure into the generic typed store error.
 pub(crate) fn store_error(e: impl Display) -> VelaError {
-    VelaError::of_class(ErrorClass::InternalBug, format!("state store error: {e}"))
+    let text = e.to_string();
+    // A file that is not a database, or whose pages are malformed, is a damaged store, not a program bug: recovery can act on it.
+    if text.contains("file is not a database") || text.contains("database disk image is malformed")
+    {
+        return VelaError::from_code(
+            ErrorCode::StateStoreCorrupt,
+            format!("the state store is damaged: {text}"),
+        );
+    }
+    VelaError::of_class(
+        ErrorClass::InternalBug,
+        format!("state store error: {text}"),
+    )
 }
 
 /// How to open a store.

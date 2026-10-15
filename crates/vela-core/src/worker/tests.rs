@@ -535,3 +535,82 @@ async fn recovery_resume_never_starts_a_session_on_a_blocked_profile() {
         "nothing moved"
     );
 }
+
+struct FakeAsked {
+    asked: Mutex<Vec<String>>,
+}
+
+impl AskedCommands for FakeAsked {
+    fn take_asked(&self, _worker: &WorkerId) -> Vec<String> {
+        std::mem::take(&mut *self.asked.lock().unwrap())
+    }
+    fn grant_once(&self, _w: &WorkerId, _e: &str, _now: i64) -> Result<(), VelaError> {
+        Ok(())
+    }
+}
+
+fn with_asked(r: &Rig, executables: &[&str]) -> Arc<FakeAsked> {
+    let fake = Arc::new(FakeAsked {
+        asked: Mutex::new(executables.iter().map(|e| (*e).to_owned()).collect()),
+    });
+    r.e.services
+        .register(Arc::new(AskedCommandsService(fake.clone())));
+    fake
+}
+
+#[tokio::test]
+async fn a_worker_that_cannot_go_on_because_a_command_was_asked_about_raises_an_approval_ask() {
+    let r = rig("ask", true, "BLOCKED").await;
+    with_asked(&r, &["npm", "npm", "cargo"]);
+    let out = r.driver.run(&r.task).await.unwrap();
+    assert!(matches!(out, WorkerOutcome::NeedsHuman { .. }));
+    assert!(matches!(
+        state(&r),
+        WorkerState::NeedsHuman {
+            kind: InterventionKind::ApprovalAsk,
+            resume_state: WorkerPhase::Implementing
+        }
+    ));
+    let open = crate::intervention::Interventions::new(&r.e.services)
+        .open_for_run(&r.task.run)
+        .unwrap();
+    assert_eq!(open.len(), 1);
+    assert_eq!(open[0].kind, "APPROVAL_ASK");
+    let evidence: Vec<String> = serde_json::from_str(&open[0].evidence).unwrap();
+    assert_eq!(
+        evidence,
+        ["cargo", "npm"],
+        "each executable once, from the hook's record"
+    );
+}
+
+#[tokio::test]
+async fn a_command_that_was_asked_about_but_did_not_stop_the_worker_is_not_a_question() {
+    let r = rig("ask-ignored", true, "DONE").await;
+    let fake = with_asked(&r, &["npm"]);
+    let out = r.driver.run(&r.task).await.unwrap();
+    assert!(matches!(out, WorkerOutcome::ReadyToMerge { .. }));
+    assert!(
+        fake.asked.lock().unwrap().is_empty(),
+        "the stale ask was dropped"
+    );
+}
+
+#[tokio::test]
+async fn a_resumed_session_consumes_what_the_person_approved() {
+    let r = rig("ask-resume", true, "DONE").await;
+    advance_to(
+        &r,
+        &[WorkerPhase::ContextLoading, WorkerPhase::Implementing],
+    )
+    .await;
+    let notes = Arc::new(ApprovedNotes::new());
+    r.e.services.register(notes.clone());
+    notes.add(&r.task.worker, "npm");
+    let out = r.driver.resume(&r.task, None, &[]).await.unwrap();
+    assert!(matches!(out, WorkerOutcome::ReadyToMerge { .. }));
+    assert!(
+        notes.take(&r.task.worker).is_empty(),
+        "the note was told to the new session"
+    );
+}

@@ -152,6 +152,22 @@ impl ProfileManager {
         Ok(self.run_dir(run)?.join(safe_component(worker.as_str())?))
     }
 
+    /// Where the worker's profile files are (whether or not it exists yet); nothing is written.
+    pub fn locate(&self, run: &str, worker: &WorkerId) -> Result<WorkerProfile, VelaError> {
+        let home = self.home_of(run, worker)?;
+        let config_dir = home.join(".gemini").join("config");
+        Ok(WorkerProfile {
+            settings_path: home
+                .join(".gemini")
+                .join("antigravity-cli")
+                .join("settings.json"),
+            hooks_path: config_dir.join("hooks.json"),
+            table_path: config_dir.join(TABLE_FILE),
+            spool_dir: config_dir.join(SPOOL_DIR),
+            home,
+        })
+    }
+
     /// Creates the worker's profile from `engine`: allow rules (trusted repositories only), the hook file, a copy of the hook
     /// binary, the rule table, and an empty spool. An existing profile for the worker is replaced.
     pub fn create(

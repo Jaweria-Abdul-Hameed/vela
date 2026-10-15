@@ -36,6 +36,9 @@ use crate::provisioning::ProvisioningService;
 use crate::scheduler::{DEFAULT_PROFILE, ProfileAvailabilityService};
 use crate::trust::{ProfileCommand, TrustService};
 
+pub mod asked;
+pub use asked::{ApprovedNotes, AskedCommands, AskedCommandsService, approval_note};
+
 /// The Git operations a worker needs.
 pub trait WorkerGit: GitRead + GitWorktrees + GitCheckpoints {}
 
@@ -320,9 +323,20 @@ impl WorkerDriver {
                 if phase != WorkerPhase::Implementing {
                     self.advance(t, WorkerPhase::Implementing).await?;
                 }
-                let prompt = self
+                let mut prompt = self
                     .prompts
                     .recovery_prompt(t, last_checkpoint, completed_steps);
+                if let Some(notes) = self.services.get::<ApprovedNotes>() {
+                    let approved = notes.take(&t.worker);
+                    if !approved.is_empty() {
+                        prompt.push_str(
+                            "
+
+",
+                        );
+                        prompt.push_str(&approval_note(&approved));
+                    }
+                }
                 self.implement_and_finish(t, prompt).await
             }
             WorkerPhase::FocusedValidation => {
@@ -407,6 +421,15 @@ impl WorkerDriver {
             return Ok(outcome);
         }
         let mut completion = self.completion(t, &mut turn).await?;
+        if completion.status != CompletionStatus::Complete
+            && let Some(outcome) = self.raise_asked(t).await?
+        {
+            return Ok(outcome);
+        }
+        if completion.status == CompletionStatus::Complete {
+            // Whatever was asked about did not stop the worker: it is not a question for the person any more.
+            self.discard_asked(t);
+        }
         match completion.status {
             CompletionStatus::Complete => {}
             CompletionStatus::Blocked => {
@@ -535,6 +558,41 @@ impl WorkerDriver {
     }
 
     /// Provider-level problems the turn reported: authentication, policy block, exhausted capacity, an approval nobody answered.
+    /// The commands the policy asked about during the turn, if any, as one decision for the person (allow once, make a rule, or
+    /// keep refusing). The executables come from the hook's own records.
+    async fn raise_asked(&self, t: &WorkerTask) -> Result<Option<WorkerOutcome>, VelaError> {
+        let Some(asked) = self.services.get::<AskedCommandsService>() else {
+            return Ok(None);
+        };
+        let mut executables = asked.0.take_asked(&t.worker);
+        executables.sort();
+        executables.dedup();
+        if executables.is_empty() {
+            return Ok(None);
+        }
+        let summary = format!(
+            "The worker for {} needs to run {}, which is outside the confirmed command profile.",
+            t.ticket,
+            executables
+                .iter()
+                .map(|e| format!("`{e}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let id = self
+            .raise(t, InterventionKind::ApprovalAsk, &summary, &executables)
+            .await?;
+        Ok(Some(WorkerOutcome::NeedsHuman {
+            intervention_id: id,
+        }))
+    }
+
+    fn discard_asked(&self, t: &WorkerTask) {
+        if let Some(asked) = self.services.get::<AskedCommandsService>() {
+            let _ = asked.0.take_asked(&t.worker);
+        }
+    }
+
     async fn handle_blocks(
         &self,
         t: &WorkerTask,

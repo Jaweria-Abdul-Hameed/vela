@@ -292,6 +292,11 @@ pub fn install<R: Runtime>(app: &mut App<R>) -> Result<(), Box<dyn std::error::E
     vela_core::merge_lane::register_recipes(&services);
 
     let adapters = Arc::new(adapters::build(&data_root()));
+    // What the policy asked about, and one-time approvals, for Antigravity workers.
+    services.register(Arc::new(vela_core::worker::AskedCommandsService(Arc::new(
+        crate::wiring::antigravity::AgyAsked::new(services.clone(), adapters.clone()),
+    ))));
+    services.register(Arc::new(vela_core::worker::ApprovedNotes::new()));
     // An interrupted checkpoint is found again by the trailer on its commit (or redone), never guessed at.
     vela_core::operations::register_checkpoint_recipe(&services, adapters.git.clone());
     let backend = DesktopBackend::new(services.clone(), adapters);

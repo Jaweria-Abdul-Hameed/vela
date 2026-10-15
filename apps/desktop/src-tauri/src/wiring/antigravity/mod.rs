@@ -96,6 +96,82 @@ impl AgentSession for ProfilingAgent {
     }
 }
 
+/// What the hook asked about, and one-time approvals, for Antigravity workers (ADR-018 section 4). The executable comes from the
+/// hook's own spool records; a granted approval is an exact native rule with an expiry in that worker's isolated profile.
+pub struct AgyAsked {
+    services: Arc<Services>,
+    adapters: Arc<Adapters>,
+    readers:
+        Mutex<std::collections::HashMap<WorkerId, vela_adapters::antigravity::ask::SpoolReader>>,
+}
+
+impl AgyAsked {
+    /// Over the services and the concrete adapters.
+    pub fn new(services: Arc<Services>, adapters: Arc<Adapters>) -> Self {
+        Self {
+            services,
+            adapters,
+            readers: Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+
+    fn profile_of(
+        &self,
+        worker: &WorkerId,
+    ) -> Result<vela_adapters::antigravity::profile::WorkerProfile, VelaError> {
+        let w = worker.as_str().to_owned();
+        let run: String = self.services.store.read(|c| {
+            c.query_row("SELECT run_id FROM workers WHERE id = ?1", [&w], |row| {
+                row.get(0)
+            })
+            .map_err(|e| VelaError::internal(format!("the worker is not recorded: {e}")))
+        })?;
+        self.adapters.profiles.locate(&run, worker)
+    }
+}
+
+impl vela_core::worker::AskedCommands for AgyAsked {
+    fn take_asked(&self, worker: &WorkerId) -> Vec<String> {
+        let Ok(profile) = self.profile_of(worker) else {
+            return Vec::new();
+        };
+        let mut readers = self.readers.lock().expect("readers lock");
+        let reader = readers.entry(worker.clone()).or_insert_with(|| {
+            vela_adapters::antigravity::ask::SpoolReader::new(profile.spool_dir)
+        });
+        let entries = reader.poll().unwrap_or_default();
+        let steps = self
+            .adapters
+            .agy
+            .last_outcome(worker)
+            .map(|o| o.steps)
+            .unwrap_or_default();
+        vela_adapters::antigravity::ask::asked_commands(&entries, &steps)
+    }
+
+    fn grant_once(
+        &self,
+        worker: &WorkerId,
+        executable: &str,
+        now_ms: i64,
+    ) -> Result<(), VelaError> {
+        let profile = self.profile_of(worker)?;
+        let rule = vela_adapters::antigravity::ask::grant_rule(
+            executable,
+            now_ms,
+            vela_core::worker::asked::ALLOW_ONCE_TTL_MS,
+        )
+        .ok_or_else(|| {
+            VelaError::of_class(
+                vela_domain::errors::ErrorClass::ValidationFailure,
+                "that executable name cannot be turned into a safe rule",
+            )
+        })?;
+        let ledger = profile.table_path.with_file_name("vela-once-rules.json");
+        vela_adapters::antigravity::ask::install_once_rule(&profile.settings_path, &ledger, &rule)
+    }
+}
+
 /// The worker prompts, from the Antigravity prompt templates.
 pub struct AgyPrompts;
 
