@@ -376,3 +376,16 @@ async fn the_driver_runs_each_workers_turn_inside_its_own_profile() {
         .unwrap();
     assert_eq!(fake.calls()[2].userprofile.as_deref(), Some("C:/real"));
 }
+
+#[test]
+fn locate_names_the_same_files_create_writes_without_writing_anything() {
+    let dir = Dir::new("locate");
+    let m = manager(&dir);
+    let w = WorkerId::new("w-1").unwrap();
+    let located = m.locate("run-1", &w).unwrap();
+    assert!(!located.home.exists(), "locating writes nothing");
+    let created = m
+        .create("run-1", &w, &engine(TrustState::Trusted, &["npm test"]))
+        .unwrap();
+    assert_eq!(located, created);
+}
