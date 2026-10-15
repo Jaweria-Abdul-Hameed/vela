@@ -423,6 +423,25 @@ impl<T> GitAdapter for T where
 {
 }
 
+/// Read access to history that recovery needs when the state store is gone (R05): which `vela/*` branches exist and the
+/// messages (with their run and ticket trailers) of the commits at their tips.
+pub trait GitHistory: Send + Sync {
+    /// Local branches whose names start with `prefix`, each with its tip.
+    fn list_branches<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+        prefix: &'a str,
+    ) -> PortFuture<'a, Vec<(BranchName, CommitSha)>>;
+    /// The full message of a commit.
+    fn commit_message<'a>(
+        &'a self,
+        ctx: &'a GitContext,
+        repo: &'a WorktreePath,
+        commit: &'a CommitSha,
+    ) -> PortFuture<'a, String>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -510,23 +529,4 @@ mod tests {
         assert_eq!(message.subject(), "chore: checkpoint");
         assert_eq!(message.trailers()[0].key(), "Ticket");
     }
-}
-
-/// Read access to history that recovery needs when the state store is gone (R05): which `vela/*` branches exist and the
-/// messages (with their run and ticket trailers) of the commits at their tips.
-pub trait GitHistory: Send + Sync {
-    /// Local branches whose names start with `prefix`, each with its tip.
-    fn list_branches<'a>(
-        &'a self,
-        ctx: &'a GitContext,
-        repo: &'a WorktreePath,
-        prefix: &'a str,
-    ) -> PortFuture<'a, Vec<(BranchName, CommitSha)>>;
-    /// The full message of a commit.
-    fn commit_message<'a>(
-        &'a self,
-        ctx: &'a GitContext,
-        repo: &'a WorktreePath,
-        commit: &'a CommitSha,
-    ) -> PortFuture<'a, String>;
 }
