@@ -128,14 +128,94 @@ pub struct OnceRule {
 
 /// The rule for allowing `executable` once. Executable names that could be read as syntax are refused.
 pub fn once_rule(executable: &str, now_ms: i64, ttl_ms: i64) -> Option<OnceRule> {
-    let ok = !executable.is_empty()
-        && executable
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
-    ok.then(|| OnceRule {
-        rule: format!("command({executable})"),
+    vela_domain::policy::bare_executable_rule(executable).map(|rule| OnceRule {
+        rule,
         expires_ms: now_ms + ttl_ms,
     })
+}
+
+/// The rule for allowing exactly `command` once. Only a plain command line is accepted: anything with shell syntax, quoting or
+/// grouping is refused, because an exact native rule for it could not be written without ambiguity.
+pub fn once_command_rule(command: &str, now_ms: i64, ttl_ms: i64) -> Option<OnceRule> {
+    let parts: Vec<&str> = command.split_whitespace().collect();
+    let plain = |p: &str| {
+        !p.is_empty()
+            && p.chars().all(|c| {
+                c.is_ascii_alphanumeric()
+                    || matches!(
+                        c,
+                        '-' | '_' | '.' | '/' | '\\' | ':' | '=' | '+' | ',' | '@'
+                    )
+            })
+    };
+    (!parts.is_empty() && !parts[0].starts_with("regex:") && parts.iter().all(|p| plain(p))).then(
+        || OnceRule {
+            rule: format!("command({})", parts.join(" ")),
+            expires_ms: now_ms + ttl_ms,
+        },
+    )
+}
+
+/// The first word of a command line as the policy names the executable: no folder, no extension, lower case.
+fn lookup_name(command: &str) -> String {
+    let first = command.split_whitespace().next().unwrap_or("");
+    let file = first
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(first)
+        .to_ascii_lowercase();
+    for ext in [".exe", ".cmd", ".bat", ".com"] {
+        if let Some(stem) = file.strip_suffix(ext) {
+            return stem.to_owned();
+        }
+    }
+    file
+}
+
+/// What the person is asked about, from the hook's own records and the turn: for each executable the hook asked about, the command
+/// line the agent tried (taken from the tool step the CLI reported, never from the agent's words), or the bare executable when no
+/// step names it. Entries that were not asks are ignored.
+pub fn asked_commands(
+    entries: &[SpoolEntry],
+    steps: &[crate::antigravity::events::ToolStepReport],
+) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut seen_exe: Vec<String> = Vec::new();
+    for e in entries.iter().filter(|e| e.decision == "ask") {
+        let Some(exe) = e.executable.as_deref().map(str::to_ascii_lowercase) else {
+            continue;
+        };
+        if seen_exe.contains(&exe) {
+            continue;
+        }
+        seen_exe.push(exe.clone());
+        let tried: Vec<&str> = steps
+            .iter()
+            .filter(|s| s.tool == "run_command")
+            .filter_map(|s| s.command.as_deref())
+            .filter(|c| lookup_name(c) == exe)
+            .collect();
+        if tried.is_empty() {
+            out.push(exe);
+        } else {
+            for c in tried {
+                let c = c.trim().to_owned();
+                if !out.contains(&c) {
+                    out.push(c);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The one-time rule for what the person approved: an exact command line when it is one, an executable name otherwise.
+pub fn grant_rule(what: &str, now_ms: i64, ttl_ms: i64) -> Option<OnceRule> {
+    if what.split_whitespace().count() > 1 {
+        once_command_rule(what, now_ms, ttl_ms)
+    } else {
+        once_rule(what, now_ms, ttl_ms)
+    }
 }
 
 fn read_json(path: &Path) -> Value {

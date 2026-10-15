@@ -52,6 +52,8 @@ pub struct ToolStepReport {
     pub executed: Executed,
     /// Why, when it did not run.
     pub reason: Option<String>,
+    /// The command line a `run_command` step carried (as the CLI reported it; redacted wherever it is stored).
+    pub command: Option<String>,
 }
 
 /// The primary classification of a turn.
@@ -292,6 +294,12 @@ pub fn interpret_turn(input: TurnInput<'_>) -> TurnOutcome {
                 state: s.state.clone(),
                 executed,
                 reason,
+                command: s
+                    .tool
+                    .as_ref()
+                    .and_then(|t| t.parameters.get("CommandLine"))
+                    .and_then(|v| v.as_str())
+                    .map(str::to_owned),
             }
         })
         .collect();

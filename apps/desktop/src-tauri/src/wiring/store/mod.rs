@@ -105,7 +105,10 @@ mod tests {
         }
         let reopened = open(&root).expect("restored from the backup");
         assert_eq!(reopened.0.read(vela_persistence::journal::tip).unwrap(), 0);
-        assert!(root.join("state.db.damaged").exists(), "the damaged file is kept");
+        assert!(
+            root.join("state.db.damaged").exists(),
+            "the damaged file is kept"
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 

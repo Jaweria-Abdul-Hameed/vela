@@ -438,3 +438,40 @@ fn a_relative_table_path_resolves_the_skills_folder_from_the_working_directory()
         "the relative spool lands next to the table"
     );
 }
+
+#[test]
+fn a_one_time_approval_turns_an_ask_into_an_allow_only_for_that_plain_command_until_it_expires() {
+    let s = Sandbox::new();
+    let run = |cmd: &str| s.decision("run_command", json!({"CommandLine": cmd, "Cwd": s.root}));
+    assert_eq!(run("git --version"), "ask");
+    let ledger = s.table.with_file_name("vela-once-rules.json");
+    let future = 4_000_000_000_000_i64;
+    std::fs::write(
+        &ledger,
+        json!({"command(git --version)": future}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(run("git --version"), "allow", "the exact command");
+    assert_eq!(
+        run("git log"),
+        "ask",
+        "another command is still asked about"
+    );
+    std::fs::write(
+        &ledger,
+        json!({"command(regex:git( [A-Za-z0-9_./:=+,@ -]*)?)": future}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        run("git log"),
+        "allow",
+        "a bare executable grant covers a plain command"
+    );
+    assert_ne!(run("git log; rm -rf x"), "allow", "never shell syntax");
+    std::fs::write(
+        &ledger,
+        json!({"command(regex:git( [A-Za-z0-9_./:=+,@ -]*)?)": 1}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(run("git log"), "ask", "an expired grant does nothing");
+}

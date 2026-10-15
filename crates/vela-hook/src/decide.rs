@@ -116,6 +116,44 @@ fn skills_dir(table: &Path) -> Option<String> {
     Some(normalize(&dir.to_string_lossy()))
 }
 
+/// The file of one-time approvals Vela writes next to the rule table: `{"command(<what>)": expires_ms}`.
+const ONCE_FILE: &str = "vela-once-rules.json";
+
+/// True when the person approved this command once and the approval has not expired. A grant is either the exact command line or
+/// a bare executable name; either only covers a plain command (no shell syntax), so an approval of `git` never covers `git; rm x`.
+fn once_granted(table: &Path, text: &str, executable: Option<&str>) -> bool {
+    let Ok(raw) = std::fs::read_to_string(table.with_file_name(ONCE_FILE)) else {
+        return false;
+    };
+    let Ok(serde_json::Value::Object(grants)) = serde_json::from_str::<serde_json::Value>(&raw)
+    else {
+        return false;
+    };
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64);
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let plain = !words.is_empty()
+        && words.iter().all(|w| {
+            w.chars().all(|c| {
+                c.is_ascii_alphanumeric()
+                    || matches!(
+                        c,
+                        '-' | '_' | '.' | '/' | '\\' | ':' | '=' | '+' | ',' | '@'
+                    )
+            })
+        });
+    if !plain {
+        return false;
+    }
+    let exact = format!("command({})", words.join(" "));
+    let bare = executable.and_then(vela_domain::policy::bare_executable_rule);
+    grants.iter().any(|(rule, until)| {
+        until.as_i64().is_some_and(|u| u > now)
+            && (*rule == exact || bare.as_deref() == Some(rule.as_str()))
+    })
+}
+
 /// Lower-case, forward-slash form for comparing paths on Windows.
 fn normalize(path: &str) -> String {
     path.replace('\\', "/").to_ascii_lowercase()
@@ -175,16 +213,27 @@ pub fn run(text: &str, table: &Path, spool: &Path) -> Verdict {
         }
         Mapped::Operation(operation) => {
             let decision = engine.evaluate(&operation);
+            let granted = decision.decision == Decision::Ask
+                && matches!(&operation, Operation::Command { text, .. } if once_granted(table, text, decision.scope.executable.as_deref()));
             let kind = match decision.decision {
                 Decision::Allow => VerdictKind::Allow,
+                Decision::Ask if granted => VerdictKind::Allow,
                 Decision::Ask => VerdictKind::Ask,
                 Decision::Deny => VerdictKind::Deny,
             };
             (
                 Verdict {
                     kind,
-                    reason: format!("vela-policy: {}", decision.reason),
-                    rule_id: decision.rule_id.as_str().to_owned(),
+                    reason: if granted {
+                        "vela-hook: the person approved this command once".to_owned()
+                    } else {
+                        format!("vela-policy: {}", decision.reason)
+                    },
+                    rule_id: if granted {
+                        "vela.hook.once-grant".to_owned()
+                    } else {
+                        decision.rule_id.as_str().to_owned()
+                    },
                 },
                 word_of(&decision.scope.class),
                 word_of(&decision.scope.placement),

@@ -152,3 +152,18 @@ pub fn native_allow_rules(engine: &PolicyEngine) -> Vec<NativeAllowRule> {
     });
     out
 }
+
+/// The native rule text that allows one executable with plain arguments (no shell syntax): the one-time approval of a bare
+/// executable name. Callers pass a name made only of letters, digits, `-`, `_` and `.`; anything else yields `None`.
+pub fn bare_executable_rule(executable: &str) -> Option<String> {
+    let ok = !executable.is_empty()
+        && executable
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'));
+    ok.then(|| {
+        format!(
+            "command(regex:{}( [A-Za-z0-9_./:=+,@ -]*)?)",
+            executable.replace('.', r"\.")
+        )
+    })
+}

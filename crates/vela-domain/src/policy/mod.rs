@@ -48,5 +48,6 @@ pub use rule::{
     RuleSet,
 };
 pub use table::{
-    HOOK_TABLE_FORMAT_VERSION, HookRuleTable, NativeAllowRule, TableError, native_allow_rules,
+    HOOK_TABLE_FORMAT_VERSION, HookRuleTable, NativeAllowRule, TableError, bare_executable_rule,
+    native_allow_rules,
 };

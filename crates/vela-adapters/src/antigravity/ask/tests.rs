@@ -89,14 +89,17 @@ fn the_one_time_rule_is_exact_installed_once_and_swept_when_it_expires() {
     .unwrap();
 
     let rule = once_rule("npm", 1_000, 600_000).unwrap();
-    assert_eq!(rule.rule, "command(npm)");
+    assert_eq!(rule.rule, "command(regex:npm( [A-Za-z0-9_./:=+,@ -]*)?)");
     assert_eq!(rule.expires_ms, 601_000);
     install_once_rule(&settings, &ledger, &rule).unwrap();
     install_once_rule(&settings, &ledger, &rule).unwrap();
     let s: Value = serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
     assert_eq!(
         s["permissions"]["allow"],
-        serde_json::json!(["command(cargo test)", "command(npm)"])
+        serde_json::json!([
+            "command(cargo test)",
+            "command(regex:npm( [A-Za-z0-9_./:=+,@ -]*)?)"
+        ])
     );
 
     assert!(
@@ -106,7 +109,7 @@ fn the_one_time_rule_is_exact_installed_once_and_swept_when_it_expires() {
     );
     assert_eq!(
         sweep_expired(&settings, &ledger, 601_000).unwrap(),
-        ["command(npm)"]
+        ["command(regex:npm( [A-Za-z0-9_./:=+,@ -]*)?)"]
     );
     let s: Value = serde_json::from_str(&std::fs::read_to_string(&settings).unwrap()).unwrap();
     assert_eq!(
@@ -134,7 +137,7 @@ fn a_rule_is_created_from_a_clean_name_only_and_a_missing_settings_file_is_creat
         serde_json::from_str(&std::fs::read_to_string(d.join("settings.json")).unwrap()).unwrap();
     assert_eq!(
         s["permissions"]["allow"],
-        serde_json::json!(["command(git)"])
+        serde_json::json!(["command(regex:git( [A-Za-z0-9_./:=+,@ -]*)?)"])
     );
     assert!(resume_prompt("git").contains("approved once"));
     let _ = std::fs::remove_dir_all(&d);
@@ -149,4 +152,88 @@ fn counts_group_by_decision() {
     ];
     let c = count_by_decision(&entries);
     assert_eq!((c["ask"], c["deny"]), (2, 1));
+}
+
+fn step(tool: &str, command: Option<&str>) -> crate::antigravity::events::ToolStepReport {
+    crate::antigravity::events::ToolStepReport {
+        step_index: 1,
+        tool: tool.to_owned(),
+        state: crate::antigravity::events::StepState::Error,
+        executed: crate::antigravity::events::Executed::No,
+        reason: None,
+        command: command.map(str::to_owned),
+    }
+}
+
+fn entry(decision: &str, exe: Option<&str>) -> SpoolEntry {
+    SpoolEntry {
+        conversation_id: None,
+        step_idx: None,
+        tool: "run_command".into(),
+        decision: decision.into(),
+        rule_id: "r".into(),
+        class: None,
+        placement: None,
+        executable: exe.map(str::to_owned),
+        fingerprint: "f".into(),
+    }
+}
+
+#[test]
+fn what_is_asked_is_the_command_the_agent_tried_for_each_executable_the_hook_asked_about() {
+    let entries = [
+        entry("ask", Some("git")),
+        entry("deny", Some("rm")),
+        entry("ask", Some("git")),
+    ];
+    let steps = [
+        step("run_command", Some("git --version")),
+        step("run_command", Some("C:\\tools\\git.exe status --short")),
+        step("run_command", Some("rm -rf build")),
+        step("view_file", None),
+    ];
+    let got = asked_commands(&entries, &steps);
+    assert_eq!(got.len(), 2, "{got:?}");
+    assert_eq!(got[0], "git --version");
+    assert!(got[1].ends_with("git.exe status --short"));
+}
+
+#[test]
+fn an_asked_executable_with_no_matching_step_is_named_bare_and_non_asks_are_ignored() {
+    assert_eq!(
+        asked_commands(&[entry("ask", Some("Cargo"))], &[]),
+        ["cargo"]
+    );
+    assert!(
+        asked_commands(
+            &[entry("allow", Some("git")), entry("deny", Some("git"))],
+            &[]
+        )
+        .is_empty()
+    );
+    assert!(asked_commands(&[entry("ask", None)], &[]).is_empty());
+}
+
+#[test]
+fn a_grant_is_an_exact_command_rule_or_an_executable_rule_and_never_shell_syntax() {
+    let r = grant_rule("git --version", 1_000, 600_000).unwrap();
+    assert_eq!(
+        (r.rule.as_str(), r.expires_ms),
+        ("command(git --version)", 601_000)
+    );
+    assert_eq!(
+        grant_rule("git", 0, 10).unwrap().rule,
+        "command(regex:git( [A-Za-z0-9_./:=+,@ -]*)?)"
+    );
+    for bad in [
+        "git status; rm -rf x",
+        "git log | head",
+        "echo $(whoami)",
+        "git commit -m \"x\"",
+        "regex:.* anything",
+        "git log > out.txt",
+        "",
+    ] {
+        assert!(grant_rule(bad, 0, 10).is_none(), "{bad:?}");
+    }
 }

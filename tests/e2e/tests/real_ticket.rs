@@ -5,138 +5,23 @@
 //! part of an ordinary run, and it holds the `RK-AGY-REAL-ACCOUNT` resource key: run it alone, with `--test-threads=1`. The hook
 //! binary must have been built (`cargo build -p vela-hook`); it is found next to the test executable's directory.
 
-use std::collections::HashSet;
-use std::path::PathBuf;
+mod real_support;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use vela_adapters::antigravity::profile::ProfileManager;
-use vela_adapters::antigravity::prompts::{
-    CompletionStatus as AgyStatus, TicketSnapshot, WorkerEnvelope, correction_prompt,
-    parse_completion, render_worker_prompt,
-};
 use vela_adapters::antigravity::session::AgyDriver;
 use vela_core::analysis::Analysis;
-use vela_core::orchestrator::Services;
 use vela_core::orchestrator::driver::DriveOutcome;
-use vela_core::trust::TrustService;
-use vela_core::worker::{Completion, CompletionStatus, WorkerPrompts, WorkerTask};
-use vela_domain::errors::VelaError;
 use vela_domain::ids::{WorkerId, WorktreePath};
-use vela_domain::policy::{PolicyEngine, RunMode};
-use vela_domain::ports::{
-    AgentEventSink, AgentSession, PortFuture, SessionRef, SessionStatus, TurnRequest, TurnResult,
-};
 use vela_e2e_tests::{
     Fixture, RealAccountLock, config, driver, git, git_adapter, import_and_trust, issue,
     real_enabled, record_result, runner, services,
 };
 use vela_process::runner::baseline_env;
 
-/// The desktop's `ProfilingAgent`, restated for the test (the composition root lives in the Tauri crate, which tests cannot link).
-struct RealAgent {
-    services: Arc<Services>,
-    agy: Arc<AgyDriver>,
-    profiles: ProfileManager,
-    ready: Mutex<HashSet<WorkerId>>,
-}
-
-impl AgentSession for RealAgent {
-    fn run_turn<'a>(
-        &'a self,
-        request: &'a TurnRequest,
-        sink: &'a dyn AgentEventSink,
-    ) -> PortFuture<'a, TurnResult> {
-        Box::pin(async move {
-            if !self.ready.lock().unwrap().contains(&request.worker) {
-                let w = request.worker.as_str().to_owned();
-                let (run_id, project_id): (String, String) = self.services.store.read(|c| {
-                    c.query_row(
-                        "SELECT w.run_id, r.project_id FROM workers w JOIN build_runs r ON r.id = w.run_id WHERE w.id = ?1",
-                        [&w],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
-                    )
-                    .map_err(|e| VelaError::internal(e.to_string()))
-                })?;
-                let ctx = TrustService::new(&self.services).policy_context(
-                    &project_id,
-                    request.worktree.as_str(),
-                    RunMode::Supervised,
-                )?;
-                let profile =
-                    self.profiles
-                        .create(&run_id, &request.worker, &PolicyEngine::new(ctx))?;
-                self.agy
-                    .set_worker_env(request.worker.clone(), profile.env());
-                self.ready.lock().unwrap().insert(request.worker.clone());
-            }
-            self.agy.run_turn(request, sink).await
-        })
-    }
-    fn cancel<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, ()> {
-        self.agy.cancel(session)
-    }
-    fn status<'a>(&'a self, session: &'a SessionRef) -> PortFuture<'a, SessionStatus> {
-        self.agy.status(session)
-    }
-}
-
-/// The desktop's `AgyPrompts`, restated for the test.
-struct Prompts;
-
-impl WorkerPrompts for Prompts {
-    fn worker_prompt(&self, task: &WorkerTask) -> String {
-        render_worker_prompt(&WorkerEnvelope {
-            run_id: task.run.as_str().to_owned(),
-            ticket: TicketSnapshot {
-                id: task.ticket.as_str().to_owned(),
-                title: task.title.clone(),
-                body: task.body.clone(),
-                acceptance: Vec::new(),
-            },
-            base_sha: task.base.as_str().to_owned(),
-            branch: task.branch.as_str().to_owned(),
-            worktree: task.worktree.as_str().to_owned(),
-            spec_pointers: task.spec_pointers.clone(),
-            policy_summary: "commands in the project's confirmed command profile run without asking; everything else is asked about or refused".to_owned(),
-            skills: Vec::new(),
-        })
-    }
-    fn fix_prompt(&self, failures: &str) -> String {
-        format!(
-            "The checks failed:\n{failures}\nFix the cause, then end with the vela-completion block as before."
-        )
-    }
-    fn correction_prompt(&self, problem: &str) -> String {
-        correction_prompt(problem)
-    }
-    fn parse_completion(&self, response: &str, base: &str) -> Result<Completion, VelaError> {
-        let r = parse_completion(response, base)?;
-        Ok(Completion {
-            status: match r.status {
-                AgyStatus::Complete => CompletionStatus::Complete,
-                AgyStatus::Blocked => CompletionStatus::Blocked,
-                AgyStatus::Failed => CompletionStatus::Failed,
-            },
-            warnings: r.warnings,
-            discovered_dependencies: r.discovered_dependencies,
-        })
-    }
-}
-
-fn hook_exe() -> PathBuf {
-    let exe = std::env::current_exe().unwrap();
-    // target/debug/deps/<test>.exe -> target/debug/vela-hook.exe
-    exe.parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join(if cfg!(windows) {
-            "vela-hook.exe"
-        } else {
-            "vela-hook"
-        })
-}
+use real_support::{Prompts, RealAgent, hook_exe};
 
 #[tokio::test]
 async fn one_real_ticket_runs_unattended_from_import_to_a_merged_completed_run() {
@@ -170,12 +55,12 @@ async fn one_real_ticket_runs_unattended_from_import_to_a_merged_completed_run()
     let project = import_and_trust(&services, &git_adapter, &fx).await;
 
     let agy = Arc::new(AgyDriver::new(runner(), baseline_env()));
-    let profiles = ProfileManager::new(fx.data.join("profiles"), hook);
+    let profiles = Arc::new(ProfileManager::new(fx.data.join("profiles"), hook));
     let agent = Arc::new(RealAgent {
         services: services.clone(),
         agy: agy.clone(),
         profiles,
-        ready: Mutex::new(HashSet::new()),
+        ready: Mutex::new(std::collections::HashSet::new()),
     });
     let driver = driver(&services, &git_adapter, agent, &fx, Arc::new(Prompts));
     let cfg = config(&fx, &project);
