@@ -24,6 +24,7 @@ pub fn compose<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         store::install(app)?;
         orchestrator::install(app)?;
         crate::tray::install(app)?;
+        crate::update::install(app)?;
         crate::lifecycle::install(app);
         window::ensure_main_visible(app.handle());
         Ok(())

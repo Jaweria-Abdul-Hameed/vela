@@ -36,3 +36,26 @@ test('the application loads its own bundle, not a development server, in product
   assert.equal(base.build.frontendDist, '../dist');
   assert.ok(!JSON.stringify(release).includes('localhost'));
 });
+
+const updaterTest = read('tauri.updater-test.conf.json');
+
+test('the committed base and release configurations carry no updater key', () => {
+  assert.equal(base.plugins?.updater, undefined);
+  assert.equal(release.plugins?.updater, undefined);
+});
+
+test('the updater test overlay holds only a placeholder key and a local endpoint', () => {
+  const u = updaterTest.plugins.updater;
+  assert.equal(u.pubkey, 'SET-BY-THE-TEST-RUN');
+  assert.ok(u.endpoints.every((e) => e.startsWith('http://127.0.0.1')));
+  // A real minisign public key is base64 of "untrusted comment: ..."; none is committed.
+  assert.ok(!JSON.stringify(updaterTest).includes('dW50cnVzdGVk'));
+});
+
+test('the release workflow never mixes in the updater test overlay', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/release.yml', import.meta.url),
+    'utf8',
+  );
+  assert.ok(!workflow.includes('updater-test'));
+});

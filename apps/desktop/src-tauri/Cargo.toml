@@ -39,6 +39,8 @@ tauri.workspace = true
 tauri-plugin-notification.workspace = true
 tauri-plugin-autostart.workspace = true
 tauri-plugin-updater.workspace = true
+minisign-verify.workspace = true
+base64.workspace = true
 tauri-plugin-single-instance.workspace = true
 tauri-plugin-window-state.workspace = true
 tauri-plugin-global-shortcut = { workspace = true, optional = true }
@@ -51,4 +53,7 @@ tauri-build.workspace = true
 
 [dev-dependencies]
 vela-testkit.workspace = true
+# A disposable updater keypair for the signature tests (minisign format); never a production key.
+ed25519-dalek.workspace = true
+blake2.workspace = true
 tauri = { workspace = true, features = ["test"] }
