@@ -89,6 +89,51 @@ pub struct CheckpointRecipe {
     lookup: Arc<dyn CommitLookup>,
 }
 
+/// Answers [`CommitLookup`] from the repository through the history port. Reads only, so it is safe for any repository.
+pub struct GitTrailerLookup {
+    git: Arc<dyn vela_domain::ports::GitHistory>,
+}
+
+impl GitTrailerLookup {
+    /// A lookup over `git`.
+    pub fn new(git: Arc<dyn vela_domain::ports::GitHistory>) -> Self {
+        Self { git }
+    }
+}
+
+impl CommitLookup for GitTrailerLookup {
+    fn find_by_trailer<'a>(
+        &'a self,
+        worktree: &'a WorktreePath,
+        key: &'a str,
+        value: &'a str,
+    ) -> PortFuture<'a, Option<CommitSha>> {
+        Box::pin(async move {
+            let ctx = vela_domain::ports::GitContext {
+                trust: vela_domain::ports::RepoTrust::Untrusted,
+                operation: OperationId::new("op-lookup")
+                    .map_err(|e| VelaError::internal(e.to_string()))?,
+            };
+            self.git
+                .find_commit_by_trailer(&ctx, worktree, key, value)
+                .await
+        })
+    }
+}
+
+/// Registers the checkpoint recipe over the repository, so an interrupted checkpoint is either found by its trailer or redone.
+pub fn register_checkpoint_recipe(
+    services: &Services,
+    git: Arc<dyn vela_domain::ports::GitHistory>,
+) {
+    let _ = OperationLog::new(services);
+    if let Some(registry) = services.get::<RecipeRegistry>() {
+        registry.register(Arc::new(CheckpointRecipe::new(Arc::new(
+            GitTrailerLookup::new(git),
+        ))));
+    }
+}
+
 /// The trailer key that carries an operation id on a checkpoint commit.
 pub const OPERATION_TRAILER: &str = "Vela-Operation";
 

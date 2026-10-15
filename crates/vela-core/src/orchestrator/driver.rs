@@ -21,7 +21,7 @@ use vela_persistence::repositories::{o01_workers, s08_build, s12_lane};
 
 use super::Services;
 use super::runs::Runs;
-use super::supervisor::supervise;
+use super::supervisor::{AbortOnDrop, supervise};
 use crate::analysis::{Analysis, AnalystHook, GraphService};
 use crate::finalize::{FinalInput, FinalOutcome, Finalizer, RunSummary};
 use crate::merge_lane::{LaneOutcome, LaneRequest, MergeLane};
@@ -213,6 +213,32 @@ impl RunDriver {
             )
             .await
             .map(|_| ())
+    }
+
+    /// Completes a build start the process died in the middle of (the run is `STARTING`); anything else is left alone. Returns true
+    /// when a start was completed.
+    pub async fn recover_start(&self, run: &RunId, cfg: &RunConfig) -> Result<bool, VelaError> {
+        let integration = WorktreePath::new(format!(
+            "{}/{}/integration",
+            cfg.worktree_root.trim_end_matches(['/', '\\']),
+            run.as_str()
+        ))
+        .map_err(|e| VelaError::of_class(ErrorClass::ValidationFailure, e.to_string()))?;
+        Ok(self
+            .build
+            .resume_start(
+                run,
+                &StartOptions {
+                    project_id: cfg.project_id.clone(),
+                    repo: cfg.repo.clone(),
+                    base_branch: cfg.base_branch.clone(),
+                    expected_base: None,
+                    acknowledge_divergence: true,
+                    integration_worktree: integration,
+                },
+            )
+            .await?
+            .is_some())
     }
 
     fn integration_head_and_health(
@@ -425,9 +451,9 @@ impl RunDriver {
                     this.work(cfg2, task, if resume { Some(checkpoint) } else { None })
                         .await
                 };
-                let handle = supervise(services, run2, worker2, fut);
+                let mut handle = AbortOnDrop(supervise(services, run2, worker2, fut));
                 tasks.spawn(async move {
-                    let _ = handle.await;
+                    let _ = (&mut handle.0).await;
                     worker_id
                 });
             }

@@ -217,24 +217,31 @@ impl StopService {
             }
         }
         let health = self.health(run)?;
-        runs.transition_run(
-            run,
-            RunState::Stopping {
-                resume_state: RunPhase::Running,
-                gate: None,
-            },
-            Cause::UserDecision,
-            health,
-            vec![
-                Event::StopRequested(StopRequestedPayload {
-                    requested_by: "user".to_owned(),
-                }),
-                Event::RunStopping(RunStoppingPayload {
-                    active_workers: u32::try_from(active.len()).unwrap_or(u32::MAX),
-                }),
-            ],
-        )
-        .await?;
+        // A stop the process died in the middle of is carried on from where it was: the run is already `STOPPING`.
+        let resume_state = match runs.run_state(run)? {
+            RunState::Stopping { resume_state, .. } => resume_state,
+            _ => {
+                runs.transition_run(
+                    run,
+                    RunState::Stopping {
+                        resume_state: RunPhase::Running,
+                        gate: None,
+                    },
+                    Cause::UserDecision,
+                    health,
+                    vec![
+                        Event::StopRequested(StopRequestedPayload {
+                            requested_by: "user".to_owned(),
+                        }),
+                        Event::RunStopping(RunStoppingPayload {
+                            active_workers: u32::try_from(active.len()).unwrap_or(u32::MAX),
+                        }),
+                    ],
+                )
+                .await?;
+                RunPhase::Running
+            }
+        };
 
         let lane = self.settle_lane(run, project_id, integration).await?;
 
@@ -274,7 +281,7 @@ impl StopService {
             run,
             RunState::Paused {
                 reason: PausedReason::StopAll,
-                resume_state: RunPhase::Running,
+                resume_state,
             },
             Cause::System,
             self.health(run)?,
@@ -282,6 +289,23 @@ impl StopService {
         )
         .await?;
         Ok(report)
+    }
+
+    /// After a restart: a run left in `STOPPING` has its stop finished (workers paused, the merge lane settled, the run paused with
+    /// reason `STOP_ALL`). Returns the report when there was a stop to finish.
+    pub async fn finish_interrupted(
+        &self,
+        run: &RunId,
+        project_id: &str,
+        integration: &WorktreePath,
+    ) -> Result<Option<StopReport>, VelaError> {
+        if matches!(
+            Runs::new(&self.services).run_state(run)?,
+            RunState::Stopping { .. }
+        ) {
+            return self.stop_all(run, project_id, integration).await.map(Some);
+        }
+        Ok(None)
     }
 
     /// Resumes a run paused by Stop All, only after reconciliation found nothing wrong and integration is healthy.
