@@ -17,3 +17,7 @@ Controlled captures on the fake window were not run: the fake is native Win32 an
 
 - v1 ships UIA only. If a future Desktop version breaks UIA discovery, the response is `ApprovalSurfaceUnavailable` and a human answers the card; there is no pixel fallback.
 - Re-open this spike only if real-app runs (with the user present) show UIA failing in a practical, repeatable way. The trigger and the evidence required are recorded here so the decision is not re-litigated without data.
+
+## K08 (guarded visual fallback module)
+
+K08 is **closed without building**: SP13 recommends deferring the visual tier, so there is nothing to implement. The `visual` feature and `vela-uia::visual` module stay as the empty, disabled, consent-gated skeleton. No code path selects the visual tier. Reason recorded: no evidence that UI Automation fails in a practical case, and no real-app captures from which a layout fingerprint could be validated.
