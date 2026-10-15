@@ -58,7 +58,7 @@ pub fn classify_option(label: &str) -> OptionKind {
 
 /// Picks the one option for `decision`. Exactly one candidate of the right kind must exist; none or several is ambiguity and
 /// fails closed.
-pub fn choose<'a>(card: &'a Card, decision: DeliveryDecision) -> Result<&'a CardOption, VelaError> {
+pub fn choose(card: &Card, decision: DeliveryDecision) -> Result<&CardOption, VelaError> {
     let wanted = match decision {
         DeliveryDecision::AllowOnce => OptionKind::SingleUse,
         DeliveryDecision::Deny => OptionKind::Refusal,
@@ -121,7 +121,9 @@ impl Default for Verify {
     }
 }
 
-/// Delivers `decision` to the card correlated with `expect` in process `pid`.
+/// Delivers `decision` to the card correlated with `expect` in process `pid`. Every input is explicit so a test can vary each one;
+/// the adapter below is the only production caller.
+#[allow(clippy::too_many_arguments)]
 pub fn deliver(
     surface: &dyn Surface,
     consent: &dyn Consent,
