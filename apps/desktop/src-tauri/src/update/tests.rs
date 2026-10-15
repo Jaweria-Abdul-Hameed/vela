@@ -1,4 +1,3 @@
-use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use blake2::{Blake2b512, Digest};
 use ed25519_dalek::{Signer, SigningKey};
