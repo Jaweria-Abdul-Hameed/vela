@@ -72,6 +72,18 @@ pub const SIGNALS: &[Signal] = &[
         source: Source::Synthetic,
     },
     Signal {
+        id: "synthetic-terms-violation",
+        all_of: &["violation of the terms"],
+        scope: Scope::Account,
+        source: Source::Synthetic,
+    },
+    Signal {
+        id: "synthetic-violates-terms",
+        all_of: &["violates the terms of service"],
+        scope: Scope::Account,
+        source: Source::Synthetic,
+    },
+    Signal {
         id: "synthetic-service-blocked",
         all_of: &["access to this service has been blocked"],
         scope: Scope::Service,
