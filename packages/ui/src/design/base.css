@@ -19,7 +19,8 @@ body {
   min-height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
-  background: var(--vela-canvas);
+  /* Transparent: the ambient light and the dots are drawn behind the shell, on the body's near-black canvas. */
+  background: transparent;
 }
 
 .vela-shell__brand {
@@ -39,6 +40,9 @@ body {
 .vela-shell__main {
   position: relative;
   padding: var(--vela-space-8);
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .vela-glass {
@@ -68,4 +72,53 @@ body {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* Controls: quiet pills and glass fields, never the browser's grey boxes. */
+button {
+  font: inherit;
+  color: var(--vela-text-primary);
+  background: var(--vela-fill-soft);
+  border: 1px solid var(--vela-border-strong);
+  border-radius: 999px;
+  padding: 0.25rem 0.9rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--vela-fill-hover);
+}
+
+button:disabled {
+  color: var(--vela-text-muted);
+  cursor: default;
+  opacity: 0.6;
+}
+
+button[aria-pressed="true"] {
+  border-color: var(--vela-violet);
+}
+
+input,
+select {
+  font: inherit;
+  color: var(--vela-text-primary);
+  background: var(--vela-surface);
+  border: 1px solid var(--vela-border-strong);
+  border-radius: 0.75rem;
+  padding: 0.25rem 0.75rem;
+}
+
+input::placeholder {
+  color: var(--vela-text-muted);
+}
+
+h2 {
+  font-size: var(--vela-text-title);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+code {
+  color: var(--vela-text-secondary);
 }

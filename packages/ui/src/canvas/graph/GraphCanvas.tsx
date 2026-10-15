@@ -243,6 +243,9 @@ export function GraphCanvas({
         );
       }}
       onPointerDown={(e) => {
+        // A press on a ticket button is a click on that ticket, not the start of a pan: capturing the pointer here would send the
+        // click to this container and the button would never fire.
+        if ((e.target as HTMLElement).closest('button')) return;
         drag.current = { x: e.clientX, y: e.clientY };
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }}
