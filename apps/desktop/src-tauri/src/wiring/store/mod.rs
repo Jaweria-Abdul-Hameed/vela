@@ -117,7 +117,9 @@ mod tests {
         let root = temp_root("nobackup");
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("state.db"), b"damaged bytes").unwrap();
-        let err = open(&root).err().expect("cannot be opened");
+        let Err(err) = open(&root) else {
+            panic!("a damaged store with no backup cannot be opened");
+        };
         assert!(!err.user_action().is_empty());
         assert!(root.join("state.db").exists());
         let _ = std::fs::remove_dir_all(&root);
