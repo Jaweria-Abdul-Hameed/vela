@@ -5035,6 +5035,7 @@ dependencies = [
 name = "vela-integration-tests"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "tokio",
  "vela-adapters",
  "vela-core",
