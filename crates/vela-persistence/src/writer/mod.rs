@@ -245,6 +245,14 @@ impl StateStore {
         read(&conn)
     }
 
+    /// A consistent copy of the live database into the backup folder beside it, for example just before an application update.
+    /// Safe while the store is in use (it takes a snapshot through SQLite). Returns the backup's path.
+    pub fn backup_now(&self, now_ms: i64) -> Result<std::path::PathBuf, VelaError> {
+        let conn = Connection::open(&self.path).map_err(store_error)?;
+        let version = migrations::applied(&conn)?.into_iter().max().unwrap_or(0);
+        recovery::backup(&conn, &self.path, version, now_ms)
+    }
+
     /// The store's file path.
     pub fn path(&self) -> &Path {
         &self.path
